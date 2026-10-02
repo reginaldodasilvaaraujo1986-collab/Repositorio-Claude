@@ -554,7 +554,7 @@
     if (S.etapasModo === 'tabela') {
       const lista = (S.etapasConcluidas ? todas : abertas).slice();
       const k = S.tbl.chave, dir = S.tbl.asc ? 1 : -1;
-      lista.sort((a, b) => String(a[k] || '￿').localeCompare(String(b[k] || '￿'), 'pt-BR') * dir);
+      lista.sort((a, b) => String(a[k] || '\uffff').localeCompare(String(b[k] || '\uffff'), 'pt-BR') * dir);
       const cols = 'grid-template-columns:150px minmax(0,2.4fr) minmax(0,1.4fr) 74px minmax(0,1fr) minmax(0,1.3fr) 124px';
       const cab = [['prazo', 'Prazo'], ['etapa', 'Etapa'], ['turma', 'Turma'], ['fase', 'Fase'], ['responsavel', 'Responsável'], ['documento', 'Documento'], ['status', 'Status']];
       return barraFerr + '<div class="card flush panel grow">' +
@@ -787,7 +787,7 @@
       linhas = turmasF().map(t => [t.turma, t.curso, t.area, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
       nome = 'turmas';
     }
-    const csv = '﻿' + [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const csv = '\ufeff' + [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     a.download = nome + '_' + S.dados.hoje + '.csv';
