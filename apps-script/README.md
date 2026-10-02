@@ -15,6 +15,19 @@ Clicar em qualquer turma abre um **painel lateral** com o checklist completo (An
 **O status de cada etapa pode ser alterado direto no painel** — a alteração é gravada na aba operacional,
 a *Data conclusão* é preenchida ao marcar "Feito" e tudo fica registrado na aba **Histórico Painel**.
 
+**Edição direto no painel** (sempre na célula de origem; o painel nunca grava sobre fórmulas):
+
+| O que | Onde editar no painel | Onde grava na planilha |
+|---|---|---|
+| Status da etapa | seletor colorido | coluna Status da aba do curso |
+| Responsável, documento, observações e data de conclusão da etapa | botão ✎ da etapa | colunas da etapa na aba do curso |
+| Datas e local da turma | detalhe da turma › *Editar datas, local ou cancelar* | linha da turma no resumo da aba do curso (Cadastro e prazos das etapas acompanham pelas fórmulas) |
+| Observações da turma | idem | Cadastro de Turmas |
+| Cancelar / reativar turma | idem › *Cancelar esta turma…* | "Situação temporal" no Cadastro (a fórmula original fica numa nota da célula e volta ao reativar) |
+| Formados | tela Formandos (digite e Enter) | aba Formandos 2026 |
+
+Toda alteração feita pelo painel fica registrada na aba **Histórico Painel**.
+
 **Tudo cabe na tela, sem barra de rolagem** (como uma planilha): o que não cabe em um cartão vira página —
 use as setas ‹ ›, a roda do mouse sobre o cartão ou ← →. Na visão geral os cartões avançam sozinhos a cada 12 s
 (modo TV; pausa com o mouse em cima). Em telas menores a barra lateral vira uma faixa de ícones; no celular volta a rolagem natural.
