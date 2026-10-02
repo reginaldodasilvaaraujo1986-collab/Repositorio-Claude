@@ -1,0 +1,840 @@
+<script>
+(function () {
+  'use strict';
+
+  /* ================================================================ */
+  /* Estado e utilitários                                              */
+  /* ================================================================ */
+
+  const RUN = typeof google !== 'undefined' && google.script && google.script.run;
+  const DIA = 86400000;
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const SIT = {
+    plan: { label: 'Planejamento', cor: 'var(--s-plan)' },
+    exec: { label: 'Em execução',  cor: 'var(--s-exec)' },
+    enc:  { label: 'Encerrado',    cor: 'var(--s-enc)' },
+    canc: { label: 'Cancelado',    cor: 'var(--s-canc)' }
+  };
+  const VIEWS = {
+    geral:      ['Visão geral', 'Panorama das turmas e pendências'],
+    cronograma: ['Cronograma', 'Linha do tempo das turmas, com janelas de preparação e finalização'],
+    turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
+    etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
+    formandos:  ['Formandos', 'Militares formados em 2026'],
+    regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
+  };
+
+  const S = {
+    dados: null, idx: {}, turmaIdx: {},
+    view: 'geral',
+    f: { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false },
+    turmasModo: 'cards', turmasOrdem: 'inicio',
+    etapasModo: 'quadro', etapasConcluidas: false, limiteCol: {},
+    tbl: { chave: 'prazo', asc: true },
+    drawer: null, soPendentes: false, fasesFechadas: {}
+  };
+  let HOJE = hojeLocal();
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const pad = n => String(n).padStart(2, '0');
+  const soma = (arr, fn) => arr.reduce((a, x) => a + (fn ? fn(x) : x), 0);
+
+  function hojeLocal() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function dt(s) { if (!s) return null; const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function fmt(s) { const d = dt(s); return d ? pad(d.getDate()) + '/' + pad(d.getMonth() + 1) : '—'; }
+  function fmtAno(s) { const d = dt(s); return d ? fmt(s) + '/' + d.getFullYear() : '—'; }
+  function dias(s) { const d = dt(s); return d ? Math.round((d - HOJE) / DIA) : null; }
+  function sitKey(s) {
+    const n = norm(s);
+    if (/cancel/.test(n)) return 'canc';
+    if (/execu|andamento/.test(n)) return 'exec';
+    if (/encerr|conclu/.test(n)) return 'enc';
+    return 'plan';
+  }
+  const concluida = e => e.status === 'Feito' || e.status === 'Não se aplica';
+  const stClass = s => 'st-' + norm(s).replace(/\s+/g, '-').replace(/^./, c => c.toUpperCase());
+
+  function relativo(n) {
+    if (n === null) return 'sem prazo';
+    if (n === 0) return 'hoje';
+    if (n === 1) return 'amanhã';
+    if (n === -1) return 'ontem';
+    return n > 0 ? 'em ' + n + ' dias' : 'há ' + (-n) + ' dias';
+  }
+  function badgeDias(e) {
+    if (concluida(e)) return '<span class="days">' + (e.conclusao ? '✓ ' + fmt(e.conclusao) : '✓') + '</span>';
+    const n = dias(e.prazo);
+    if (n === null) return '<span class="days">—</span>';
+    const cls = n < 0 ? 'late' : n <= 7 ? 'soon' : '';
+    const txt = n < 0 ? (-n) + 'd atraso' : n === 0 ? 'hoje' : n + 'd';
+    return '<span class="days ' + cls + '" data-tip="<b>Prazo ' + fmtAno(e.prazo) + '</b>' + relativo(n) + '">' + txt + '</span>';
+  }
+
+  /* ================================================================ */
+  /* Carga de dados                                                    */
+  /* ================================================================ */
+
+  function carregar(forcar) {
+    $('#syncInfo').textContent = 'Sincronizando…';
+    if (RUN) {
+      google.script.run
+        .withSuccessHandler(j => iniciar(JSON.parse(j)))
+        .withFailureHandler(falhaCarga)
+        .getDadosPainel(!!forcar);
+    } else if (window.__DADOS_DEMO__) {
+      setTimeout(() => iniciar(JSON.parse(JSON.stringify(window.__DADOS_DEMO__))), 150);
+    } else {
+      falhaCarga({ message: 'Abra este painel pelo Apps Script (implantação como app da Web).' });
+    }
+  }
+
+  function falhaCarga(err) {
+    $('#syncInfo').textContent = 'Falha ao sincronizar';
+    if (!S.dados) $('#view').innerHTML = '<div class="card empty">Não foi possível ler a planilha.<br><small>' + esc(err && err.message) + '</small></div>';
+    toast(err && err.message || 'Erro ao carregar', 'err');
+  }
+
+  function iniciar(d) {
+    S.dados = d;
+    if (d.hoje) HOJE = dt(d.hoje);
+    S.idx = {}; S.turmaIdx = {};
+    d.turmas.forEach(t => { t.sit = sitKey(t.situacao); S.turmaIdx[t.id] = t; });
+    d.etapas.forEach(e => { S.idx[e.id] = e; });
+    recalcular();
+    montarFiltros();
+    $('#brandSub').textContent = 'AET/CPE · ' + HOJE.getFullYear();
+    $('#sheetLink').href = d.url || '#';
+    $('#avisos').innerHTML = (d.avisos || []).map(a => '⚠ ' + esc(a)).join('<br>');
+    atualizarSync();
+    render();
+    if (S.drawer) abrirTurma(S.drawer, true);
+  }
+
+  /** Estatísticas por turma, recalculadas sempre que um status muda. */
+  function recalcular() {
+    const d = S.dados;
+    d.turmas.forEach(t => { t.st = { total: 0, feito: 0, exec: 0, pend: 0, venc: 0, semana: 0 }; });
+    d.etapas.forEach(e => {
+      const t = S.turmaIdx[e.turmaId]; if (!t) return;
+      const st = t.st; st.total++;
+      if (concluida(e)) { st.feito++; return; }
+      if (e.status === 'Em execução') st.exec++; else st.pend++;
+      const n = dias(e.prazo);
+      if (n !== null && n < 0) st.venc++;
+      else if (n !== null && n <= 7) st.semana++;
+    });
+    d.turmas.forEach(t => { t.st.pct = t.st.total ? t.st.feito / t.st.total * 100 : 0; });
+    const venc = soma(d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && !concluida(e) && dias(e.prazo) < 0), () => 1);
+    $('#navBadge').textContent = venc || '';
+  }
+
+  function atualizarSync() {
+    if (!S.dados) return;
+    const g = new Date(S.dados.geradoEm);
+    const min = Math.max(0, Math.round((Date.now() - g) / 60000));
+    $('#syncInfo').textContent = 'Atualizado ' + (min < 1 ? 'agora' : 'há ' + min + ' min') + (RUN ? '' : ' · demonstração');
+  }
+
+  /* ================================================================ */
+  /* Filtros                                                           */
+  /* ================================================================ */
+
+  function montarFiltros() {
+    const d = S.dados;
+    const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    preencher('#fArea', uniq(d.turmas.map(t => t.area)).map(v => [v, titulo(v)]), 'Todas as áreas', S.f.area);
+    preencher('#fCurso', uniq(d.turmas.map(t => t.curso)).map(v => [v, v]), 'Todos os cursos', S.f.curso);
+    preencher('#fSituacao', Object.keys(SIT).filter(k => d.turmas.some(t => t.sit === k)).map(k => [k, SIT[k].label]), 'Todas as situações', S.f.situacao);
+    preencher('#fResp', uniq(d.etapas.map(e => e.responsavel)).map(v => [v, v]), 'Todos os responsáveis', S.f.resp);
+    $('#fCanceladas').checked = S.f.canceladas;
+    marcarFiltros();
+  }
+  function preencher(sel, ops, rotulo, atual) {
+    $(sel).innerHTML = '<option value="">' + rotulo + '</option>' +
+      ops.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === atual ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('');
+  }
+  function marcarFiltros() {
+    [['#fArea', 'area'], ['#fCurso', 'curso'], ['#fSituacao', 'situacao'], ['#fResp', 'resp']]
+      .forEach(([s, k]) => $(s).classList.toggle('on', !!S.f[k]));
+  }
+  const titulo = s => String(s).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/\bDe\b/g, 'de');
+
+  function turmaPassa(t, comBusca) {
+    const f = S.f;
+    if (!f.canceladas && t.sit === 'canc' && f.situacao !== 'canc') return false;
+    if (f.area && t.area !== f.area) return false;
+    if (f.curso && t.curso !== f.curso) return false;
+    if (f.situacao && t.sit !== f.situacao) return false;
+    if (comBusca && f.busca && norm([t.turma, t.curso, t.local, t.area].join(' ')).indexOf(norm(f.busca)) < 0) return false;
+    return true;
+  }
+  const turmasF = (comBusca = true) => S.dados.turmas.filter(t => turmaPassa(t, comBusca));
+  function etapasF(comBusca = true) {
+    const ok = {};
+    turmasF(false).forEach(t => { ok[t.id] = true; });
+    const b = norm(S.f.busca);
+    return S.dados.etapas.filter(e => ok[e.turmaId] &&
+      (!S.f.resp || e.responsavel === S.f.resp) &&
+      (!comBusca || !b || norm([e.etapa, e.turma, e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
+  }
+
+  /* ================================================================ */
+  /* Renderização                                                      */
+  /* ================================================================ */
+
+  function render() {
+    if (!S.dados) return;
+    const v = VIEWS[S.view];
+    $('#pageTitle').textContent = v[0];
+    $('#pageSub').textContent = v[1];
+    document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
+    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras }[S.view];
+    $('#view').innerHTML = '<div class="fade-in">' + fn() + '</div>';
+  }
+
+  function irPara(view) {
+    S.view = view;
+    $('#sidebar').classList.remove('open');
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Visão geral ---------- */
+
+  function vGeral() {
+    const ts = turmasF();
+    const ids = {}; ts.forEach(t => { ids[t.id] = 1; });
+    const es = etapasF(false).filter(e => ids[e.turmaId]);
+    const abertas = es.filter(e => !concluida(e));
+    const venc = abertas.filter(e => dias(e.prazo) < 0);
+    const semana = abertas.filter(e => { const n = dias(e.prazo); return n !== null && n >= 0 && n <= 7; });
+    const pct = es.length ? (es.length - abertas.length) / es.length * 100 : 0;
+    const cont = k => ts.filter(t => t.sit === k).length;
+    const proxima = ts.filter(t => dias(t.inicio) > 0).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+    const formados = soma(formandosF(), x => x.formados);
+
+    const kpis = [
+      kpi('Turmas', ts.length, '', [cont('plan') + ' planej.', cont('exec') + ' em exec.', cont('enc') + ' encerr.'].join(' · '), 'turmas'),
+      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length + ' etapas', 'etapas', '', anel(pct, 46)),
+      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
+      kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próxima: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
+      kpi('Formados', formados, '', 'militares em 2026', 'formandos'),
+      proxima
+        ? kpi('Próxima turma', dias(proxima.inicio), proxima ? 'dias' : '', esc(proxima.turma), null, '', '', proxima.id)
+        : kpi('Próxima turma', '—', '', 'nenhuma prevista')
+    ].join('');
+
+    return '<div class="grid g-kpi">' + kpis + '</div>' +
+      '<div class="grid g-2 mt">' + cardAgora(ts) + cardCriticas(venc.concat(semana)) + '</div>' +
+      '<div class="grid g-3 mt">' + cardProgresso(ts) + cardStatus(es) + cardResponsaveis(abertas) + '</div>' +
+      '<div class="grid g-2e mt">' + cardMensal(ts) + cardFormadosCurso() + '</div>';
+  }
+
+  function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
+    const attr = ir ? ' data-goto="' + ir + '"' : turmaId ? ' data-turma="' + turmaId + '"' : '';
+    return '<div class="card kpi ' + (cls || '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
+      '<div class="label">' + label + '</div>' +
+      '<div class="value">' + valor + (unid ? '<small>' + unid + '</small>' : '') + '</div>' +
+      '<div class="foot">' + foot + '</div></div>';
+  }
+
+  function cardAgora(ts) {
+    const exec = ts.filter(t => t.sit === 'exec');
+    const prox = ts.filter(t => t.sit === 'plan' && dias(t.inicio) >= 0).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(0, 4 - Math.min(exec.length, 2));
+    const item = (t, next) => {
+      const n = next ? dias(t.inicio) : dias(t.fim);
+      const prep = t.prazoPlanejamento ? dias(t.prazoPlanejamento) : null;
+      return '<div class="now-item ' + (next ? 'next' : '') + '" data-turma="' + t.id + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px">' + pillSit(t.sit) +
+        '<span class="tag">' + esc(t.curso) + '</span></div>' +
+        '<div class="t">' + esc(t.turma) + '</div>' +
+        '<div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · ' +
+        (next ? 'começa ' + relativo(n) : 'termina ' + relativo(n)) +
+        (next && prep !== null && prep < 0 ? ' · <b style="color:var(--danger)">prazo de planejamento vencido</b>' : '') + '</div>' +
+        barra(t.st) +
+        '<div class="now-meta"><span>' + t.st.feito + '/' + t.st.total + ' etapas</span><span>' +
+        (t.st.venc ? '<b style="color:var(--danger)">' + t.st.venc + ' vencida(s)</b> · ' : '') +
+        '<b class="pct">' + Math.round(t.st.pct) + '%</b></span></div></div>';
+    };
+    const html = exec.map(t => item(t, false)).concat(prox.map(t => item(t, true))).join('');
+    return '<div class="card"><div class="card-head"><h2>Em andamento e próximas</h2><span class="meta">' + exec.length + ' em execução</span></div>' +
+      '<div class="now">' + (html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>') + '</div></div>';
+  }
+
+  function cardCriticas(lista) {
+    lista = lista.slice().sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
+    const linhas = lista.slice(0, 8).map(linhaEtapa).join('');
+    return '<div class="card flush"><div class="card-head"><h2>Etapas que pedem atenção</h2><span class="meta">vencidas e próximos 7 dias</span></div>' +
+      '<div class="list">' + (linhas || '<div class="empty">Tudo em dia. 🎉</div>') + '</div>' +
+      (lista.length > 8 ? '<button class="more" data-goto="etapas">ver todas (' + lista.length + ') →</button>' : '') + '</div>';
+  }
+
+  function linhaEtapa(e) {
+    return '<div class="row" data-turma="' + e.turmaId + '">' + badgeDias(e) +
+      '<div style="min-width:0"><div class="t">' + esc(e.etapa) + '</div>' +
+      '<div class="s">' + esc(e.turma) + ' · ' + esc(e.responsavel || 's/ resp.') + ' · prazo ' + fmtAno(e.prazo) + '</div></div>' +
+      seletor(e) + '</div>';
+  }
+
+  function cardProgresso(ts) {
+    const linhas = ts.filter(t => t.st.total).map(t =>
+      '<div class="hbar click" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + t.st.feito + ' feitas · ' + t.st.exec + ' em execução · ' + t.st.pend + ' pendentes' + (t.st.venc ? '<br>' + t.st.venc + ' vencida(s)' : '') + '">' +
+      '<span class="n">' + esc(curto(t.turma)) + '</span>' +
+      '<span class="track"><i style="width:' + t.st.pct + '%;background:' + SIT[t.sit].cor + '"></i>' +
+      '<i style="width:' + (t.st.exec / t.st.total * 100) + '%;background:var(--s-exec);opacity:.45"></i></span>' +
+      '<span class="v">' + Math.round(t.st.pct) + '%</span></div>').join('');
+    return '<div class="card"><div class="card-head"><h2>Progresso por turma</h2><span class="meta">etapas concluídas</span></div>' +
+      '<div class="legend" style="margin-bottom:14px">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div>' +
+      '<div class="hbars">' + (linhas || '<div class="empty">Sem turmas no filtro.</div>') + '</div></div>';
+  }
+
+  function cardStatus(es) {
+    const c = { feito: 0, na: 0, exec: 0, pend: 0, venc: 0 };
+    es.forEach(e => {
+      if (e.status === 'Feito') c.feito++;
+      else if (e.status === 'Não se aplica') c.na++;
+      else if (dias(e.prazo) < 0) c.venc++;
+      else if (e.status === 'Em execução') c.exec++;
+      else c.pend++;
+    });
+    const seg = [
+      { v: c.feito, cor: 'var(--s-enc)', l: 'Feito' },
+      { v: c.exec, cor: 'var(--s-exec)', l: 'Em execução' },
+      { v: c.pend, cor: 'var(--s-plan)', l: 'Pendente no prazo' },
+      { v: c.venc, cor: 'var(--danger)', l: 'Vencida' },
+      { v: c.na, cor: 'var(--s-canc)', l: 'Não se aplica' }
+    ];
+    const fases = ['ANTES', 'DURANTE', 'DEPOIS'].map(f => {
+      const x = es.filter(e => e.fase === f), ok = x.filter(concluida).length;
+      return '<div class="hbar" style="grid-template-columns:80px 1fr 48px"><span class="n">' + titulo(f) + '</span>' +
+        '<span class="track"><i style="width:' + (x.length ? ok / x.length * 100 : 0) + '%;background:var(--s-enc)"></i></span>' +
+        '<span class="v">' + (x.length ? Math.round(ok / x.length * 100) : 0) + '%</span></div>';
+    }).join('');
+    return '<div class="card"><div class="card-head"><h2>Status das etapas</h2><span class="meta">' + es.length + ' etapas</span></div>' +
+      '<div class="donut-wrap">' + rosca(seg, 132) + '<div class="legend">' +
+      seg.map(s => '<span><i style="background:' + s.cor + '"></i>' + s.l + '<b>' + s.v + '</b></span>').join('') + '</div></div>' +
+      '<div style="margin-top:22px" class="hbars"><div class="label" style="font-size:12px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Conclusão por fase</div>' + fases + '</div></div>';
+  }
+
+  function cardResponsaveis(abertas) {
+    const m = {};
+    abertas.forEach(e => {
+      const k = e.responsavel || '(sem responsável)';
+      m[k] = m[k] || { t: 0, v: 0 }; m[k].t++;
+      if (dias(e.prazo) < 0) m[k].v++;
+    });
+    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1].t - a[1].t).slice(0, 9);
+    const max = arr.length ? arr[0][1].t : 1;
+    const linhas = arr.map(([k, x]) =>
+      '<div class="hbar click" data-resp="' + esc(k) + '" data-tip="<b>' + esc(k) + '</b>' + x.t + ' em aberto · ' + x.v + ' vencida(s)">' +
+      '<span class="n">' + esc(k) + '</span><span class="track">' +
+      '<i style="width:' + (x.v / max * 100) + '%;background:var(--danger)"></i>' +
+      '<i style="width:' + ((x.t - x.v) / max * 100) + '%;background:var(--s-plan)"></i></span>' +
+      '<span class="v">' + x.t + '</span></div>').join('');
+    return '<div class="card"><div class="card-head"><h2>Pendências por responsável</h2><span class="meta">clique para filtrar</span></div>' +
+      '<div class="legend" style="margin-bottom:14px"><span><i style="background:var(--danger)"></i>Vencidas</span><span><i style="background:var(--s-plan)"></i>No prazo</span></div>' +
+      '<div class="hbars">' + (linhas || '<div class="empty">Nenhuma pendência.</div>') + '</div></div>';
+  }
+
+  function cardMensal(ts) {
+    const ano = HOJE.getFullYear();
+    const meses = MESES.map(() => ({ plan: 0, exec: 0, enc: 0, canc: 0, n: 0 }));
+    ts.forEach(t => { const d = dt(t.inicio); if (d && d.getFullYear() === ano) { meses[d.getMonth()][t.sit]++; meses[d.getMonth()].n++; } });
+    const max = Math.max(1, ...meses.map(m => m.n));
+    const cols = meses.map((m, i) =>
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1" data-tip="<b>' + MESES[i] + '/' + ano + '</b>' + m.n + ' turma(s)">' +
+      '<span class="pct" style="font-size:11px;color:var(--ink-3)">' + (m.n || '') + '</span>' +
+      '<div style="height:120px;width:100%;max-width:30px;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden;background:var(--surface-2)">' +
+      ['enc', 'exec', 'plan', 'canc'].map(k => m[k] ? '<i style="display:block;height:' + (m[k] / max * 100) + '%;background:' + SIT[k].cor + '"></i>' : '').join('') +
+      '</div><span style="font:500 11px var(--mono);color:' + (i === HOJE.getMonth() ? 'var(--accent)' : 'var(--ink-3)') + ';text-transform:uppercase">' + MESES[i] + '</span></div>').join('');
+    return '<div class="card"><div class="card-head"><h2>Turmas por mês de início</h2><span class="meta">' + ano + '</span></div>' +
+      '<div style="display:flex;gap:4px;align-items:flex-end">' + cols + '</div></div>';
+  }
+
+  function formandosF() {
+    const f = S.dados.formandos || [];
+    return S.f.curso ? f.filter(x => norm(x.curso) === norm(S.f.curso)) : f;
+  }
+
+  function cardFormadosCurso() {
+    const m = {};
+    formandosF().forEach(x => { m[x.curso] = (m[x.curso] || 0) + x.formados; });
+    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...arr.map(a => a[1]));
+    const total = soma(arr, a => a[1]);
+    const linhas = arr.map(([k, v]) =>
+      '<div class="hbar"><span class="n">' + esc(k) + '</span><span class="track"><i style="width:' + (v / max * 100) + '%;background:var(--accent)"></i></span><span class="v">' + v + '</span></div>').join('');
+    return '<div class="card"><div class="card-head"><h2>Formados por curso</h2><span class="meta">total ' + total + '</span></div>' +
+      '<div class="hbars">' + (linhas || '<div class="empty">Sem registros.</div>') + '</div></div>';
+  }
+
+  /* ---------- Cronograma ---------- */
+
+  function vCronograma() {
+    const ts = turmasF();
+    if (!ts.length) return '<div class="card empty">Nenhuma turma no filtro.</div>';
+    const datas = [];
+    ts.forEach(t => [t.inicio, t.fim, t.prazoPlanejamento, t.prazoFinalizacao].forEach(x => { if (x) datas.push(x); }));
+    datas.sort();
+    const ini = dt(datas[0]); ini.setDate(1);
+    const fimD = dt(datas[datas.length - 1]);
+    const fim = new Date(fimD.getFullYear(), fimD.getMonth() + 1, 1);
+    const span = fim - ini;
+    const pos = s => Math.max(0, Math.min(100, (dt(s) - ini) / span * 100));
+    const meses = [];
+    for (let d = new Date(ini); d < fim; d.setMonth(d.getMonth() + 1)) meses.push(new Date(d));
+    const larg = meses.map(m => (new Date(m.getFullYear(), m.getMonth() + 1, 1) - m) / span * 100);
+    const cols = larg.map(w => w + '%').join(' ');
+    const hojePos = HOJE >= ini && HOJE < fim ? (HOJE - ini) / span * 100 : null;
+
+    const grupos = {};
+    ts.forEach(t => { (grupos[t.curso] = grupos[t.curso] || []).push(t); });
+
+    let linhas = '';
+    Object.keys(grupos).sort((a, b) => grupos[a][0].inicio.localeCompare(grupos[b][0].inicio)).forEach(g => {
+      linhas += '<div class="g-row"><div class="g-group">' + esc(g) + '</div><div></div></div>';
+      grupos[g].forEach(t => {
+        const l = pos(t.inicio), w = Math.max(.6, pos(t.fim) + (100 / (span / DIA)) - l);
+        const prepI = t.prazoPlanejamento ? pos(t.prazoPlanejamento) : l;
+        const posF = t.prazoFinalizacao ? pos(t.prazoFinalizacao) : l + w;
+        const tip = '<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
+          (t.duracao ? ' (' + t.duracao + ' dias)' : '') + '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas' +
+          (t.st.venc ? '<br>⚠ ' + t.st.venc + ' etapa(s) vencida(s)' : '') +
+          (t.prazoPlanejamento ? '<br>Planejamento até ' + fmt(t.prazoPlanejamento) : '') +
+          (t.prazoFinalizacao ? ' · Finalização até ' + fmt(t.prazoFinalizacao) : '');
+        linhas += '<div class="g-row"><div class="g-label" data-turma="' + t.id + '" title="' + esc(t.turma) + '">' + esc(curto(t.turma)) + '<small>' + esc(t.local) + '</small></div>' +
+          '<div class="g-track"><div class="g-grid" style="grid-template-columns:' + cols + '">' + meses.map(() => '<div></div>').join('') + '</div>' +
+          '<div class="g-prep" style="left:' + prepI + '%;width:' + Math.max(0, posF - prepI) + '%"></div>' +
+          '<div class="g-bar ' + t.sit + '" data-turma="' + t.id + '" data-tip="' + esc(tip) + '" style="left:' + l + '%;width:' + w + '%">' +
+          (t.sit !== 'canc' ? '<div class="fill" style="width:' + t.st.pct + '%"></div>' : '') + '</div>' +
+          (t.st.venc && t.sit !== 'canc' ? '<div class="g-late" style="left:calc(' + (l + w) + '% - 4px)"></div>' : '') +
+          '</div></div>';
+      });
+    });
+
+    return '<div class="card"><div class="card-head"><h2>Linha do tempo</h2>' +
+      '<div class="legend">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
+      '<span><i style="background:var(--surface-3);height:4px"></i>Janela planejamento → finalização</span>' +
+      '<span><i style="background:var(--danger);border-radius:50%"></i>Etapas vencidas</span></div></div>' +
+      '<div class="gantt"><div class="gantt-inner">' +
+      '<div class="g-row head"><div class="g-label" style="cursor:default;color:var(--ink-3);font-size:12px">' + ts.length + ' turma(s)</div>' +
+      '<div class="g-track" style="height:34px"><div class="g-months" style="grid-template-columns:' + cols + '">' +
+      meses.map(m => '<div>' + MESES[m.getMonth()] + (m.getMonth() === 0 || m === meses[0] ? ' ' + String(m.getFullYear()).slice(2) : '') + '</div>').join('') + '</div></div></div>' +
+      '<div style="position:relative">' + linhas +
+      (hojePos !== null ? '<div class="g-today" style="left:calc(260px + (100% - 260px) * ' + (hojePos / 100) + ')"></div>' : '') +
+      '</div></div></div><p style="font-size:12px;color:var(--ink-3);margin:12px 0 0">A parte clara dentro de cada barra indica o percentual de etapas concluídas. Clique em uma turma para ver o checklist.</p></div>';
+  }
+
+  /* ---------- Turmas ---------- */
+
+  function vTurmas() {
+    let ts = turmasF();
+    const ord = {
+      inicio: (a, b) => String(a.inicio).localeCompare(String(b.inicio)),
+      progresso: (a, b) => a.st.pct - b.st.pct,
+      vencidas: (a, b) => b.st.venc - a.st.venc,
+      nome: (a, b) => a.turma.localeCompare(b.turma, 'pt-BR')
+    }[S.turmasOrdem];
+    ts = ts.slice().sort(ord);
+
+    const barraFerr = '<div class="toolbar"><div class="seg" data-seg="turmasModo">' +
+      ['cards:Cartões', 'tabela:Tabela'].map(x => { const [k, l] = x.split(':'); return '<button data-val="' + k + '" class="' + (S.turmasModo === k ? 'on' : '') + '">' + l + '</button>'; }).join('') +
+      '</div><select id="ordTurmas" class="ghost">' +
+      [['inicio', 'Ordenar por início'], ['progresso', 'Menor progresso'], ['vencidas', 'Mais vencidas'], ['nome', 'Nome']]
+        .map(o => '<option value="' + o[0] + '"' + (S.turmasOrdem === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
+      '</select><span style="color:var(--ink-3);font-size:13px">' + ts.length + ' turma(s)</span></div>';
+
+    if (!ts.length) return barraFerr + '<div class="card empty">Nenhuma turma no filtro.</div>';
+
+    if (S.turmasModo === 'tabela') {
+      return barraFerr + '<div class="card flush"><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+        ['Turma', 'Curso', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Conclusão', 'Vencidas', 'Formados'].map(h => '<th style="cursor:default">' + h + '</th>').join('') +
+        '</tr></thead><tbody>' + ts.map(t =>
+          '<tr data-turma="' + t.id + '" style="cursor:pointer"><td><b>' + esc(t.turma) + '</b></td><td>' + esc(t.curso) + '</td><td>' + esc(t.local) + '</td>' +
+          '<td class="mono">' + fmtAno(t.inicio) + '</td><td class="mono">' + fmtAno(t.fim) + '</td><td>' + pillSit(t.sit) + '</td>' +
+          '<td class="mono">' + t.st.feito + '/' + t.st.total + '</td><td style="min-width:140px"><div style="display:flex;gap:8px;align-items:center">' + barra(t.st) + '<span class="pct">' + Math.round(t.st.pct) + '%</span></div></td>' +
+          '<td class="mono" style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + (t.st.venc || '—') + '</td><td class="mono">' + (t.formados != null ? t.formados : '—') + '</td></tr>').join('') +
+        '</tbody></table></div></div>';
+    }
+
+    return barraFerr + '<div class="grid g-cards">' + ts.map(t => {
+      const n = t.sit === 'plan' ? dias(t.inicio) : null;
+      return '<div class="card tcard" data-turma="' + t.id + '">' +
+        '<div class="top"><span class="tag">' + esc(t.curso) + '</span>' + pillSit(t.sit) + '</div>' +
+        '<div><h3>' + esc(t.turma) + '</h3><div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
+        (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
+        '<div>' + barra(t.st) + '<div class="nums" style="margin-top:7px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> em exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
+        (t.st.venc && t.sit !== 'canc' ? '<div class="alert-line">⚠ ' + t.st.venc + ' etapa(s) vencida(s)</div>' : '') +
+        '<div class="flags">' + bandeiras(t) + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  function bandeiras(t) {
+    return [['licitacao', 'Licitação'], ['docenteExterno', 'Docente ext.'], ['avaliacao', 'Avaliação'], ['diaria', 'Diária'], ['mais8dias', '> 8 dias'], ['autorizacaoDiaria', 'Autoriz. diária']]
+      .filter(([k]) => t[k] !== undefined && t[k] !== '')
+      .map(([k, l]) => { const v = norm(t[k]); return '<span class="flag ' + (v === 'sim' ? 'sim' : /definir/.test(v) ? 'def' : '') + '" data-tip="<b>' + l + '</b>' + esc(t[k]) + '">' + l + '</span>'; }).join('');
+  }
+
+  /* ---------- Etapas ---------- */
+
+  function vEtapas() {
+    const todas = etapasF();
+    const abertas = todas.filter(e => !concluida(e));
+
+    const barraFerr = '<div class="toolbar"><div class="seg" data-seg="etapasModo">' +
+      ['quadro:Quadro', 'tabela:Tabela'].map(x => { const [k, l] = x.split(':'); return '<button data-val="' + k + '" class="' + (S.etapasModo === k ? 'on' : '') + '">' + l + '</button>'; }).join('') + '</div>' +
+      (S.etapasModo === 'tabela' ? '<label class="switch"><input type="checkbox" id="chkConcl"' + (S.etapasConcluidas ? ' checked' : '') + '><span></span>Mostrar concluídas</label>' : '') +
+      '<span style="color:var(--ink-3);font-size:13px">' + abertas.length + ' em aberto · ' + (todas.length - abertas.length) + ' concluídas</span></div>';
+
+    if (S.etapasModo === 'tabela') {
+      const lista = (S.etapasConcluidas ? todas : abertas).slice();
+      const k = S.tbl.chave, dir = S.tbl.asc ? 1 : -1;
+      lista.sort((a, b) => String(a[k] || '￿').localeCompare(String(b[k] || '￿'), 'pt-BR') * dir);
+      const cols = [['prazo', 'Prazo'], ['etapa', 'Etapa'], ['turma', 'Turma'], ['fase', 'Fase'], ['responsavel', 'Responsável'], ['documento', 'Documento'], ['status', 'Status']];
+      return barraFerr + '<div class="card flush"><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+        cols.map(([c, l]) => '<th data-sort="' + c + '" class="' + (k === c ? 'sorted' + (S.tbl.asc ? ' asc' : '') : '') + '">' + l + '</th>').join('') +
+        '</tr></thead><tbody>' + lista.map(e =>
+          '<tr><td style="white-space:nowrap"><span class="mono">' + fmt(e.prazo) + '</span> ' + badgeDias(e) + '</td>' +
+          '<td>' + esc(e.etapa) + '</td><td><a href="#" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</a></td>' +
+          '<td><span class="tag">' + esc(e.fase) + '</span></td><td>' + esc(e.responsavel) + '</td>' +
+          '<td style="color:var(--ink-3)">' + esc(e.documento) + '</td><td>' + seletor(e) + '</td></tr>').join('') +
+        '</tbody></table>' + (lista.length ? '' : '<div class="empty">Nenhuma etapa.</div>') + '</div></div>';
+    }
+
+    const colunas = [
+      { k: 'late', l: 'Vencidas', f: n => n !== null && n < 0 },
+      { k: 'soon', l: 'Próximos 7 dias', f: n => n !== null && n >= 0 && n <= 7 },
+      { k: 'mes', l: '8 a 30 dias', f: n => n !== null && n > 7 && n <= 30 },
+      { k: 'depois', l: 'Mais de 30 dias', f: n => n === null || n > 30 }
+    ];
+    return barraFerr + '<div class="board">' + colunas.map(c => {
+      const itens = abertas.filter(e => c.f(dias(e.prazo))).sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
+      const lim = S.limiteCol[c.k] || 30;
+      return '<div class="col ' + c.k + '"><div class="col-head"><span>' + c.l + '</span><span class="count">' + itens.length + '</span></div>' +
+        itens.slice(0, lim).map(e =>
+          '<div class="ecard"><div class="t">' + esc(e.etapa) + '</div>' +
+          '<div class="s" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') + '</div>' +
+          '<div class="b">' + badgeDias(e) + seletor(e) + '</div></div>').join('') +
+        (itens.length > lim ? '<button class="more" data-maiscol="' + c.k + '">mostrar mais ' + Math.min(30, itens.length - lim) + '</button>' : '') +
+        (itens.length ? '' : '<div class="empty">Nada aqui.</div>') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- Formandos ---------- */
+
+  function vFormandos() {
+    const f = formandosF();
+    const b = norm(S.f.busca);
+    const lista = b ? f.filter(x => norm([x.curso, x.turma, x.local].join(' ')).indexOf(b) >= 0) : f;
+    const total = soma(f, x => x.formados);
+    const comFormados = f.filter(x => x.formados > 0).length;
+    return '<div class="grid g-kpi">' +
+      kpi('Total de formados', total, '', 'militares em 2026') +
+      kpi('Turmas com formatura', comFormados, '', 'de ' + f.length + ' turmas listadas') +
+      kpi('Média por turma', comFormados ? Math.round(total / comFormados) : 0, '', 'considerando turmas com formados') +
+      '</div><div class="grid g-2e mt">' + cardFormadosCurso() +
+      '<div class="card flush"><div class="card-head"><h2>Por turma</h2><span class="meta">aba "Formandos 2026"</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Curso</th><th>Turma</th><th>Local</th><th style="text-align:right">Formados</th></tr></thead><tbody>' +
+      lista.map(x => '<tr style="' + (x.formados ? '' : 'color:var(--ink-3)') + '"><td>' + esc(x.curso) + '</td><td>' + esc(x.turma) + '</td><td>' + esc(x.local) + '</td><td class="mono" style="text-align:right;font-weight:600">' + x.formados + '</td></tr>').join('') +
+      '</tbody></table></div></div></div>';
+  }
+
+  /* ---------- Regras ---------- */
+
+  function vRegras() {
+    const b = norm(S.f.busca);
+    const rs = (S.dados.regras || []).filter(r => !b || norm(Object.values(r).join(' ')).indexOf(b) >= 0);
+    if (!rs.length) return '<div class="card empty">Nenhuma regra encontrada.</div>';
+    return '<div class="grid g-rules">' + rs.map(r =>
+      '<div class="card rule"><div style="display:flex;justify-content:space-between"><span class="code">' + esc(r.codigo) + '</span><span class="tag">' + esc(r.natureza) + '</span></div>' +
+      '<h3>' + esc(r.etapa) + '</h3><div class="prazo">' + esc(r.prazo) + '</div>' +
+      '<dl><dt>Contagem</dt><dd>' + esc(r.contagem) + '</dd><dt>Referência</dt><dd>' + esc(r.marco) + '</dd><dt>Aplica-se</dt><dd>' + esc(r.aplicabilidade) + '</dd></dl>' +
+      (r.observacoes ? '<div class="obs">' + esc(r.observacoes) + '</div>' : '') + '</div>').join('') + '</div>';
+  }
+
+  /* ================================================================ */
+  /* Drawer da turma                                                   */
+  /* ================================================================ */
+
+  function abrirTurma(id, manterScroll) {
+    const t = S.turmaIdx[id]; if (!t) return;
+    S.drawer = id;
+    const dr = $('#drawer');
+    const scroll = manterScroll ? dr.scrollTop : 0;
+    const es = S.dados.etapas.filter(e => e.turmaId === id);
+    const nIni = dias(t.inicio);
+
+    const fases = {};
+    es.forEach(e => { (fases[e.fase || 'OUTRAS'] = fases[e.fase || 'OUTRAS'] || []).push(e); });
+    const ordem = ['ANTES', 'DURANTE', 'DEPOIS'].filter(f => fases[f]).concat(Object.keys(fases).filter(f => ['ANTES', 'DURANTE', 'DEPOIS'].indexOf(f) < 0));
+
+    const blocos = ordem.map(f => {
+      const lista = fases[f];
+      const ok = lista.filter(concluida).length;
+      const mostrar = S.soPendentes ? lista.filter(e => !concluida(e)) : lista;
+      const chave = id + f;
+      return '<div class="phase ' + (S.fasesFechadas[chave] ? 'closed' : '') + '"><div class="phase-head" data-fase="' + chave + '"><span>' + titulo(f) + ' <span style="color:var(--ink-3);font-weight:500">· ' + ok + '/' + lista.length + '</span></span>' +
+        barra({ total: lista.length, feito: ok, exec: lista.filter(e => e.status === 'Em execução').length }) + '</div><div class="phase-body">' +
+        (mostrar.map(e => {
+          const n = dias(e.prazo), late = !concluida(e) && n !== null && n < 0;
+          const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
+          return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
+            '<div><div class="t">' + esc(e.etapa) + '</div><div class="m">Prazo ' + fmtAno(e.prazo) + ' · ' + esc(e.responsavel || 's/ resp.') +
+            (e.documento ? ' · ' + esc(e.documento) : '') + (e.conclusao ? ' · concluída em ' + fmtAno(e.conclusao) : '') + '</div>' +
+            (e.observacoes ? '<div class="m" style="color:var(--ink-2)">💬 ' + esc(e.observacoes) + '</div>' : '') + '</div>' +
+            '<div class="r">' + seletor(e) + badgeDias(e) + '</div></div>';
+        }).join('') || '<div class="empty">Tudo concluído nesta fase.</div>') + '</div></div>';
+    }).join('');
+
+    const link = S.dados.url && t.gid != null ? S.dados.url.split('#')[0] + '#gid=' + t.gid + (t.linhaResumo ? '&range=A' + t.linhaResumo : '') : '';
+
+    dr.innerHTML = '<button class="close" data-fechar>✕</button>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="tag">' + esc(t.curso) + '</span>' +
+      (t.area && norm(t.area) !== norm(t.curso) ? '<span class="tag">' + esc(titulo(t.area)) + '</span>' : '') + pillSit(t.sit) + '</div>' +
+      '<h2>' + esc(t.turma) + '</h2><div class="sub">' + esc(t.local) + ' · ' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
+      (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? ' · <a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div>' +
+      '<div class="d-kpis">' +
+      dk('Conclusão', Math.round(t.st.pct) + '%') + dk('Etapas', t.st.feito + '/' + t.st.total) +
+      dk('Vencidas', '<span style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + t.st.venc + '</span>') +
+      (t.sit === 'plan' && nIni !== null ? dk('Início', nIni + ' dias') : dk('Formados', t.formados != null ? t.formados : '—')) + '</div>' +
+      barra(t.st) +
+      (t.prazoPlanejamento || t.prazoFinalizacao ? '<div class="d-section"><h3>Janela de trabalho</h3><div class="matrix">' +
+        '<div>Prazo de planejamento<b>' + fmtAno(t.prazoPlanejamento) + ' <small style="color:var(--ink-3);font-weight:400">(' + relativo(dias(t.prazoPlanejamento)) + ')</small></b></div>' +
+        '<div>Execução<b>' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '</b></div>' +
+        '<div>Prazo de finalização<b>' + fmtAno(t.prazoFinalizacao) + ' <small style="color:var(--ink-3);font-weight:400">(' + relativo(dias(t.prazoFinalizacao)) + ')</small></b></div></div></div>' : '') +
+      (bandeiras(t) ? '<div class="d-section"><h3>Matriz de decisão</h3><div class="matrix">' +
+        [['licitacao', 'Licitação'], ['docenteExterno', 'Docente externo'], ['avaliacao', 'Avaliação'], ['diaria', 'Diária'], ['mais8dias', 'Curso > 8 dias'], ['autorizacaoDiaria', 'Autorização prévia de diária']]
+          .map(([k, l]) => '<div class="' + (norm(t[k]) === 'sim' ? 'sim' : '') + '">' + l + '<b>' + esc(t[k] || '—') + '</b></div>').join('') + '</div></div>' : '') +
+      (t.observacoes ? '<div class="d-section"><h3>Observações</h3><div class="card" style="padding:12px 14px">' + esc(t.observacoes) + '</div></div>' : '') +
+      '<div class="d-section"><h3>Checklist de etapas <label class="switch" style="text-transform:none;letter-spacing:0;font-weight:500"><input type="checkbox" id="chkPend"' + (S.soPendentes ? ' checked' : '') + '><span></span>Só em aberto</label></h3>' +
+      (blocos || '<div class="card empty">Esta turma não tem aba operacional vinculada.</div>') + '</div>';
+
+    dr.classList.add('open'); dr.setAttribute('aria-hidden', 'false');
+    $('#drawerBg').classList.add('open');
+    dr.scrollTop = scroll;
+  }
+
+  function fecharDrawer() {
+    S.drawer = null;
+    $('#drawer').classList.remove('open'); $('#drawer').setAttribute('aria-hidden', 'true');
+    $('#drawerBg').classList.remove('open');
+  }
+
+  const dk = (l, v) => '<div class="d-kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div></div>';
+
+  /* ================================================================ */
+  /* Componentes                                                       */
+  /* ================================================================ */
+
+  const pillSit = k => '<span class="pill ' + k + '">' + SIT[k].label + '</span>';
+  function barra(st) {
+    const t = st.total || 1;
+    return '<div class="bar" style="flex:1"><i class="f" style="width:' + (st.feito / t * 100) + '%"></i><i class="e" style="width:' + ((st.exec || 0) / t * 100) + '%"></i></div>';
+  }
+  function curto(s) { return String(s).replace(/^Credenciamento para Uso Operacional de /, 'Cred. ').replace(/^Curso de Credenciamento para o /, 'Cred. ').replace(/Estágio Tático Rodoviário/, 'ETR'); }
+
+  function seletor(e) {
+    const ops = S.dados.statusEtapa || ['Pendente', 'Em execução', 'Feito', 'Não se aplica'];
+    return '<select class="st-select ' + stClass(e.status) + '" data-etapa="' + e.id + '"' + (S.dados.podeEditar ? '' : ' disabled') + '>' +
+      ops.concat(ops.indexOf(e.status) < 0 ? [e.status] : []).map(o => '<option' + (o === e.status ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
+  }
+
+  function anel(pct, tam) {
+    const r = tam / 2 - 5, c = 2 * Math.PI * r;
+    return '<svg class="ring" width="' + tam + '" height="' + tam + '" viewBox="0 0 ' + tam + ' ' + tam + '">' +
+      '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:var(--surface-3)" stroke-width="6"/>' +
+      '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:var(--s-enc)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct / 100) + ' ' + c + '" transform="rotate(-90 ' + tam / 2 + ' ' + tam / 2 + ')"/></svg>';
+  }
+
+  function rosca(seg, tam) {
+    const total = soma(seg, s => s.v) || 1, r = tam / 2 - 12, c = 2 * Math.PI * r;
+    let acc = 0;
+    const arcos = seg.filter(s => s.v).map(s => {
+      const len = s.v / total * c;
+      const el = '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:' + s.cor + '" stroke-width="18" stroke-dasharray="' + Math.max(0, len - 1.5) + ' ' + c + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 ' + tam / 2 + ' ' + tam / 2 + ')" data-tip="<b>' + s.l + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"/>';
+      acc += len; return el;
+    }).join('');
+    const ok = seg[0].v + seg[4].v;
+    return '<svg width="' + tam + '" height="' + tam + '" style="flex:none">' + arcos +
+      '<text x="50%" y="48%" text-anchor="middle" style="font:600 24px Fraunces,serif;fill:var(--ink)">' + Math.round(ok / total * 100) + '%</text>' +
+      '<text x="50%" y="63%" text-anchor="middle" style="font:500 11px Inter,sans-serif;fill:var(--ink-3)">concluído</text></svg>';
+  }
+
+  /* ================================================================ */
+  /* Ações                                                             */
+  /* ================================================================ */
+
+  function mudarStatus(id, novo, el) {
+    const e = S.idx[id];
+    if (!e || e.status === novo) return;
+    const anterior = e.status, conclAnterior = e.conclusao;
+    e.status = novo;
+    if (novo === 'Feito' && !e.conclusao) e.conclusao = S.dados.hoje;
+    recalcular();
+    if (!RUN) {
+      toast('Demonstração: “' + e.etapa + '” → ' + novo + ' (não gravado)');
+      refrescar();
+      return;
+    }
+    el.classList.add('saving');
+    google.script.run
+      .withSuccessHandler(r => {
+        const o = JSON.parse(r);
+        e.conclusao = o.conclusao || e.conclusao;
+        toast('✓ ' + e.etapa + ' → ' + novo);
+        refrescar();
+      })
+      .withFailureHandler(err => {
+        e.status = anterior; e.conclusao = conclAnterior;
+        recalcular();
+        toast(err.message || 'Não foi possível gravar', 'err');
+        refrescar();
+      })
+      .atualizarStatusEtapa({
+        aba: e.aba, linha: e.linha, colEtapa: e.colEtapa, colStatus: e.colStatus,
+        colConclusao: e.colConclusao, etapa: e.etapa, status: novo, turma: e.turma
+      });
+    refrescar();
+  }
+
+  /** Re-renderiza mantendo a rolagem da página e do drawer. */
+  function refrescar() {
+    const y = window.scrollY;
+    render();
+    if (S.drawer) abrirTurma(S.drawer, true);
+    window.scrollTo(0, y);
+  }
+
+  function exportarCsv() {
+    let cab, linhas, nome;
+    if (S.view === 'etapas') {
+      cab = ['Prazo', 'Etapa', 'Fase', 'Status', 'Responsável', 'Turma', 'Curso', 'Documento', 'Observações', 'Aba', 'Linha'];
+      linhas = etapasF().map(e => [fmtAno(e.prazo), e.etapa, e.fase, e.status, e.responsavel, e.turma, e.curso, e.documento, e.observacoes, e.aba, e.linha]);
+      nome = 'etapas';
+    } else {
+      cab = ['Turma', 'Curso', 'Área', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Concluídas', 'Em execução', 'Pendentes', 'Vencidas', '% Conclusão', 'Formados'];
+      linhas = turmasF().map(t => [t.turma, t.curso, t.area, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
+      nome = 'turmas';
+    }
+    const csv = '﻿' + [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = nome + '_' + S.dados.hoje + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function toast(msg, tipo) {
+    const el = document.createElement('div');
+    el.className = 'toast ' + (tipo || '');
+    el.textContent = msg;
+    $('#toasts').appendChild(el);
+    setTimeout(() => el.remove(), tipo === 'err' ? 6000 : 3000);
+  }
+
+  function aplicarTema(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('painel-tema', t); } catch (e) { /* sem storage */ }
+  }
+
+  /* ================================================================ */
+  /* Eventos                                                           */
+  /* ================================================================ */
+
+  document.addEventListener('click', ev => {
+    const el = ev.target;
+    if (el.closest('select, input, label.switch')) return;
+
+    const nav = el.closest('#nav button'); if (nav) return irPara(nav.dataset.view);
+    if (el.closest('[data-fechar]') || el.id === 'drawerBg') return fecharDrawer();
+
+    const seg = el.closest('[data-seg] button');
+    if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
+
+    const fase = el.closest('[data-fase]');
+    if (fase) { S.fasesFechadas[fase.dataset.fase] = !S.fasesFechadas[fase.dataset.fase]; return fase.parentNode.classList.toggle('closed'); }
+
+    const th = el.closest('th[data-sort]');
+    if (th) { const k = th.dataset.sort; S.tbl = { chave: k, asc: S.tbl.chave === k ? !S.tbl.asc : true }; return render(); }
+
+    const mais = el.closest('[data-maiscol]');
+    if (mais) { const k = mais.dataset.maiscol; S.limiteCol[k] = (S.limiteCol[k] || 30) + 30; return refrescar(); }
+
+    const resp = el.closest('[data-resp]');
+    if (resp) { S.f.resp = resp.dataset.resp === '(sem responsável)' ? '' : resp.dataset.resp; montarFiltros(); return irPara('etapas'); }
+
+    const turma = el.closest('[data-turma]');
+    if (turma) { ev.preventDefault(); return abrirTurma(turma.dataset.turma); }
+
+    const go = el.closest('[data-goto]');
+    if (go) return irPara(go.dataset.goto);
+  });
+
+  document.addEventListener('change', ev => {
+    const el = ev.target;
+    if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
+    if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; return render(); }
+    if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; return render(); }
+    if (el.id === 'chkPend') { S.soPendentes = el.checked; return abrirTurma(S.drawer, true); }
+    const mapa = { fArea: 'area', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
+    if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; marcarFiltros(); S.limiteCol = {}; return render(); }
+    if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return render(); }
+  });
+
+  let tBusca;
+  $('#search').addEventListener('input', ev => {
+    clearTimeout(tBusca);
+    tBusca = setTimeout(() => { S.f.busca = ev.target.value; render(); }, 180);
+  });
+  $('#btnLimpar').addEventListener('click', () => {
+    S.f = { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false };
+    $('#search').value = '';
+    montarFiltros(); render();
+  });
+  $('#btnRefresh').addEventListener('click', () => carregar(true));
+  $('#btnCsv').addEventListener('click', exportarCsv);
+  $('#btnTheme').addEventListener('click', () =>
+    aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  $('#menuBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
+
+  document.addEventListener('keydown', ev => {
+    const digitando = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+    if (ev.key === 'Escape') { if (S.drawer) fecharDrawer(); else if (digitando) document.activeElement.blur(); }
+    if (digitando) return;
+    if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
+    if (ev.key === 'r' || ev.key === 'R') carregar(true);
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos', 6: 'regras' };
+    if (atalhos[ev.key]) irPara(atalhos[ev.key]);
+  });
+
+  // Tooltip
+  const tip = $('#tooltip');
+  document.addEventListener('mouseover', ev => {
+    const el = ev.target.closest('[data-tip]');
+    if (!el) { tip.classList.remove('show'); return; }
+    tip.innerHTML = el.getAttribute('data-tip');
+    tip.classList.add('show');
+  });
+  document.addEventListener('mousemove', ev => {
+    if (!tip.classList.contains('show')) return;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.min(ev.clientX + 14, window.innerWidth - w - 10) + 'px';
+    tip.style.top = (ev.clientY + 16 + h > window.innerHeight ? ev.clientY - h - 12 : ev.clientY + 16) + 'px';
+  });
+
+  /* ================================================================ */
+  /* Início                                                            */
+  /* ================================================================ */
+
+  let temaSalvo = null;
+  try { temaSalvo = localStorage.getItem('painel-tema'); } catch (e) { /* sem storage */ }
+  aplicarTema(temaSalvo || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+  carregar(false);
+  setInterval(atualizarSync, 30000);
+  // Recarrega a cada 5 min (usa o cache do servidor), sem atrapalhar quem está editando.
+  setInterval(() => {
+    if (!document.hidden && !S.drawer && !/INPUT|SELECT/.test(document.activeElement.tagName)) carregar(false);
+  }, 300000);
+})();
+</script>
