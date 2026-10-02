@@ -15,18 +15,18 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">AET</div>
-        <div>
+        <div class="brand-txt">
           <div class="brand-title">Controle de Cursos</div>
           <div class="brand-sub" id="brandSub">CPE · 2026</div>
         </div>
       </div>
       <nav class="nav" id="nav">
-        <button data-view="geral" class="active"><span class="ico">◎</span>Visão geral</button>
-        <button data-view="cronograma"><span class="ico">▤</span>Cronograma</button>
-        <button data-view="turmas"><span class="ico">▦</span>Turmas</button>
-        <button data-view="etapas"><span class="ico">☰</span>Etapas<span class="nav-badge" id="navBadge"></span></button>
-        <button data-view="formandos"><span class="ico">✦</span>Formandos</button>
-        <button data-view="regras"><span class="ico">§</span>Regras e prazos</button>
+        <button data-view="geral" class="active"><span class="ico">◎</span><span class="lbl">Visão geral</span></button>
+        <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
+        <button data-view="turmas"><span class="ico">▦</span><span class="lbl">Turmas</span></button>
+        <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
+        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Formandos</span></button>
+        <button data-view="regras"><span class="ico">§</span><span class="lbl">Regras e prazos</span></button>
       </nav>
       <div class="sidebar-foot">
         <div class="sync" id="syncInfo">Carregando…</div>
@@ -35,6 +35,7 @@
           <button class="ghost" id="btnTheme" title="Alternar tema">◐</button>
         </div>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
+        <div class="keys"><kbd>1</kbd>–<kbd>6</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
       </div>
     </aside>
 
@@ -48,6 +49,8 @@
         <div class="search">
           <input id="search" type="search" placeholder="Buscar turma, etapa, responsável…  ( / )" autocomplete="off">
         </div>
+        <span class="avisos-chip" id="avisos"></span>
+        <button class="ghost small" id="btnCsv" title="Exportar a visão atual em CSV">⇩ CSV</button>
       </header>
 
       <section class="filters" id="filters">
@@ -57,11 +60,8 @@
         <select id="fResp"><option value="">Todos os responsáveis</option></select>
         <label class="switch"><input type="checkbox" id="fCanceladas"><span></span>Incluir canceladas</label>
         <button class="link" id="btnLimpar">Limpar filtros</button>
-        <div class="spacer"></div>
-        <button class="ghost small" id="btnCsv" title="Exportar a visão atual em CSV">⇩ CSV</button>
       </section>
 
-      <div class="alerts" id="avisos"></div>
       <div class="view" id="view">
         <div class="loading"><div class="spinner"></div>Lendo a planilha…</div>
       </div>

@@ -17,29 +17,33 @@
   };
   const VIEWS = {
     geral:      ['Visão geral', 'Panorama das turmas e pendências'],
-    cronograma: ['Cronograma', 'Linha do tempo das turmas, com janelas de preparação e finalização'],
+    cronograma: ['Cronograma', 'Linha do tempo das turmas, com janelas de planejamento e finalização'],
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Formandos', 'Militares formados em 2026'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
+  const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral
 
   const S = {
     dados: null, idx: {}, turmaIdx: {},
     view: 'geral',
     f: { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false },
     turmasModo: 'cards', turmasOrdem: 'inicio',
-    etapasModo: 'quadro', etapasConcluidas: false, limiteCol: {},
+    etapasModo: 'quadro', etapasConcluidas: false,
     tbl: { chave: 'prazo', asc: true },
-    drawer: null, soPendentes: false, fasesFechadas: {}
+    drawer: null, soPendentes: false, fase: 'TODAS',
+    pg: {} // página atual de cada caixa paginada
   };
   let HOJE = hojeLocal();
 
   const $ = s => document.querySelector(s);
+  const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
   const pad = n => String(n).padStart(2, '0');
   const soma = (arr, fn) => arr.reduce((a, x) => a + (fn ? fn(x) : x), 0);
+  const modoFit = () => window.matchMedia('(min-width: 861px)').matches;
 
   function hojeLocal() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
   function dt(s) { if (!s) return null; const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
@@ -55,6 +59,8 @@
   }
   const concluida = e => e.status === 'Feito' || e.status === 'Não se aplica';
   const stClass = s => 'st-' + norm(s).replace(/\s+/g, '-').replace(/^./, c => c.toUpperCase());
+  const titulo = s => String(s).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/\bDe\b/g, 'de');
+  const curto = s => String(s).replace(/^Credenciamento para Uso Operacional de /, 'Cred. ').replace(/^Curso de Credenciamento para o /, 'Cred. ').replace(/Estágio Tático Rodoviário/, 'ETR');
 
   function relativo(n) {
     if (n === null) return 'sem prazo';
@@ -70,6 +76,72 @@
     const cls = n < 0 ? 'late' : n <= 7 ? 'soon' : '';
     const txt = n < 0 ? (-n) + 'd atraso' : n === 0 ? 'hoje' : n + 'd';
     return '<span class="days ' + cls + '" data-tip="<b>Prazo ' + fmtAno(e.prazo) + '</b>' + relativo(n) + '">' + txt + '</span>';
+  }
+
+  /* ================================================================ */
+  /* Paginação: nada rola — o que não cabe vira página                 */
+  /* ================================================================ */
+
+  /** Caixa paginada; o controle ‹ 1/3 › é desenhado em .pager[data-for=key]. */
+  const caixa = (key, html, cls, auto) =>
+    '<div class="fit ' + (cls || '') + '" data-key="' + key + '"' + (auto ? ' data-auto' : '') + '>' + html + '</div>';
+  const pager = key => '<div class="pager" data-for="' + key + '"></div>';
+
+  function paginarTudo(raiz) {
+    $$('.fit', raiz).forEach(paginar);
+  }
+
+  function paginar(box) {
+    const key = box.dataset.key;
+    const itens = Array.from(box.children);
+    itens.forEach(el => { el.style.display = ''; });
+    box._paginas = null;
+    if (!modoFit() || !itens.length) { desenharPager(box); return; }
+
+    const H = box.clientHeight;
+    const paginas = [[]];
+    let base = itens[0].offsetTop;
+    itens.forEach(el => {
+      const topo = el.offsetTop, fundo = topo + el.offsetHeight;
+      if (fundo - base > H + 1 && paginas[paginas.length - 1].length) { paginas.push([]); base = topo; }
+      paginas[paginas.length - 1].push(el);
+    });
+    // Um título de grupo (.grp) nunca fica sozinho no fim da página.
+    for (let i = 0; i < paginas.length - 1; i++) {
+      const pg = paginas[i];
+      while (pg.length > 1 && pg[pg.length - 1].classList.contains('grp')) paginas[i + 1].unshift(pg.pop());
+    }
+    box._paginas = paginas;
+    S.pg[key] = Math.min(S.pg[key] || 0, paginas.length - 1);
+    mostrarPagina(box);
+  }
+
+  function mostrarPagina(box) {
+    const p = S.pg[box.dataset.key] || 0;
+    box._paginas.forEach((pg, i) => pg.forEach(el => { el.style.display = i === p ? '' : 'none'; }));
+    box.classList.remove('page-in'); void box.offsetWidth; box.classList.add('page-in');
+    desenharPager(box);
+  }
+
+  function desenharPager(box) {
+    const key = box.dataset.key;
+    const alvo = document.querySelector('.pager[data-for="' + key + '"]');
+    if (!alvo) return;
+    const n = box._paginas ? box._paginas.length : 1;
+    if (n < 2) { alvo.innerHTML = ''; return; }
+    const p = S.pg[key] || 0;
+    alvo.innerHTML = '<button data-pg="-1" data-key="' + key + '" title="Página anterior">‹</button>' +
+      (n <= 5 ? '<span class="dots">' + Array.from({ length: n }, (_, i) => '<i class="' + (i === p ? 'on' : '') + '"></i>').join('') + '</span>' : '') +
+      '<span>' + (p + 1) + '/' + n + '</span>' +
+      '<button data-pg="1" data-key="' + key + '" title="Próxima página">›</button>';
+  }
+
+  function virar(key, delta) {
+    const box = document.querySelector('.fit[data-key="' + key + '"]');
+    if (!box || !box._paginas || box._paginas.length < 2) return;
+    const n = box._paginas.length;
+    S.pg[key] = ((S.pg[key] || 0) + delta + n) % n;
+    mostrarPagina(box);
   }
 
   /* ================================================================ */
@@ -106,10 +178,14 @@
     montarFiltros();
     $('#brandSub').textContent = 'AET/CPE · ' + HOJE.getFullYear();
     $('#sheetLink').href = d.url || '#';
-    $('#avisos').innerHTML = (d.avisos || []).map(a => '⚠ ' + esc(a)).join('<br>');
+    const av = d.avisos || [];
+    const chip = $('#avisos');
+    chip.classList.toggle('on', av.length > 0);
+    chip.textContent = '⚠ ' + av.length + (av.length > 1 ? ' avisos' : ' aviso');
+    chip.setAttribute('data-tip', '<b>Avisos da leitura</b>' + av.map(esc).join('<br><br>'));
     atualizarSync();
     render();
-    if (S.drawer) abrirTurma(S.drawer, true);
+    if (S.drawer) abrirTurma(S.drawer);
   }
 
   /** Estatísticas por turma, recalculadas sempre que um status muda. */
@@ -126,14 +202,13 @@
       else if (n !== null && n <= 7) st.semana++;
     });
     d.turmas.forEach(t => { t.st.pct = t.st.total ? t.st.feito / t.st.total * 100 : 0; });
-    const venc = soma(d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && !concluida(e) && dias(e.prazo) < 0), () => 1);
+    const venc = d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && !concluida(e) && dias(e.prazo) < 0).length;
     $('#navBadge').textContent = venc || '';
   }
 
   function atualizarSync() {
     if (!S.dados) return;
-    const g = new Date(S.dados.geradoEm);
-    const min = Math.max(0, Math.round((Date.now() - g) / 60000));
+    const min = Math.max(0, Math.round((Date.now() - new Date(S.dados.geradoEm)) / 60000));
     $('#syncInfo').textContent = 'Atualizado ' + (min < 1 ? 'agora' : 'há ' + min + ' min') + (RUN ? '' : ' · demonstração');
   }
 
@@ -159,7 +234,6 @@
     [['#fArea', 'area'], ['#fCurso', 'curso'], ['#fSituacao', 'situacao'], ['#fResp', 'resp']]
       .forEach(([s, k]) => $(s).classList.toggle('on', !!S.f[k]));
   }
-  const titulo = s => String(s).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/\bDe\b/g, 'de');
 
   function turmaPassa(t, comBusca) {
     const f = S.f;
@@ -179,6 +253,10 @@
       (!S.f.resp || e.responsavel === S.f.resp) &&
       (!comBusca || !b || norm([e.etapa, e.turma, e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
   }
+  function formandosF() {
+    const f = S.dados.formandos || [];
+    return S.f.curso ? f.filter(x => norm(x.curso) === norm(S.f.curso)) : f;
+  }
 
   /* ================================================================ */
   /* Renderização                                                      */
@@ -189,16 +267,23 @@
     const v = VIEWS[S.view];
     $('#pageTitle').textContent = v[0];
     $('#pageSub').textContent = v[1];
-    document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
+    $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
     const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras }[S.view];
-    $('#view').innerHTML = '<div class="fade-in">' + fn() + '</div>';
+    $('#view').innerHTML = '<div class="vroot fade-in">' + fn() + '</div>';
+    paginarTudo($('#view'));
   }
 
   function irPara(view) {
     S.view = view;
     $('#sidebar').classList.remove('open');
     render();
-    window.scrollTo(0, 0);
+  }
+
+  /** Cartão com cabeçalho fixo e corpo paginado. */
+  function painel(o) {
+    return '<div class="card panel ' + (o.cls || '') + '" style="' + (o.style || '') + '">' +
+      '<div class="card-head"><h2>' + o.titulo + '</h2><span class="meta">' + (o.meta || '') + '</span>' + pager(o.key) + '</div>' +
+      (o.antes || '') + caixa(o.key, o.html, o.fitCls, o.auto) + (o.depois || '') + '</div>';
   }
 
   /* ---------- Visão geral ---------- */
@@ -213,23 +298,20 @@
     const pct = es.length ? (es.length - abertas.length) / es.length * 100 : 0;
     const cont = k => ts.filter(t => t.sit === k).length;
     const proxima = ts.filter(t => dias(t.inicio) > 0).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
-    const formados = soma(formandosF(), x => x.formados);
 
     const kpis = [
       kpi('Turmas', ts.length, '', [cont('plan') + ' planej.', cont('exec') + ' em exec.', cont('enc') + ' encerr.'].join(' · '), 'turmas'),
-      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length + ' etapas', 'etapas', '', anel(pct, 46)),
+      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
       kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
       kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próxima: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
-      kpi('Formados', formados, '', 'militares em 2026', 'formandos'),
-      proxima
-        ? kpi('Próxima turma', dias(proxima.inicio), proxima ? 'dias' : '', esc(proxima.turma), null, '', '', proxima.id)
-        : kpi('Próxima turma', '—', '', 'nenhuma prevista')
+      kpi('Formados', soma(formandosF(), x => x.formados), '', 'militares em ' + HOJE.getFullYear(), 'formandos'),
+      proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(proxima.turma), null, '', '', proxima.id)
+              : kpi('Próxima turma', '—', '', 'nenhuma prevista')
     ].join('');
 
     return '<div class="grid g-kpi">' + kpis + '</div>' +
-      '<div class="grid g-2 mt">' + cardAgora(ts) + cardCriticas(venc.concat(semana)) + '</div>' +
-      '<div class="grid g-3 mt">' + cardProgresso(ts) + cardStatus(es) + cardResponsaveis(abertas) + '</div>' +
-      '<div class="grid g-2e mt">' + cardMensal(ts) + cardFormadosCurso() + '</div>';
+      '<div class="geral-main">' + cardAgora(ts) + cardCriticas(venc.concat(semana)) +
+      cardProgresso(ts) + cardStatus(es) + cardResponsaveis(abertas) + '</div>';
   }
 
   function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
@@ -242,52 +324,58 @@
 
   function cardAgora(ts) {
     const exec = ts.filter(t => t.sit === 'exec');
-    const prox = ts.filter(t => t.sit === 'plan' && dias(t.inicio) >= 0).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(0, 4 - Math.min(exec.length, 2));
+    const prox = ts.filter(t => t.sit === 'plan' && dias(t.inicio) >= 0).sort((a, b) => a.inicio.localeCompare(b.inicio));
     const item = (t, next) => {
       const n = next ? dias(t.inicio) : dias(t.fim);
       const prep = t.prazoPlanejamento ? dias(t.prazoPlanejamento) : null;
       return '<div class="now-item ' + (next ? 'next' : '') + '" data-turma="' + t.id + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:8px">' + pillSit(t.sit) +
-        '<span class="tag">' + esc(t.curso) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;gap:8px">' + pillSit(t.sit) + '<span class="tag">' + esc(t.curso) + '</span></div>' +
         '<div class="t">' + esc(t.turma) + '</div>' +
         '<div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · ' +
         (next ? 'começa ' + relativo(n) : 'termina ' + relativo(n)) +
-        (next && prep !== null && prep < 0 ? ' · <b style="color:var(--danger)">prazo de planejamento vencido</b>' : '') + '</div>' +
+        (next && prep !== null && prep < 0 ? ' · <b style="color:var(--danger)">planejamento vencido</b>' : '') + '</div>' +
         barra(t.st) +
         '<div class="now-meta"><span>' + t.st.feito + '/' + t.st.total + ' etapas</span><span>' +
         (t.st.venc ? '<b style="color:var(--danger)">' + t.st.venc + ' vencida(s)</b> · ' : '') +
         '<b class="pct">' + Math.round(t.st.pct) + '%</b></span></div></div>';
     };
     const html = exec.map(t => item(t, false)).concat(prox.map(t => item(t, true))).join('');
-    return '<div class="card"><div class="card-head"><h2>Em andamento e próximas</h2><span class="meta">' + exec.length + ' em execução</span></div>' +
-      '<div class="now">' + (html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>') + '</div></div>';
+    return painel({
+      titulo: 'Em andamento e próximas', meta: exec.length + ' em exec. · ' + prox.length + ' a iniciar',
+      key: 'g-agora', fitCls: 'lista', auto: true, style: 'grid-area:agora',
+      html: html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>'
+    });
   }
 
   function cardCriticas(lista) {
     lista = lista.slice().sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
-    const linhas = lista.slice(0, 8).map(linhaEtapa).join('');
-    return '<div class="card flush"><div class="card-head"><h2>Etapas que pedem atenção</h2><span class="meta">vencidas e próximos 7 dias</span></div>' +
-      '<div class="list">' + (linhas || '<div class="empty">Tudo em dia. 🎉</div>') + '</div>' +
-      (lista.length > 8 ? '<button class="more" data-goto="etapas">ver todas (' + lista.length + ') →</button>' : '') + '</div>';
+    return painel({
+      titulo: 'Etapas que pedem atenção', meta: lista.length + ' · vencidas e 7 dias',
+      key: 'g-crit', cls: 'flush', auto: true, style: 'grid-area:crit',
+      html: lista.map(linhaEtapa).join('') || '<div class="empty">Tudo em dia. 🎉</div>',
+      depois: lista.length ? '<button class="more" data-goto="etapas">abrir quadro de etapas →</button>' : ''
+    });
   }
 
   function linhaEtapa(e) {
     return '<div class="row" data-turma="' + e.turmaId + '">' + badgeDias(e) +
-      '<div style="min-width:0"><div class="t">' + esc(e.etapa) + '</div>' +
-      '<div class="s">' + esc(e.turma) + ' · ' + esc(e.responsavel || 's/ resp.') + ' · prazo ' + fmtAno(e.prazo) + '</div></div>' +
+      '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+      '<div class="s">' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') + ' · ' + fmtAno(e.prazo) + '</div></div>' +
       seletor(e) + '</div>';
   }
 
   function cardProgresso(ts) {
     const linhas = ts.filter(t => t.st.total).map(t =>
-      '<div class="hbar click" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + t.st.feito + ' feitas · ' + t.st.exec + ' em execução · ' + t.st.pend + ' pendentes' + (t.st.venc ? '<br>' + t.st.venc + ' vencida(s)' : '') + '">' +
+      '<div class="hbar click" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + SIT[t.sit].label + '<br>' + t.st.feito + ' feitas · ' + t.st.exec + ' em execução · ' + t.st.pend + ' pendentes' + (t.st.venc ? '<br>' + t.st.venc + ' vencida(s)' : '') + '">' +
       '<span class="n">' + esc(curto(t.turma)) + '</span>' +
       '<span class="track"><i style="width:' + t.st.pct + '%;background:' + SIT[t.sit].cor + '"></i>' +
       '<i style="width:' + (t.st.exec / t.st.total * 100) + '%;background:var(--s-exec);opacity:.45"></i></span>' +
       '<span class="v">' + Math.round(t.st.pct) + '%</span></div>').join('');
-    return '<div class="card"><div class="card-head"><h2>Progresso por turma</h2><span class="meta">etapas concluídas</span></div>' +
-      '<div class="legend" style="margin-bottom:14px">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div>' +
-      '<div class="hbars">' + (linhas || '<div class="empty">Sem turmas no filtro.</div>') + '</div></div>';
+    return painel({
+      titulo: 'Progresso por turma', key: 'g-prog', fitCls: 'hbars', auto: true, style: 'grid-area:prog',
+      antes: '<div class="legend" style="margin-bottom:10px">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div>',
+      html: linhas || '<div class="empty">Sem turmas no filtro.</div>'
+    });
   }
 
   function cardStatus(es) {
@@ -308,14 +396,16 @@
     ];
     const fases = ['ANTES', 'DURANTE', 'DEPOIS'].map(f => {
       const x = es.filter(e => e.fase === f), ok = x.filter(concluida).length;
-      return '<div class="hbar" style="grid-template-columns:80px 1fr 48px"><span class="n">' + titulo(f) + '</span>' +
-        '<span class="track"><i style="width:' + (x.length ? ok / x.length * 100 : 0) + '%;background:var(--s-enc)"></i></span>' +
-        '<span class="v">' + (x.length ? Math.round(ok / x.length * 100) : 0) + '%</span></div>';
+      const p = x.length ? ok / x.length * 100 : 0;
+      return '<div class="hbar" style="grid-template-columns:62px 1fr 40px"><span class="n">' + titulo(f) + '</span>' +
+        '<span class="track"><i style="width:' + p + '%;background:var(--s-enc)"></i></span><span class="v">' + Math.round(p) + '%</span></div>';
     }).join('');
-    return '<div class="card"><div class="card-head"><h2>Status das etapas</h2><span class="meta">' + es.length + ' etapas</span></div>' +
-      '<div class="donut-wrap">' + rosca(seg, 132) + '<div class="legend">' +
-      seg.map(s => '<span><i style="background:' + s.cor + '"></i>' + s.l + '<b>' + s.v + '</b></span>').join('') + '</div></div>' +
-      '<div style="margin-top:22px" class="hbars"><div class="label" style="font-size:12px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Conclusão por fase</div>' + fases + '</div></div>';
+    return painel({
+      titulo: 'Status das etapas', meta: es.length + ' etapas', key: 'g-status', fitCls: 'lista', auto: true, style: 'grid-area:status',
+      html: '<div class="donut-wrap">' + rosca(seg, 112) + '<div class="legend">' +
+        seg.map(s => '<span><i style="background:' + s.cor + '"></i>' + s.l + '<b>' + s.v + '</b></span>').join('') + '</div></div>' +
+        '<div class="hbars" style="gap:6px;flex:none"><div class="sublabel">Conclusão por fase</div>' + fases + '</div>'
+    });
   }
 
   function cardResponsaveis(abertas) {
@@ -325,7 +415,7 @@
       m[k] = m[k] || { t: 0, v: 0 }; m[k].t++;
       if (dias(e.prazo) < 0) m[k].v++;
     });
-    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1].t - a[1].t).slice(0, 9);
+    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1].t - a[1].t);
     const max = arr.length ? arr[0][1].t : 1;
     const linhas = arr.map(([k, x]) =>
       '<div class="hbar click" data-resp="' + esc(k) + '" data-tip="<b>' + esc(k) + '</b>' + x.t + ' em aberto · ' + x.v + ' vencida(s)">' +
@@ -333,41 +423,11 @@
       '<i style="width:' + (x.v / max * 100) + '%;background:var(--danger)"></i>' +
       '<i style="width:' + ((x.t - x.v) / max * 100) + '%;background:var(--s-plan)"></i></span>' +
       '<span class="v">' + x.t + '</span></div>').join('');
-    return '<div class="card"><div class="card-head"><h2>Pendências por responsável</h2><span class="meta">clique para filtrar</span></div>' +
-      '<div class="legend" style="margin-bottom:14px"><span><i style="background:var(--danger)"></i>Vencidas</span><span><i style="background:var(--s-plan)"></i>No prazo</span></div>' +
-      '<div class="hbars">' + (linhas || '<div class="empty">Nenhuma pendência.</div>') + '</div></div>';
-  }
-
-  function cardMensal(ts) {
-    const ano = HOJE.getFullYear();
-    const meses = MESES.map(() => ({ plan: 0, exec: 0, enc: 0, canc: 0, n: 0 }));
-    ts.forEach(t => { const d = dt(t.inicio); if (d && d.getFullYear() === ano) { meses[d.getMonth()][t.sit]++; meses[d.getMonth()].n++; } });
-    const max = Math.max(1, ...meses.map(m => m.n));
-    const cols = meses.map((m, i) =>
-      '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1" data-tip="<b>' + MESES[i] + '/' + ano + '</b>' + m.n + ' turma(s)">' +
-      '<span class="pct" style="font-size:11px;color:var(--ink-3)">' + (m.n || '') + '</span>' +
-      '<div style="height:120px;width:100%;max-width:30px;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden;background:var(--surface-2)">' +
-      ['enc', 'exec', 'plan', 'canc'].map(k => m[k] ? '<i style="display:block;height:' + (m[k] / max * 100) + '%;background:' + SIT[k].cor + '"></i>' : '').join('') +
-      '</div><span style="font:500 11px var(--mono);color:' + (i === HOJE.getMonth() ? 'var(--accent)' : 'var(--ink-3)') + ';text-transform:uppercase">' + MESES[i] + '</span></div>').join('');
-    return '<div class="card"><div class="card-head"><h2>Turmas por mês de início</h2><span class="meta">' + ano + '</span></div>' +
-      '<div style="display:flex;gap:4px;align-items:flex-end">' + cols + '</div></div>';
-  }
-
-  function formandosF() {
-    const f = S.dados.formandos || [];
-    return S.f.curso ? f.filter(x => norm(x.curso) === norm(S.f.curso)) : f;
-  }
-
-  function cardFormadosCurso() {
-    const m = {};
-    formandosF().forEach(x => { m[x.curso] = (m[x.curso] || 0) + x.formados; });
-    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
-    const max = Math.max(1, ...arr.map(a => a[1]));
-    const total = soma(arr, a => a[1]);
-    const linhas = arr.map(([k, v]) =>
-      '<div class="hbar"><span class="n">' + esc(k) + '</span><span class="track"><i style="width:' + (v / max * 100) + '%;background:var(--accent)"></i></span><span class="v">' + v + '</span></div>').join('');
-    return '<div class="card"><div class="card-head"><h2>Formados por curso</h2><span class="meta">total ' + total + '</span></div>' +
-      '<div class="hbars">' + (linhas || '<div class="empty">Sem registros.</div>') + '</div></div>';
+    return painel({
+      titulo: 'Pendências por responsável', meta: 'clique para filtrar', key: 'g-resp', fitCls: 'hbars', auto: true, style: 'grid-area:resp',
+      antes: '<div class="legend" style="margin-bottom:10px"><span><i style="background:var(--danger)"></i>Vencidas</span><span><i style="background:var(--s-plan)"></i>No prazo</span></div>',
+      html: linhas || '<div class="empty">Nenhuma pendência.</div>'
+    });
   }
 
   /* ---------- Cronograma ---------- */
@@ -385,16 +445,17 @@
     const pos = s => Math.max(0, Math.min(100, (dt(s) - ini) / span * 100));
     const meses = [];
     for (let d = new Date(ini); d < fim; d.setMonth(d.getMonth() + 1)) meses.push(new Date(d));
-    const larg = meses.map(m => (new Date(m.getFullYear(), m.getMonth() + 1, 1) - m) / span * 100);
-    const cols = larg.map(w => w + '%').join(' ');
+    const cols = meses.map(m => ((new Date(m.getFullYear(), m.getMonth() + 1, 1) - m) / span * 100) + '%').join(' ');
     const hojePos = HOJE >= ini && HOJE < fim ? (HOJE - ini) / span * 100 : null;
+    const linhaHoje = hojePos !== null ? '<div class="g-today" style="left:' + hojePos + '%"></div>' : '';
+    const grade = '<div class="g-grid" style="grid-template-columns:' + cols + '">' + meses.map(() => '<div></div>').join('') + '</div>';
 
     const grupos = {};
     ts.forEach(t => { (grupos[t.curso] = grupos[t.curso] || []).push(t); });
 
     let linhas = '';
-    Object.keys(grupos).sort((a, b) => grupos[a][0].inicio.localeCompare(grupos[b][0].inicio)).forEach(g => {
-      linhas += '<div class="g-row"><div class="g-group">' + esc(g) + '</div><div></div></div>';
+    Object.keys(grupos).sort((a, b) => String(grupos[a][0].inicio).localeCompare(String(grupos[b][0].inicio))).forEach(g => {
+      linhas += '<div class="g-row grp"><div class="g-group">' + esc(g) + '</div><div class="g-track">' + grade + linhaHoje + '</div></div>';
       grupos[g].forEach(t => {
         const l = pos(t.inicio), w = Math.max(.6, pos(t.fim) + (100 / (span / DIA)) - l);
         const prepI = t.prazoPlanejamento ? pos(t.prazoPlanejamento) : l;
@@ -405,70 +466,69 @@
           (t.prazoPlanejamento ? '<br>Planejamento até ' + fmt(t.prazoPlanejamento) : '') +
           (t.prazoFinalizacao ? ' · Finalização até ' + fmt(t.prazoFinalizacao) : '');
         linhas += '<div class="g-row"><div class="g-label" data-turma="' + t.id + '" title="' + esc(t.turma) + '">' + esc(curto(t.turma)) + '<small>' + esc(t.local) + '</small></div>' +
-          '<div class="g-track"><div class="g-grid" style="grid-template-columns:' + cols + '">' + meses.map(() => '<div></div>').join('') + '</div>' +
+          '<div class="g-track">' + grade +
           '<div class="g-prep" style="left:' + prepI + '%;width:' + Math.max(0, posF - prepI) + '%"></div>' +
           '<div class="g-bar ' + t.sit + '" data-turma="' + t.id + '" data-tip="' + esc(tip) + '" style="left:' + l + '%;width:' + w + '%">' +
           (t.sit !== 'canc' ? '<div class="fill" style="width:' + t.st.pct + '%"></div>' : '') + '</div>' +
           (t.st.venc && t.sit !== 'canc' ? '<div class="g-late" style="left:calc(' + (l + w) + '% - 4px)"></div>' : '') +
+          linhaHoje +
           '</div></div>';
       });
     });
 
-    return '<div class="card"><div class="card-head"><h2>Linha do tempo</h2>' +
-      '<div class="legend">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
-      '<span><i style="background:var(--surface-3);height:4px"></i>Janela planejamento → finalização</span>' +
-      '<span><i style="background:var(--danger);border-radius:50%"></i>Etapas vencidas</span></div></div>' +
-      '<div class="gantt"><div class="gantt-inner">' +
-      '<div class="g-row head"><div class="g-label" style="cursor:default;color:var(--ink-3);font-size:12px">' + ts.length + ' turma(s)</div>' +
-      '<div class="g-track" style="height:34px"><div class="g-months" style="grid-template-columns:' + cols + '">' +
-      meses.map(m => '<div>' + MESES[m.getMonth()] + (m.getMonth() === 0 || m === meses[0] ? ' ' + String(m.getFullYear()).slice(2) : '') + '</div>').join('') + '</div></div></div>' +
-      '<div style="position:relative">' + linhas +
-      (hojePos !== null ? '<div class="g-today" style="left:calc(260px + (100% - 260px) * ' + (hojePos / 100) + ')"></div>' : '') +
-      '</div></div></div><p style="font-size:12px;color:var(--ink-3);margin:12px 0 0">A parte clara dentro de cada barra indica o percentual de etapas concluídas. Clique em uma turma para ver o checklist.</p></div>';
+    return '<div class="card panel grow"><div class="card-head"><h2>Linha do tempo</h2>' +
+      '<div class="legend" style="margin-left:auto">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
+      '<span><i style="background:var(--surface-3);height:4px"></i>Planejamento → finalização</span>' +
+      '<span><i style="background:var(--danger);border-radius:50%"></i>Etapas vencidas</span>' +
+      '<span><i style="background:var(--accent);width:2px"></i>Hoje</span></div>' + pager('crono') + '</div>' +
+      '<div class="g-head"><div class="sublabel" style="align-self:center" data-tip="A parte clara de cada barra é o % de etapas concluídas">' + ts.length + ' turma(s)</div>' +
+      '<div class="g-months" style="grid-template-columns:' + cols + '">' +
+      meses.map((m, i) => '<div>' + MESES[m.getMonth()] + (m.getMonth() === 0 || i === 0 ? ' ' + String(m.getFullYear()).slice(2) : '') + '</div>').join('') +
+      (hojePos !== null ? '<span class="g-today-label" style="left:' + hojePos + '%">hoje ' + fmt(S.dados.hoje) + '</span>' : '') + '</div></div>' +
+      '<div class="g-body">' + caixa('crono', linhas, 'g-rows') + '</div></div>';
   }
 
   /* ---------- Turmas ---------- */
 
   function vTurmas() {
-    let ts = turmasF();
     const ord = {
       inicio: (a, b) => String(a.inicio).localeCompare(String(b.inicio)),
       progresso: (a, b) => a.st.pct - b.st.pct,
       vencidas: (a, b) => b.st.venc - a.st.venc,
       nome: (a, b) => a.turma.localeCompare(b.turma, 'pt-BR')
     }[S.turmasOrdem];
-    ts = ts.slice().sort(ord);
+    const ts = turmasF().slice().sort(ord);
 
-    const barraFerr = '<div class="toolbar"><div class="seg" data-seg="turmasModo">' +
-      ['cards:Cartões', 'tabela:Tabela'].map(x => { const [k, l] = x.split(':'); return '<button data-val="' + k + '" class="' + (S.turmasModo === k ? 'on' : '') + '">' + l + '</button>'; }).join('') +
-      '</div><select id="ordTurmas" class="ghost">' +
+    const barraFerr = '<div class="toolbar">' + segmento('turmasModo', [['cards', 'Cartões'], ['tabela', 'Tabela']]) +
+      '<select id="ordTurmas" class="ghost">' +
       [['inicio', 'Ordenar por início'], ['progresso', 'Menor progresso'], ['vencidas', 'Mais vencidas'], ['nome', 'Nome']]
         .map(o => '<option value="' + o[0] + '"' + (S.turmasOrdem === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
-      '</select><span style="color:var(--ink-3);font-size:13px">' + ts.length + ' turma(s)</span></div>';
+      '</select><span style="color:var(--ink-3);font-size:12.5px">' + ts.length + ' turma(s)</span>' + pager('turmas-' + S.turmasModo) + '</div>';
 
     if (!ts.length) return barraFerr + '<div class="card empty">Nenhuma turma no filtro.</div>';
 
     if (S.turmasModo === 'tabela') {
-      return barraFerr + '<div class="card flush"><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
-        ['Turma', 'Curso', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Conclusão', 'Vencidas', 'Formados'].map(h => '<th style="cursor:default">' + h + '</th>').join('') +
-        '</tr></thead><tbody>' + ts.map(t =>
-          '<tr data-turma="' + t.id + '" style="cursor:pointer"><td><b>' + esc(t.turma) + '</b></td><td>' + esc(t.curso) + '</td><td>' + esc(t.local) + '</td>' +
-          '<td class="mono">' + fmtAno(t.inicio) + '</td><td class="mono">' + fmtAno(t.fim) + '</td><td>' + pillSit(t.sit) + '</td>' +
-          '<td class="mono">' + t.st.feito + '/' + t.st.total + '</td><td style="min-width:140px"><div style="display:flex;gap:8px;align-items:center">' + barra(t.st) + '<span class="pct">' + Math.round(t.st.pct) + '%</span></div></td>' +
-          '<td class="mono" style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + (t.st.venc || '—') + '</td><td class="mono">' + (t.formados != null ? t.formados : '—') + '</td></tr>').join('') +
-        '</tbody></table></div></div>';
+      const cols = 'grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) 84px 84px 112px 64px minmax(110px,1fr) 64px 70px';
+      return barraFerr + '<div class="card flush panel grow">' +
+        '<div class="gt-head" style="' + cols + '"><span>Turma</span><span>Curso</span><span>Local</span><span>Início</span><span>Término</span><span>Situação</span><span>Etapas</span><span>Conclusão</span><span>Vencidas</span><span>Formados</span></div>' +
+        caixa('turmas-tabela', ts.map(t =>
+          '<div class="gt-row click" style="' + cols + '" data-turma="' + t.id + '"><b title="' + esc(t.turma) + '">' + esc(t.turma) + '</b><span>' + esc(t.curso) + '</span><span>' + esc(t.local) + '</span>' +
+          '<span class="mono">' + fmtAno(t.inicio) + '</span><span class="mono">' + fmtAno(t.fim) + '</span><span>' + pillSit(t.sit) + '</span>' +
+          '<span class="mono">' + t.st.feito + '/' + t.st.total + '</span><span style="display:flex;gap:8px;align-items:center">' + barra(t.st) + '<span class="pct">' + Math.round(t.st.pct) + '%</span></span>' +
+          '<span class="mono" style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + (t.st.venc || '—') + '</span><span class="mono">' + (t.formados != null ? t.formados : '—') + '</span></div>').join('')) +
+        '</div>';
     }
 
-    return barraFerr + '<div class="grid g-cards">' + ts.map(t => {
+    return barraFerr + '<div class="grow" style="display:flex;flex-direction:column">' + caixa('turmas-cards', ts.map(t => {
       const n = t.sit === 'plan' ? dias(t.inicio) : null;
       return '<div class="card tcard" data-turma="' + t.id + '">' +
         '<div class="top"><span class="tag">' + esc(t.curso) + '</span>' + pillSit(t.sit) + '</div>' +
-        '<div><h3>' + esc(t.turma) + '</h3><div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
-        (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
-        '<div>' + barra(t.st) + '<div class="nums" style="margin-top:7px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> em exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
-        (t.st.venc && t.sit !== 'canc' ? '<div class="alert-line">⚠ ' + t.st.venc + ' etapa(s) vencida(s)</div>' : '') +
-        '<div class="flags">' + bandeiras(t) + '</div></div>';
-    }).join('') + '</div>';
+        '<div><h3 title="' + esc(t.turma) + '">' + esc(t.turma) + '</h3><div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
+        (t.duracao ? ' · ' + t.duracao + 'd' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
+        '<div>' + barra(t.st) + '<div class="nums" style="margin-top:6px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
+        '<div class="foot-line"><div class="flags">' + bandeiras(t) + '</div>' +
+        (t.st.venc && t.sit !== 'canc' ? '<span class="alert-line">⚠ ' + t.st.venc + '</span>' : '') + '</div></div>';
+    }).join(''), 'g-cards') + '</div>';
   }
 
   function bandeiras(t) {
@@ -477,30 +537,34 @@
       .map(([k, l]) => { const v = norm(t[k]); return '<span class="flag ' + (v === 'sim' ? 'sim' : /definir/.test(v) ? 'def' : '') + '" data-tip="<b>' + l + '</b>' + esc(t[k]) + '">' + l + '</span>'; }).join('');
   }
 
+  const segmento = (chave, ops) => '<div class="seg" data-seg="' + chave + '">' +
+    ops.map(([k, l]) => '<button data-val="' + k + '" class="' + (S[chave] === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div>';
+
   /* ---------- Etapas ---------- */
 
   function vEtapas() {
     const todas = etapasF();
     const abertas = todas.filter(e => !concluida(e));
 
-    const barraFerr = '<div class="toolbar"><div class="seg" data-seg="etapasModo">' +
-      ['quadro:Quadro', 'tabela:Tabela'].map(x => { const [k, l] = x.split(':'); return '<button data-val="' + k + '" class="' + (S.etapasModo === k ? 'on' : '') + '">' + l + '</button>'; }).join('') + '</div>' +
+    const barraFerr = '<div class="toolbar">' + segmento('etapasModo', [['quadro', 'Quadro'], ['tabela', 'Tabela']]) +
       (S.etapasModo === 'tabela' ? '<label class="switch"><input type="checkbox" id="chkConcl"' + (S.etapasConcluidas ? ' checked' : '') + '><span></span>Mostrar concluídas</label>' : '') +
-      '<span style="color:var(--ink-3);font-size:13px">' + abertas.length + ' em aberto · ' + (todas.length - abertas.length) + ' concluídas</span></div>';
+      '<span style="color:var(--ink-3);font-size:12.5px">' + abertas.length + ' em aberto · ' + (todas.length - abertas.length) + ' concluídas</span>' +
+      (S.etapasModo === 'tabela' ? pager('etapas-tabela') : '') + '</div>';
 
     if (S.etapasModo === 'tabela') {
       const lista = (S.etapasConcluidas ? todas : abertas).slice();
       const k = S.tbl.chave, dir = S.tbl.asc ? 1 : -1;
       lista.sort((a, b) => String(a[k] || '￿').localeCompare(String(b[k] || '￿'), 'pt-BR') * dir);
-      const cols = [['prazo', 'Prazo'], ['etapa', 'Etapa'], ['turma', 'Turma'], ['fase', 'Fase'], ['responsavel', 'Responsável'], ['documento', 'Documento'], ['status', 'Status']];
-      return barraFerr + '<div class="card flush"><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
-        cols.map(([c, l]) => '<th data-sort="' + c + '" class="' + (k === c ? 'sorted' + (S.tbl.asc ? ' asc' : '') : '') + '">' + l + '</th>').join('') +
-        '</tr></thead><tbody>' + lista.map(e =>
-          '<tr><td style="white-space:nowrap"><span class="mono">' + fmt(e.prazo) + '</span> ' + badgeDias(e) + '</td>' +
-          '<td>' + esc(e.etapa) + '</td><td><a href="#" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</a></td>' +
-          '<td><span class="tag">' + esc(e.fase) + '</span></td><td>' + esc(e.responsavel) + '</td>' +
-          '<td style="color:var(--ink-3)">' + esc(e.documento) + '</td><td>' + seletor(e) + '</td></tr>').join('') +
-        '</tbody></table>' + (lista.length ? '' : '<div class="empty">Nenhuma etapa.</div>') + '</div></div>';
+      const cols = 'grid-template-columns:150px minmax(0,2.4fr) minmax(0,1.4fr) 74px minmax(0,1fr) minmax(0,1.3fr) 124px';
+      const cab = [['prazo', 'Prazo'], ['etapa', 'Etapa'], ['turma', 'Turma'], ['fase', 'Fase'], ['responsavel', 'Responsável'], ['documento', 'Documento'], ['status', 'Status']];
+      return barraFerr + '<div class="card flush panel grow">' +
+        '<div class="gt-head" style="' + cols + '">' + cab.map(([c, l]) => '<span data-sort="' + c + '" class="' + (k === c ? 'sorted' + (S.tbl.asc ? ' asc' : '') : '') + '">' + l + '</span>').join('') + '</div>' +
+        caixa('etapas-tabela', lista.map(e =>
+          '<div class="gt-row" style="' + cols + '"><span><span class="mono">' + fmt(e.prazo) + '</span> ' + badgeDias(e) + '</span>' +
+          '<span title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</span><a href="#" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</a>' +
+          '<span><span class="tag">' + esc(e.fase) + '</span></span><span>' + esc(e.responsavel) + '</span>' +
+          '<span class="dim">' + esc(e.documento) + '</span><span>' + seletor(e) + '</span></div>').join('') || '<div class="empty">Nenhuma etapa.</div>') +
+        '</div>';
     }
 
     const colunas = [
@@ -509,16 +573,13 @@
       { k: 'mes', l: '8 a 30 dias', f: n => n !== null && n > 7 && n <= 30 },
       { k: 'depois', l: 'Mais de 30 dias', f: n => n === null || n > 30 }
     ];
-    return barraFerr + '<div class="board">' + colunas.map(c => {
+    return barraFerr + '<div class="board grow">' + colunas.map(c => {
       const itens = abertas.filter(e => c.f(dias(e.prazo))).sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
-      const lim = S.limiteCol[c.k] || 30;
-      return '<div class="col ' + c.k + '"><div class="col-head"><span>' + c.l + '</span><span class="count">' + itens.length + '</span></div>' +
-        itens.slice(0, lim).map(e =>
+      return '<div class="col ' + c.k + '"><div class="col-head"><span>' + c.l + '</span><span class="count">' + itens.length + '</span>' + pager('col-' + c.k) + '</div>' +
+        caixa('col-' + c.k, itens.map(e =>
           '<div class="ecard"><div class="t">' + esc(e.etapa) + '</div>' +
           '<div class="s" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') + '</div>' +
-          '<div class="b">' + badgeDias(e) + seletor(e) + '</div></div>').join('') +
-        (itens.length > lim ? '<button class="more" data-maiscol="' + c.k + '">mostrar mais ' + Math.min(30, itens.length - lim) + '</button>' : '') +
-        (itens.length ? '' : '<div class="empty">Nada aqui.</div>') + '</div>';
+          '<div class="b">' + badgeDias(e) + seletor(e) + '</div></div>').join('') || '<div class="empty">Nada aqui.</div>') + '</div>';
     }).join('') + '</div>';
   }
 
@@ -530,14 +591,26 @@
     const lista = b ? f.filter(x => norm([x.curso, x.turma, x.local].join(' ')).indexOf(b) >= 0) : f;
     const total = soma(f, x => x.formados);
     const comFormados = f.filter(x => x.formados > 0).length;
-    return '<div class="grid g-kpi">' +
-      kpi('Total de formados', total, '', 'militares em 2026') +
+
+    const m = {};
+    f.forEach(x => { m[x.curso] = (m[x.curso] || 0) + x.formados; });
+    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...arr.map(a => a[1]));
+    const cols = 'grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) minmax(0,1.2fr) 80px';
+
+    return '<div class="grid g-kpi k3">' +
+      kpi('Total de formados', total, '', 'militares em ' + HOJE.getFullYear()) +
       kpi('Turmas com formatura', comFormados, '', 'de ' + f.length + ' turmas listadas') +
       kpi('Média por turma', comFormados ? Math.round(total / comFormados) : 0, '', 'considerando turmas com formados') +
-      '</div><div class="grid g-2e mt">' + cardFormadosCurso() +
-      '<div class="card flush"><div class="card-head"><h2>Por turma</h2><span class="meta">aba "Formandos 2026"</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Curso</th><th>Turma</th><th>Local</th><th style="text-align:right">Formados</th></tr></thead><tbody>' +
-      lista.map(x => '<tr style="' + (x.formados ? '' : 'color:var(--ink-3)') + '"><td>' + esc(x.curso) + '</td><td>' + esc(x.turma) + '</td><td>' + esc(x.local) + '</td><td class="mono" style="text-align:right;font-weight:600">' + x.formados + '</td></tr>').join('') +
-      '</tbody></table></div></div></div>';
+      '</div><div class="grid grow" style="grid-template-columns:1fr 1.3fr">' +
+      painel({
+        titulo: 'Formados por curso', meta: 'total ' + total, key: 'f-curso', fitCls: 'hbars',
+        html: arr.map(([k, v]) => '<div class="hbar"><span class="n">' + esc(k) + '</span><span class="track"><i style="width:' + (v / max * 100) + '%;background:var(--accent)"></i></span><span class="v">' + v + '</span></div>').join('') || '<div class="empty">Sem registros.</div>'
+      }) +
+      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">aba "Formandos 2026"</span>' + pager('f-turma') + '</div>' +
+      '<div class="gt-head" style="' + cols + ';margin-top:8px"><span>Curso</span><span>Turma</span><span>Local</span><span style="text-align:right">Formados</span></div>' +
+      caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + cols + (x.formados ? '' : ';color:var(--ink-3)') + '"><span>' + esc(x.curso) + '</span><span>' + esc(x.turma) + '</span><span>' + esc(x.local) + '</span><span class="mono" style="text-align:right;font-weight:600">' + x.formados + '</span></div>').join('')) +
+      '</div></div>';
   }
 
   /* ---------- Regras ---------- */
@@ -546,73 +619,73 @@
     const b = norm(S.f.busca);
     const rs = (S.dados.regras || []).filter(r => !b || norm(Object.values(r).join(' ')).indexOf(b) >= 0);
     if (!rs.length) return '<div class="card empty">Nenhuma regra encontrada.</div>';
-    return '<div class="grid g-rules">' + rs.map(r =>
-      '<div class="card rule"><div style="display:flex;justify-content:space-between"><span class="code">' + esc(r.codigo) + '</span><span class="tag">' + esc(r.natureza) + '</span></div>' +
-      '<h3>' + esc(r.etapa) + '</h3><div class="prazo">' + esc(r.prazo) + '</div>' +
-      '<dl><dt>Contagem</dt><dd>' + esc(r.contagem) + '</dd><dt>Referência</dt><dd>' + esc(r.marco) + '</dd><dt>Aplica-se</dt><dd>' + esc(r.aplicabilidade) + '</dd></dl>' +
-      (r.observacoes ? '<div class="obs">' + esc(r.observacoes) + '</div>' : '') + '</div>').join('') + '</div>';
+    return '<div class="toolbar"><span style="color:var(--ink-3);font-size:12.5px">' + rs.length + ' regra(s)</span>' + pager('regras') + '</div>' +
+      '<div class="grow" style="display:flex;flex-direction:column">' + caixa('regras', rs.map(r =>
+        '<div class="card rule"><div style="display:flex;justify-content:space-between"><span class="code">' + esc(r.codigo) + '</span><span class="tag">' + esc(r.natureza) + '</span></div>' +
+        '<h3>' + esc(r.etapa) + '</h3><div class="prazo">' + esc(r.prazo) + '</div>' +
+        '<dl><dt>Contagem</dt><dd>' + esc(r.contagem) + '</dd><dt>Referência</dt><dd>' + esc(r.marco) + '</dd><dt>Aplica-se</dt><dd>' + esc(r.aplicabilidade) + '</dd></dl>' +
+        (r.observacoes ? '<div class="obs">' + esc(r.observacoes) + '</div>' : '') + '</div>').join(''), 'g-rules') + '</div>';
   }
 
   /* ================================================================ */
-  /* Drawer da turma                                                   */
+  /* Drawer da turma: dados à esquerda, checklist paginado à direita   */
   /* ================================================================ */
 
-  function abrirTurma(id, manterScroll) {
+  function abrirTurma(id) {
     const t = S.turmaIdx[id]; if (!t) return;
+    if (S.drawer !== id) { S.fase = 'TODAS'; delete S.pg['d-steps']; }
     S.drawer = id;
-    const dr = $('#drawer');
-    const scroll = manterScroll ? dr.scrollTop : 0;
     const es = S.dados.etapas.filter(e => e.turmaId === id);
     const nIni = dias(t.inicio);
+    const fases = ['ANTES', 'DURANTE', 'DEPOIS'].filter(f => es.some(e => e.fase === f));
+    es.forEach(e => { if (fases.indexOf(e.fase) < 0) fases.push(e.fase); });
+    if (S.fase !== 'TODAS' && fases.indexOf(S.fase) < 0) S.fase = 'TODAS';
 
-    const fases = {};
-    es.forEach(e => { (fases[e.fase || 'OUTRAS'] = fases[e.fase || 'OUTRAS'] || []).push(e); });
-    const ordem = ['ANTES', 'DURANTE', 'DEPOIS'].filter(f => fases[f]).concat(Object.keys(fases).filter(f => ['ANTES', 'DURANTE', 'DEPOIS'].indexOf(f) < 0));
-
-    const blocos = ordem.map(f => {
-      const lista = fases[f];
-      const ok = lista.filter(concluida).length;
-      const mostrar = S.soPendentes ? lista.filter(e => !concluida(e)) : lista;
-      const chave = id + f;
-      return '<div class="phase ' + (S.fasesFechadas[chave] ? 'closed' : '') + '"><div class="phase-head" data-fase="' + chave + '"><span>' + titulo(f) + ' <span style="color:var(--ink-3);font-weight:500">· ' + ok + '/' + lista.length + '</span></span>' +
-        barra({ total: lista.length, feito: ok, exec: lista.filter(e => e.status === 'Em execução').length }) + '</div><div class="phase-body">' +
-        (mostrar.map(e => {
-          const n = dias(e.prazo), late = !concluida(e) && n !== null && n < 0;
-          const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
-          return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
-            '<div><div class="t">' + esc(e.etapa) + '</div><div class="m">Prazo ' + fmtAno(e.prazo) + ' · ' + esc(e.responsavel || 's/ resp.') +
-            (e.documento ? ' · ' + esc(e.documento) : '') + (e.conclusao ? ' · concluída em ' + fmtAno(e.conclusao) : '') + '</div>' +
-            (e.observacoes ? '<div class="m" style="color:var(--ink-2)">💬 ' + esc(e.observacoes) + '</div>' : '') + '</div>' +
-            '<div class="r">' + seletor(e) + badgeDias(e) + '</div></div>';
-        }).join('') || '<div class="empty">Tudo concluído nesta fase.</div>') + '</div></div>';
+    let lista = S.fase === 'TODAS' ? es : es.filter(e => e.fase === S.fase);
+    if (S.soPendentes) lista = lista.filter(e => !concluida(e));
+    const steps = lista.map(e => {
+      const n = dias(e.prazo), late = !concluida(e) && n !== null && n < 0;
+      const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
+      return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
+        '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + (S.fase === 'TODAS' ? '<span class="fase">' + esc(e.fase) + '</span>' : '') + esc(e.etapa) + '</div>' +
+        '<div class="m">Prazo ' + fmtAno(e.prazo) + ' · ' + esc(e.responsavel || 's/ resp.') + (e.documento ? ' · ' + esc(e.documento) : '') +
+        (e.conclusao ? ' · concluída ' + fmt(e.conclusao) : '') + (e.observacoes ? ' · 💬 ' + esc(e.observacoes) : '') + '</div></div>' +
+        '<div class="r">' + badgeDias(e) + seletor(e) + '</div></div>';
     }).join('');
 
+    const abas = [['TODAS', 'Todas', es]].concat(fases.map(f => [f, titulo(f), es.filter(e => e.fase === f)]));
     const link = S.dados.url && t.gid != null ? S.dados.url.split('#')[0] + '#gid=' + t.gid + (t.linhaResumo ? '&range=A' + t.linhaResumo : '') : '';
+    const kvSim = v => '<dd class="' + (norm(v) === 'sim' ? 'sim' : '') + '">' + esc(v || '—') + '</dd>';
 
-    dr.innerHTML = '<button class="close" data-fechar>✕</button>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="tag">' + esc(t.curso) + '</span>' +
-      (t.area && norm(t.area) !== norm(t.curso) ? '<span class="tag">' + esc(titulo(t.area)) + '</span>' : '') + pillSit(t.sit) + '</div>' +
-      '<h2>' + esc(t.turma) + '</h2><div class="sub">' + esc(t.local) + ' · ' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
-      (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? ' · <a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div>' +
-      '<div class="d-kpis">' +
-      dk('Conclusão', Math.round(t.st.pct) + '%') + dk('Etapas', t.st.feito + '/' + t.st.total) +
-      dk('Vencidas', '<span style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + t.st.venc + '</span>') +
-      (t.sit === 'plan' && nIni !== null ? dk('Início', nIni + ' dias') : dk('Formados', t.formados != null ? t.formados : '—')) + '</div>' +
-      barra(t.st) +
-      (t.prazoPlanejamento || t.prazoFinalizacao ? '<div class="d-section"><h3>Janela de trabalho</h3><div class="matrix">' +
-        '<div>Prazo de planejamento<b>' + fmtAno(t.prazoPlanejamento) + ' <small style="color:var(--ink-3);font-weight:400">(' + relativo(dias(t.prazoPlanejamento)) + ')</small></b></div>' +
-        '<div>Execução<b>' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '</b></div>' +
-        '<div>Prazo de finalização<b>' + fmtAno(t.prazoFinalizacao) + ' <small style="color:var(--ink-3);font-weight:400">(' + relativo(dias(t.prazoFinalizacao)) + ')</small></b></div></div></div>' : '') +
-      (bandeiras(t) ? '<div class="d-section"><h3>Matriz de decisão</h3><div class="matrix">' +
-        [['licitacao', 'Licitação'], ['docenteExterno', 'Docente externo'], ['avaliacao', 'Avaliação'], ['diaria', 'Diária'], ['mais8dias', 'Curso > 8 dias'], ['autorizacaoDiaria', 'Autorização prévia de diária']]
-          .map(([k, l]) => '<div class="' + (norm(t[k]) === 'sim' ? 'sim' : '') + '">' + l + '<b>' + esc(t[k] || '—') + '</b></div>').join('') + '</div></div>' : '') +
-      (t.observacoes ? '<div class="d-section"><h3>Observações</h3><div class="card" style="padding:12px 14px">' + esc(t.observacoes) + '</div></div>' : '') +
-      '<div class="d-section"><h3>Checklist de etapas <label class="switch" style="text-transform:none;letter-spacing:0;font-weight:500"><input type="checkbox" id="chkPend"' + (S.soPendentes ? ' checked' : '') + '><span></span>Só em aberto</label></h3>' +
-      (blocos || '<div class="card empty">Esta turma não tem aba operacional vinculada.</div>') + '</div>';
+    $('#drawer').innerHTML = '<button class="close" data-fechar title="Fechar (Esc)">✕</button><div class="d-grid">' +
+      '<div class="d-left">' +
+        '<div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="tag">' + esc(t.curso) + '</span>' +
+        (t.area && norm(t.area) !== norm(t.curso) ? '<span class="tag">' + esc(titulo(t.area)) + '</span>' : '') + pillSit(t.sit) + '</div>' +
+        '<h2>' + esc(t.turma) + '</h2><div class="sub">' + esc(t.local) + ' · ' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
+        (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? '<br><a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div></div>' +
+        '<div class="d-kpis">' + dk('Conclusão', Math.round(t.st.pct) + '%') + dk('Etapas', t.st.feito + '/' + t.st.total) +
+        dk('Vencidas', '<span style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + t.st.venc + '</span>') +
+        (t.sit === 'plan' && nIni !== null ? dk('Início', nIni + ' dias') : dk('Formados', t.formados != null ? t.formados : '—')) + '</div>' +
+        '<div style="flex:none;display:flex">' + barra(t.st) + '</div>' +
+        (t.prazoPlanejamento || t.prazoFinalizacao ? '<div class="d-section"><h3>Janela de trabalho</h3><dl class="kv">' +
+          '<dt>Prazo de planejamento</dt><dd>' + fmtAno(t.prazoPlanejamento) + ' <small>' + relativo(dias(t.prazoPlanejamento)) + '</small></dd>' +
+          '<dt>Execução</dt><dd>' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '</dd>' +
+          '<dt>Prazo de finalização</dt><dd>' + fmtAno(t.prazoFinalizacao) + ' <small>' + relativo(dias(t.prazoFinalizacao)) + '</small></dd></dl></div>' : '') +
+        (bandeiras(t) ? '<div class="d-section"><h3>Matriz de decisão</h3><dl class="kv">' +
+          [['licitacao', 'Licitação'], ['docenteExterno', 'Docente externo'], ['avaliacao', 'Avaliação'], ['diaria', 'Diária'], ['mais8dias', 'Curso > 8 dias'], ['autorizacaoDiaria', 'Autorização prévia de diária']]
+            .map(([k, l]) => '<dt>' + l + '</dt>' + kvSim(t[k])).join('') + '</dl></div>' : '') +
+        (t.observacoes ? '<div class="d-section"><h3>Observações</h3><div class="obs-box" title="' + esc(t.observacoes) + '">' + esc(t.observacoes) + '</div></div>' : '') +
+      '</div>' +
+      '<div class="d-right"><div class="d-right-head"><h3>Checklist</h3>' +
+        '<div class="seg">' + abas.map(([k, l, x]) => '<button data-fasetab="' + k + '" class="' + (S.fase === k ? 'on' : '') + '">' + l + ' <small style="color:var(--ink-3)">' + x.filter(concluida).length + '/' + x.length + '</small></button>').join('') + '</div>' +
+        '<label class="switch"><input type="checkbox" id="chkPend"' + (S.soPendentes ? ' checked' : '') + '><span></span>Só em aberto</label>' +
+        pager('d-steps') + '</div>' +
+        caixa('d-steps', steps || '<div class="empty">' + (es.length ? 'Nada em aberto aqui. ✓' : 'Esta turma não tem aba operacional vinculada.') + '</div>') +
+      '</div></div>';
 
-    dr.classList.add('open'); dr.setAttribute('aria-hidden', 'false');
+    $('#drawer').classList.add('open'); $('#drawer').setAttribute('aria-hidden', 'false');
     $('#drawerBg').classList.add('open');
-    dr.scrollTop = scroll;
+    paginarTudo($('#drawer'));
   }
 
   function fecharDrawer() {
@@ -632,7 +705,6 @@
     const t = st.total || 1;
     return '<div class="bar" style="flex:1"><i class="f" style="width:' + (st.feito / t * 100) + '%"></i><i class="e" style="width:' + ((st.exec || 0) / t * 100) + '%"></i></div>';
   }
-  function curto(s) { return String(s).replace(/^Credenciamento para Uso Operacional de /, 'Cred. ').replace(/^Curso de Credenciamento para o /, 'Cred. ').replace(/Estágio Tático Rodoviário/, 'ETR'); }
 
   function seletor(e) {
     const ops = S.dados.statusEtapa || ['Pendente', 'Em execução', 'Feito', 'Não se aplica'];
@@ -641,24 +713,24 @@
   }
 
   function anel(pct, tam) {
-    const r = tam / 2 - 5, c = 2 * Math.PI * r;
+    const r = tam / 2 - 5, c = 2 * Math.PI * r, m = tam / 2;
     return '<svg class="ring" width="' + tam + '" height="' + tam + '" viewBox="0 0 ' + tam + ' ' + tam + '">' +
-      '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:var(--surface-3)" stroke-width="6"/>' +
-      '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:var(--s-enc)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct / 100) + ' ' + c + '" transform="rotate(-90 ' + tam / 2 + ' ' + tam / 2 + ')"/></svg>';
+      '<circle cx="' + m + '" cy="' + m + '" r="' + r + '" fill="none" style="stroke:var(--surface-3)" stroke-width="6"/>' +
+      '<circle cx="' + m + '" cy="' + m + '" r="' + r + '" fill="none" style="stroke:var(--s-enc)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct / 100) + ' ' + c + '" transform="rotate(-90 ' + m + ' ' + m + ')"/></svg>';
   }
 
   function rosca(seg, tam) {
-    const total = soma(seg, s => s.v) || 1, r = tam / 2 - 12, c = 2 * Math.PI * r;
+    const total = soma(seg, s => s.v) || 1, r = tam / 2 - 11, c = 2 * Math.PI * r, m = tam / 2;
     let acc = 0;
     const arcos = seg.filter(s => s.v).map(s => {
       const len = s.v / total * c;
-      const el = '<circle cx="' + tam / 2 + '" cy="' + tam / 2 + '" r="' + r + '" fill="none" style="stroke:' + s.cor + '" stroke-width="18" stroke-dasharray="' + Math.max(0, len - 1.5) + ' ' + c + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 ' + tam / 2 + ' ' + tam / 2 + ')" data-tip="<b>' + s.l + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"/>';
+      const el = '<circle cx="' + m + '" cy="' + m + '" r="' + r + '" fill="none" style="stroke:' + s.cor + '" stroke-width="16" stroke-dasharray="' + Math.max(0, len - 1.5) + ' ' + c + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 ' + m + ' ' + m + ')" data-tip="<b>' + s.l + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"/>';
       acc += len; return el;
     }).join('');
     const ok = seg[0].v + seg[4].v;
     return '<svg width="' + tam + '" height="' + tam + '" style="flex:none">' + arcos +
-      '<text x="50%" y="48%" text-anchor="middle" style="font:600 24px Fraunces,serif;fill:var(--ink)">' + Math.round(ok / total * 100) + '%</text>' +
-      '<text x="50%" y="63%" text-anchor="middle" style="font:500 11px Inter,sans-serif;fill:var(--ink-3)">concluído</text></svg>';
+      '<text x="50%" y="49%" text-anchor="middle" style="font:600 21px Fraunces,serif;fill:var(--ink)">' + Math.round(ok / total * 100) + '%</text>' +
+      '<text x="50%" y="63%" text-anchor="middle" style="font:500 10.5px Inter,sans-serif;fill:var(--ink-3)">concluído</text></svg>';
   }
 
   /* ================================================================ */
@@ -698,12 +770,10 @@
     refrescar();
   }
 
-  /** Re-renderiza mantendo a rolagem da página e do drawer. */
+  /** Re-renderiza mantendo as páginas atuais. */
   function refrescar() {
-    const y = window.scrollY;
     render();
-    if (S.drawer) abrirTurma(S.drawer, true);
-    window.scrollTo(0, y);
+    if (S.drawer) abrirTurma(S.drawer);
   }
 
   function exportarCsv() {
@@ -737,6 +807,8 @@
     try { localStorage.setItem('painel-tema', t); } catch (e) { /* sem storage */ }
   }
 
+  function filtrosMudaram() { S.pg = {}; marcarFiltros(); render(); }
+
   /* ================================================================ */
   /* Eventos                                                           */
   /* ================================================================ */
@@ -745,23 +817,23 @@
     const el = ev.target;
     if (el.closest('select, input, label.switch')) return;
 
+    const pg = el.closest('[data-pg]');
+    if (pg) return virar(pg.dataset.key, Number(pg.dataset.pg));
+
     const nav = el.closest('#nav button'); if (nav) return irPara(nav.dataset.view);
     if (el.closest('[data-fechar]') || el.id === 'drawerBg') return fecharDrawer();
 
     const seg = el.closest('[data-seg] button');
     if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
 
-    const fase = el.closest('[data-fase]');
-    if (fase) { S.fasesFechadas[fase.dataset.fase] = !S.fasesFechadas[fase.dataset.fase]; return fase.parentNode.classList.toggle('closed'); }
+    const ft = el.closest('[data-fasetab]');
+    if (ft) { S.fase = ft.dataset.fasetab; S.pg['d-steps'] = 0; return abrirTurma(S.drawer); }
 
-    const th = el.closest('th[data-sort]');
-    if (th) { const k = th.dataset.sort; S.tbl = { chave: k, asc: S.tbl.chave === k ? !S.tbl.asc : true }; return render(); }
-
-    const mais = el.closest('[data-maiscol]');
-    if (mais) { const k = mais.dataset.maiscol; S.limiteCol[k] = (S.limiteCol[k] || 30) + 30; return refrescar(); }
+    const th = el.closest('[data-sort]');
+    if (th) { const k = th.dataset.sort; S.tbl = { chave: k, asc: S.tbl.chave === k ? !S.tbl.asc : true }; S.pg['etapas-tabela'] = 0; return render(); }
 
     const resp = el.closest('[data-resp]');
-    if (resp) { S.f.resp = resp.dataset.resp === '(sem responsável)' ? '' : resp.dataset.resp; montarFiltros(); return irPara('etapas'); }
+    if (resp) { S.f.resp = resp.dataset.resp === '(sem responsável)' ? '' : resp.dataset.resp; montarFiltros(); S.pg = {}; return irPara('etapas'); }
 
     const turma = el.closest('[data-turma]');
     if (turma) { ev.preventDefault(); return abrirTurma(turma.dataset.turma); }
@@ -773,39 +845,64 @@
   document.addEventListener('change', ev => {
     const el = ev.target;
     if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
-    if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; return render(); }
-    if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; return render(); }
-    if (el.id === 'chkPend') { S.soPendentes = el.checked; return abrirTurma(S.drawer, true); }
+    if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; S.pg = {}; return render(); }
+    if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; S.pg = {}; return render(); }
+    if (el.id === 'chkPend') { S.soPendentes = el.checked; S.pg['d-steps'] = 0; return abrirTurma(S.drawer); }
     const mapa = { fArea: 'area', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
-    if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; marcarFiltros(); S.limiteCol = {}; return render(); }
-    if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return render(); }
+    if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; return filtrosMudaram(); }
+    if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return filtrosMudaram(); }
   });
 
   let tBusca;
   $('#search').addEventListener('input', ev => {
     clearTimeout(tBusca);
-    tBusca = setTimeout(() => { S.f.busca = ev.target.value; render(); }, 180);
+    tBusca = setTimeout(() => { S.f.busca = ev.target.value; filtrosMudaram(); }, 180);
   });
   $('#btnLimpar').addEventListener('click', () => {
     S.f = { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false };
     $('#search').value = '';
-    montarFiltros(); render();
+    montarFiltros(); filtrosMudaram();
   });
   $('#btnRefresh').addEventListener('click', () => carregar(true));
   $('#btnCsv').addEventListener('click', exportarCsv);
-  $('#btnTheme').addEventListener('click', () =>
-    aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
   $('#menuBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
+  $$('#nav button').forEach(b => { b.title = b.textContent.trim(); });
+
+  // Roda do mouse sobre uma caixa paginada = virar página.
+  let ultimaRoda = 0;
+  document.addEventListener('wheel', ev => {
+    const box = ev.target.closest('.fit');
+    if (!box || !box._paginas || box._paginas.length < 2) return;
+    ev.preventDefault();
+    const agora = Date.now();
+    if (agora - ultimaRoda < 350 || Math.abs(ev.deltaY) < 4) return;
+    ultimaRoda = agora;
+    virar(box.dataset.key, ev.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
 
   document.addEventListener('keydown', ev => {
     const digitando = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
     if (ev.key === 'Escape') { if (S.drawer) fecharDrawer(); else if (digitando) document.activeElement.blur(); }
     if (digitando) return;
+    if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+      const raiz = S.drawer ? $('#drawer') : $('#view');
+      $$('.fit', raiz).forEach(b => virar(b.dataset.key, ev.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
     const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos', 6: 'regras' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
+
+  // Recalcula as páginas quando a janela muda de tamanho.
+  let tResize;
+  window.addEventListener('resize', () => {
+    clearTimeout(tResize);
+    tResize = setTimeout(() => { paginarTudo($('#view')); if (S.drawer) paginarTudo($('#drawer')); }, 150);
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paginarTudo($('#view')); });
 
   // Tooltip
   const tip = $('#tooltip');
@@ -832,6 +929,13 @@
 
   carregar(false);
   setInterval(atualizarSync, 30000);
+
+  // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
+  setInterval(() => {
+    if (document.hidden || S.drawer || S.view !== 'geral') return;
+    $$('.fit[data-auto]').forEach(b => { if (!b.matches(':hover')) virar(b.dataset.key, 1); });
+  }, ROTACAO_MS);
+
   // Recarrega a cada 5 min (usa o cache do servidor), sem atrapalhar quem está editando.
   setInterval(() => {
     if (!document.hidden && !S.drawer && !/INPUT|SELECT/.test(document.activeElement.tagName)) carregar(false);

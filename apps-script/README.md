@@ -15,6 +15,10 @@ Clicar em qualquer turma abre um **painel lateral** com o checklist completo (An
 **O status de cada etapa pode ser alterado direto no painel** — a alteração é gravada na aba operacional,
 a *Data conclusão* é preenchida ao marcar "Feito" e tudo fica registrado na aba **Histórico Painel**.
 
+**Tudo cabe na tela, sem barra de rolagem** (como uma planilha): o que não cabe em um cartão vira página —
+use as setas ‹ ›, a roda do mouse sobre o cartão ou ← →. Na visão geral os cartões avançam sozinhos a cada 12 s
+(modo TV; pausa com o mouse em cima). Em telas menores a barra lateral vira uma faixa de ícones; no celular volta a rolagem natural.
+
 Outros recursos: filtros globais (área, curso, situação, responsável), busca (`/`), tema claro/escuro,
 exportação CSV, atalhos `1`–`6` para trocar de tela, `R` para recarregar, `Esc` para fechar; layout responsivo (celular).
 
