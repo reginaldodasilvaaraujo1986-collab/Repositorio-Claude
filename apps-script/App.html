@@ -40,7 +40,7 @@
   const $ = s => document.querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const pad = n => String(n).padStart(2, '0');
   const soma = (arr, fn) => arr.reduce((a, x) => a + (fn ? fn(x) : x), 0);
   const modoFit = () => window.matchMedia('(min-width: 861px)').matches;

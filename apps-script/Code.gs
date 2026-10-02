@@ -460,7 +460,7 @@ function indice_(linha) {
 
 function semAcento_(s) {
   return String(s == null ? '' : s)
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
