@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle de Cursos AET/CPE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">AET</div>
+        <div class="brand-txt">
+          <div class="brand-title">Controle de Cursos</div>
+          <div class="brand-sub" id="brandSub">CPE · 2026</div>
+        </div>
+      </div>
+      <select id="selAno" class="sel-ano" title="Ano exibido no painel"></select>
+      <nav class="nav" id="nav">
+        <button data-view="geral" class="active"><span class="ico">◎</span><span class="lbl">Visão geral</span></button>
+        <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
+        <button data-view="turmas"><span class="ico">▦</span><span class="lbl">Turmas</span></button>
+        <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
+        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Formandos</span></button>
+        <button data-view="regras"><span class="ico">§</span><span class="lbl">Regras e prazos</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="sync" id="syncInfo">Carregando…</div>
+        <div class="foot-actions">
+          <button class="ghost" id="btnRefresh" title="Recarregar da planilha (R)">↻ Atualizar</button>
+          <button class="ghost" id="btnTheme" title="Alternar tema">◐</button>
+        </div>
+        <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
+        <div class="keys"><kbd>1</kbd>–<kbd>6</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <div class="page-head">
+          <h1 id="pageTitle">Visão geral</h1>
+          <div class="page-sub" id="pageSub"></div>
+        </div>
+        <div class="search">
+          <input id="search" type="search" placeholder="Buscar turma, etapa, responsável…  ( / )" autocomplete="off">
+        </div>
+        <span class="avisos-chip" id="avisos"></span>
+        <button class="ghost small" id="btnCsv" title="Exportar a visão atual em CSV">⇩ CSV</button>
+      </header>
+
+      <section class="filters" id="filters">
+        <select id="fArea"><option value="">Todas as áreas</option></select>
+        <select id="fCurso"><option value="">Todos os cursos</option></select>
+        <select id="fSituacao"><option value="">Todas as situações</option></select>
+        <select id="fResp"><option value="">Todos os responsáveis</option></select>
+        <label class="switch"><input type="checkbox" id="fCanceladas"><span></span>Incluir canceladas</label>
+        <button class="link" id="btnLimpar">Limpar filtros</button>
+      </section>
+
+      <div class="view" id="view">
+        <div class="loading"><div class="spinner"></div>Lendo a planilha…</div>
+      </div>
+    </main>
+  </div>
+
+  <div class="drawer-backdrop" id="drawerBg"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+  <div class="tooltip" id="tooltip"></div>
+  <div class="toasts" id="toasts"></div>
+
+  <?!= include('App'); ?>
+</body>
+</html>

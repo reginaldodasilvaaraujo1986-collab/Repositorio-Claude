@@ -40,15 +40,10 @@ const CONFIG = {
 /* ================================================================== */
 
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
+  return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle(CONFIG.TITULO)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-function include(nome) {
-  return HtmlService.createHtmlOutputFromFile(nome).getContent();
 }
 
 function onOpen() {
@@ -67,7 +62,7 @@ function onEdit() {
 }
 
 function abrirPainel() {
-  const html = HtmlService.createTemplateFromFile('Index').evaluate()
+  const html = HtmlService.createHtmlOutputFromFile('Index')
     .setWidth(1500).setHeight(920);
   SpreadsheetApp.getUi().showModelessDialog(html, CONFIG.TITULO);
 }

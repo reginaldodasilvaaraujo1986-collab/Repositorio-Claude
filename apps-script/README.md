@@ -55,9 +55,9 @@ exportação CSV, atalhos `1`–`6` para trocar de tela, `R` para recarregar, `E
 ## Instalação
 
 1. Abra a planilha no Google Sheets → **Extensões › Apps Script**.
-2. Crie os arquivos com os mesmos nomes e cole o conteúdo:
-   - `Code.gs` (script)
-   - `Index.html`, `Styles.html`, `App.html` (arquivos HTML — no editor: **+ › HTML**, digite o nome sem `.html`)
+2. Crie apenas dois arquivos e cole o conteúdo:
+   - `Code.gs` (script — no editor: **+ › Script**)
+   - `Index.html` (no editor: **+ › HTML**, digite `Index` sem `.html`). É um arquivo único, gerado a partir de `fontes/` com `python3 apps-script/fontes/montar.py`; não edite o `Index.html` à mão.
 3. Em **Configurações do projeto**, marque *Mostrar o arquivo de manifesto "appsscript.json"* e cole o `appsscript.json`
    (garante o fuso `America/Sao_Paulo`).
 4. Selecione a função `diagnosticar` e clique em **Executar** — autorize e confira no log se as turmas e etapas foram lidas.
