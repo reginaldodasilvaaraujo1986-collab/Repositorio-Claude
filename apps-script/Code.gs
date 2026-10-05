@@ -20,6 +20,7 @@ const CONFIG = {
   ABA_FORMANDOS: 'Formandos 2026',
   ABA_REGRAS: 'Regras e Prazos',
   ABA_LISTAS: 'Listas',
+  ABA_CALENDARIO: 'Calendario', // calendário oficial (Período | Treinamento | Qtd vagas | Local/Obs)
   ABA_HISTORICO: 'Histórico Painel',
 
   // Abas que nunca são tratadas como operacionais.
@@ -437,6 +438,7 @@ function montarDados_() {
     etapas: etapas,
     formandos: lerFormandos_(ss),
     regras: lerRegras_(ss),
+    calendario: lerCalendario_(ss, avisos),
     responsaveis: lerResponsaveis_(ss),
     avisos: avisos
   };
@@ -485,7 +487,7 @@ function lerCadastro_(ss, avisos) {
  * "Turma | Início | Término" e ao menos um bloco "Fase ... Etapa ... Status".
  */
 function lerAbasOperacionais_(ss, avisos) {
-  const fixas = [CONFIG.ABA_CADASTRO, CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO]
+  const fixas = [CONFIG.ABA_CADASTRO, CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -587,6 +589,75 @@ function lerFormandos_(ss) {
     });
   }
   return out;
+}
+
+/**
+ * Aba "Calendario" (modelo oficial): uma linha com o nome do mês, o cabeçalho
+ * "Período | Treinamento | Qtd vagas | Local/Obs" e as linhas de treinamento.
+ * O período pode vir como "17 a 18/09", "31/08 a 25/09" ou "15/10".
+ */
+function lerCalendario_(ss, avisos) {
+  let aba = ss.getSheetByName(CONFIG.ABA_CALENDARIO);
+  if (!aba) aba = ss.getSheets().find(s => semAcento_(s.getName()).indexOf('calendario') >= 0) || null;
+  if (!aba) return [];
+  const v = aba.getDataRange().getDisplayValues();
+  const MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  let ano = new Date().getFullYear();
+  for (let i = 0; i < Math.min(10, v.length); i++) {
+    const m = v[i].join(' ').match(/\b(20\d{2})\b/);
+    if (m) { ano = Number(m[1]); break; }
+  }
+
+  const out = [];
+  let mes = -1, col = null;
+  for (let i = 0; i < v.length; i++) {
+    const r = v[i].map(x => String(x).trim());
+    const cheias = r.filter(Boolean);
+    if (!cheias.length) continue;
+    const primeira = semAcento_(cheias[0]);
+    if (cheias.length <= 2 && MESES.indexOf(primeira) >= 0) { mes = MESES.indexOf(primeira); continue; }
+    const norm = r.map(x => semAcento_(x));
+    if (norm.indexOf('periodo') >= 0 && norm.some(x => x.indexOf('treinamento') >= 0)) {
+      col = {
+        periodo: norm.indexOf('periodo'),
+        treinamento: norm.findIndex(x => x.indexOf('treinamento') >= 0),
+        vagas: norm.findIndex(x => x.indexOf('vagas') >= 0),
+        local: norm.findIndex(x => x.indexOf('local') >= 0 || x.indexOf('obs') >= 0)
+      };
+      continue;
+    }
+    if (mes < 0 || !col) continue;
+    const periodo = r[col.periodo], treinamento = r[col.treinamento];
+    if (!periodo || !treinamento) continue;
+    const datas = periodoParaDatas_(periodo, mes, ano);
+    if (!datas) { avisos.push('Aba "' + aba.getName() + '", linha ' + (i + 1) + ': período "' + periodo + '" não reconhecido.'); }
+    out.push({
+      linha: i + 1,
+      ano: ano,
+      mes: mes,
+      periodo: periodo,
+      treinamento: treinamento,
+      vagas: col.vagas >= 0 ? r[col.vagas] : '',
+      local: col.local >= 0 ? r[col.local] : '',
+      inicio: datas ? iso_(datas[0]) : null,
+      fim: datas ? iso_(datas[1]) : null
+    });
+  }
+  return out;
+}
+
+/** "17 a 18/09" | "31/08 a 25/09" | "15/10" | "05 a 28/10/2026" → [Date, Date] */
+function periodoParaDatas_(txt, mes, ano) {
+  const m = String(txt).replace(/\s+/g, ' ').match(/^(\d{1,2})(?:\/(\d{1,2}))?(?:\/(\d{2,4}))?(?:\s*(?:a|à|ate|até|-|–)\s*(\d{1,2})(?:\/(\d{1,2}))?(?:\/(\d{2,4}))?)?/i);
+  if (!m) return null;
+  const anoDe = x => x ? (x.length === 2 ? 2000 + Number(x) : Number(x)) : ano;
+  const mesFim = m[5] ? Number(m[5]) - 1 : m[2] ? Number(m[2]) - 1 : mes;
+  const mesIni = m[2] ? Number(m[2]) - 1 : mesFim;
+  const fimAno = anoDe(m[6] || m[3]);
+  const ini = new Date(anoDe(m[3] || m[6]), mesIni, Number(m[1]));
+  const fim = m[4] ? new Date(fimAno, mesFim, Number(m[4])) : new Date(ini);
+  return [ini, fim];
 }
 
 function lerRegras_(ss) {

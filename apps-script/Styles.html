@@ -21,6 +21,7 @@
   --danger: #c0392b;   --danger-bg: #f9e1dd;
   --warn: #c77d0a;     --warn-bg: #fbeed2;
 
+  --of-ouro: #bf8f00; --of-azul: #1f3864;
   --c1: #3c6db0; --c2: #b4561f; --c3: #3d8a57; --c4: #8a5bb0; --c5: #c49108; --c6: #2a8f93;
   --shadow: 0 1px 2px rgba(40,30,15,.05), 0 4px 16px rgba(40,30,15,.05);
   --shadow-lg: 0 20px 60px rgba(20,15,5,.25);
@@ -48,6 +49,7 @@
   --s-canc: #8f887c;   --s-canc-bg: #2a2722;
   --danger: #ef6f5e;   --danger-bg: #3d1d18;
   --warn: #eaa53e;     --warn-bg: #3a2a12;
+  --of-ouro: #a87d00; --of-azul: #24406f;
   --c1: #7aa5e0; --c2: #e58a50; --c3: #6cc08a; --c4: #b48be0; --c5: #e5b84a; --c6: #5cc4c8;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
 }
@@ -227,8 +229,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 /* ---------- visão geral: 3 colunas × 2 linhas ---------- */
 .geral-main {
   display: grid; gap: var(--gap); flex: 1; min-height: 0;
-  grid-template-columns: minmax(0,1fr) minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: minmax(0,1.55fr) minmax(0,1fr);
-  grid-template-areas: "prox cal prazos" "status cal form";
+  grid-template-columns: minmax(0,1fr) minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: minmax(0,1.25fr) minmax(0,1fr);
+  grid-template-areas: "prox cal prazos" "trein cal form";
 }
 
 /* bloco de data grande */
@@ -314,7 +316,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
 /* ---------- cronograma: calendário anual ---------- */
 .ano-tit { font: 600 20px var(--serif); color: var(--ink); margin: 0 4px; }
-.toolbar .ano-nav { margin-left: 0; gap: 8px; }
+.toolbar .pager.ano-nav { margin-left: 0; gap: 8px; }
 .ano-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .ano-mes { padding: 11px 13px; }
 .ano-mes .card-head { margin-bottom: 7px; }
@@ -333,6 +335,34 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .ano-n small { font-weight: 400; color: var(--ink-3); }
 .ano-l { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ano-vazio { color: var(--ink-3); font-size: 12px; padding: 6px 2px; }
+
+/* ---------- treinamentos (modelo do calendário oficial) ---------- */
+.tr-card { overflow: hidden; }
+.tr-mes { background: var(--of-ouro); color: #fff; font: 700 13px var(--sans); letter-spacing: .04em; padding: 7px 12px; display: flex; align-items: center; gap: 6px; flex: none; }
+.tr-mes span { font-weight: 500; letter-spacing: 0; opacity: .9; white-space: nowrap; }
+.tr-mes .pager { margin-left: auto; color: #fff; }
+.tr-mes .pager button { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4); color: #fff; }
+.tr-mes .pager .dots i { background: rgba(255,255,255,.35); } .tr-mes .pager .dots i.on { background: #fff; }
+.tr-head, .tr-row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 58px; gap: 8px; align-items: center; padding: 0 12px; }
+.tr-head.larga, .tr-row.larga { grid-template-columns: 96px minmax(0, 1fr) 66px minmax(0, .7fr); }
+.tr-head { background: var(--of-azul); color: #fff; font: 700 10.5px var(--sans); text-transform: uppercase; letter-spacing: .05em; height: 26px; flex: none; }
+.tr-head span:nth-child(1), .tr-head span:nth-child(3) { text-align: center; }
+.tr-row { border-bottom: 1px solid var(--line); min-height: 38px; padding-top: 5px; padding-bottom: 5px; font-size: 12.5px; flex: none; border-left: 3px solid transparent; }
+.tr-row:nth-child(odd) { background: var(--surface-2); }
+.tr-row[data-turma] { cursor: pointer; }
+.tr-row[data-turma]:hover { background: var(--accent-soft); }
+.tr-row.plan { border-left-color: var(--s-plan); } .tr-row.exec { border-left-color: var(--s-exec); }
+.tr-row.enc { border-left-color: var(--s-enc); } .tr-row.canc { border-left-color: var(--s-canc); text-decoration: line-through; }
+.tr-p { font: 600 11.5px var(--mono); text-align: center; color: var(--ink-2); }
+.tr-t { min-width: 0; line-height: 1.3; }
+.tr-row:not(.larga) .tr-t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tr-row:not(.larga) { min-height: 34px; padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
+.tr-t small { display: block; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-v { font: 600 11.5px var(--mono); text-align: center; color: var(--ink-2); white-space: nowrap; }
+.tr-l { font-size: 12px; color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-card .fit { display: flex; flex-direction: column; }
+.tr-fonte { font-size: 10.5px; color: var(--ink-3); padding: 5px 12px; border-top: 1px solid var(--line); flex: none; text-align: right; }
+.tr-card.atual { border-color: var(--of-ouro); box-shadow: 0 0 0 2px color-mix(in srgb, var(--of-ouro) 30%, transparent), var(--shadow); }
 
 /* ---------- turmas ---------- */
 .toolbar { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; }

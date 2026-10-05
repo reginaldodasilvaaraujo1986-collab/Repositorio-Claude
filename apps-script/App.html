@@ -17,7 +17,7 @@
   };
   const VIEWS = {
     geral:      ['Visão geral', 'Panorama das turmas e pendências'],
-    cronograma: ['Cronograma', 'Calendário do ano: as turmas de cada mês'],
+    cronograma: ['Cronograma', 'Calendário de treinamentos do ano, mês a mês'],
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Formandos', 'Militares formados em 2026'],
@@ -324,7 +324,7 @@
 
     return '<div class="grid g-kpi">' + kpis + '</div>' +
       '<div class="geral-main">' + cardProximas(ts) + cardCalendario(ts, es) + cardPrazos(ts, abertas) +
-      cardStatus(es) + cardFormadosUnidade() + '</div>';
+      cardTreinamentosMes() + cardFormadosUnidade() + '</div>';
   }
 
   function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
@@ -448,27 +448,48 @@
     });
   }
 
-  function cardStatus(es) {
-    const c = { feito: 0, na: 0, exec: 0, pend: 0, venc: 0 };
-    es.forEach(e => {
-      if (e.status === 'Feito') c.feito++;
-      else if (e.status === 'Não se aplica') c.na++;
-      else if (dias(e.prazo) < 0) c.venc++;
-      else if (e.status === 'Em execução') c.exec++;
-      else c.pend++;
-    });
-    const seg = [
-      { v: c.feito, cor: 'var(--s-enc)', l: 'Feito' },
-      { v: c.exec, cor: 'var(--s-exec)', l: 'Em execução' },
-      { v: c.pend, cor: 'var(--s-plan)', l: 'Pendente no prazo' },
-      { v: c.venc, cor: 'var(--danger)', l: 'Vencida' },
-      { v: c.na, cor: 'var(--s-canc)', l: 'Não se aplica' }
-    ];
-    const total = es.length || 1;
-    return painel({
-      titulo: 'Status das etapas', meta: es.length + ' etapas', key: 'g-status', fitCls: 'lista', style: 'grid-area:status',
-      html: donut(seg, Math.round((c.feito + c.na) / total * 100) + '%', 'concluído')
-    });
+  /**
+   * Treinamentos de um mês, no formato do calendário oficial.
+   * Fonte: aba "Calendario" (com vagas); se ela não existir, as turmas cadastradas.
+   */
+  function treinamentosDoMes(ano, m) {
+    const ini = ano + '-' + pad(m + 1) + '-01', fim = ano + '-' + pad(m + 1) + '-' + pad(new Date(ano, m + 1, 0).getDate());
+    const cal = S.dados.calendario || [];
+    const doisDig = iso => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+    if (cal.length) {
+      return cal.filter(c => c.ano === ano && c.mes === m).map(c => {
+        const t = S.dados.turmas.find(x => x.inicio === c.inicio && x.fim === c.fim) || S.dados.turmas.find(x => x.inicio && x.inicio === c.inicio);
+        return { periodo: c.periodo, treinamento: c.treinamento, vagas: c.vagas, local: c.local, turma: t || null, inicio: c.inicio };
+      }).filter(x => !x.turma || turmaPassa(x.turma, true) || (!S.f.area && !S.f.curso && !S.f.situacao && !S.f.busca));
+    }
+    return turmasF().filter(t => t.inicio && t.fim && t.inicio <= fim && t.fim >= ini)
+      .sort((a, b) => a.inicio.localeCompare(b.inicio))
+      .map(t => ({
+        periodo: t.inicio.slice(0, 7) === t.fim.slice(0, 7) ? t.inicio.slice(8, 10) + ' a ' + doisDig(t.fim) : doisDig(t.inicio) + ' a ' + doisDig(t.fim),
+        treinamento: t.turma, vagas: '', local: t.local, turma: t, inicio: t.inicio
+      }));
+  }
+
+  function linhaTreinamento(x, larga) {
+    const t = x.turma;
+    return '<div class="tr-row' + (larga ? ' larga' : '') + (t ? ' ' + t.sit : '') + '"' + (t ? ' data-turma="' + t.id + '"' : '') +
+      ' data-tip="<b>' + esc(x.treinamento) + '</b>' + esc(x.periodo) + (x.vagas ? ' · ' + esc(x.vagas) : '') + (x.local ? '<br>' + esc(x.local) : '') +
+      (t ? '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas' : '') + '">' +
+      '<span class="tr-p">' + esc(x.periodo) + '</span>' +
+      '<span class="tr-t">' + esc(x.treinamento) + (larga ? '' : '<small>' + esc(x.local) + '</small>') + '</span>' +
+      '<span class="tr-v">' + esc(x.vagas || '—') + '</span>' +
+      (larga ? '<span class="tr-l">' + esc(x.local) + '</span>' : '') + '</div>';
+  }
+
+  function cardTreinamentosMes() {
+    const base = new Date(HOJE.getFullYear(), HOJE.getMonth() + S.calMes, 1);
+    const lista = treinamentosDoMes(base.getFullYear(), base.getMonth());
+    const fonte = (S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas';
+    return '<div class="card panel flush tr-card" style="grid-area:trein">' +
+      '<div class="tr-mes">' + MES_LONGO[base.getMonth()].toUpperCase() + ' <span>· ' + lista.length + ' treinamento' + (lista.length === 1 ? '' : 's') + '</span>' + pager('g-trein') + '</div>' +
+      '<div class="tr-head"><span>Período</span><span>Treinamento</span><span>Vagas</span></div>' +
+      caixa('g-trein', lista.map(x => linhaTreinamento(x, false)).join('') || '<div class="empty">Nenhum treinamento previsto neste mês.</div>') +
+      '<div class="tr-fonte">fonte: ' + fonte + '</div></div>';
   }
 
   function cardFormadosUnidade() {
@@ -491,51 +512,30 @@
       seg.map(s => '<span data-tip="<b>' + esc(s.l) + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"><i style="background:' + s.cor + '"></i>' + esc(s.l) + '<b>' + s.v + '</b></span>').join('') + '</div></div>';
   }
 
-  /* ---------- Cronograma: calendário anual simples ---------- */
+  /* ---------- Cronograma: calendário de treinamentos (modelo oficial) ---------- */
 
   function vCronograma() {
-    const ts = turmasF();
     const ano = HOJE.getFullYear() + S.anoOff;
-    const ini = m => ano + '-' + pad(m + 1) + '-01';
-    const fimM = m => ano + '-' + pad(m + 1) + '-' + pad(new Date(ano, m + 1, 0).getDate());
-    const total = ts.filter(t => t.inicio && t.inicio.slice(0, 4) === String(ano)).length;
+    const porMes = MES_LONGO.map((_, m) => treinamentosDoMes(ano, m));
+    const m0 = porMes.findIndex(l => l.length), m1 = 11 - porMes.slice().reverse().findIndex(l => l.length);
+    const total = soma(porMes, l => l.length);
+    const nav = '<div class="toolbar"><div class="pager ano-nav"><button data-ano="-1" title="Ano anterior">‹</button>' +
+      '<b class="ano-tit">Calendário de treinamentos – ' + ano + '</b><button data-ano="1" title="Próximo ano">›</button></div>' +
+      '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' treinamento(s) · fonte: ' + ((S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas') + '</span></div>';
+    if (m0 < 0) return nav + '<div class="card empty">Nenhum treinamento em ' + ano + '.</div>';
 
-    // Mostra do primeiro ao último mês com turmas (o ano inteiro se não houver nenhuma).
-    const comTurma = MES_LONGO.map((_, m) => ts.some(t => t.inicio && t.fim && t.inicio <= fimM(m) && t.fim >= ini(m)));
-    const m0 = comTurma.indexOf(true) < 0 ? 0 : comTurma.indexOf(true);
-    const m1 = comTurma.lastIndexOf(true) < 0 ? 11 : comTurma.lastIndexOf(true);
     const qtd = m1 - m0 + 1;
-    const colunas = qtd <= 4 ? qtd : qtd <= 8 ? Math.ceil(qtd / 2) : 4;
+    const colunas = qtd <= 2 ? qtd : qtd <= 4 ? 2 : 3;
     const linhas = Math.ceil(qtd / colunas);
-
-    const meses = MES_LONGO.slice(m0, m1 + 1).map((nome, k) => {
+    const blocos = porMes.slice(m0, m1 + 1).map((lista, k) => {
       const m = m0 + k;
-      const doMes = ts.filter(t => t.inicio && t.fim && t.inicio <= fimM(m) && t.fim >= ini(m))
-        .sort((a, b) => a.inicio.localeCompare(b.inicio));
       const atual = ano === HOJE.getFullYear() && m === HOJE.getMonth();
-      const passado = ano < HOJE.getFullYear() || (ano === HOJE.getFullYear() && m < HOJE.getMonth());
-      const itens = doMes.map(t => {
-        const mesmoMes = t.inicio.slice(0, 7) === t.fim.slice(0, 7);
-        const quando = t.inicio === t.fim ? fmt(t.inicio).slice(0, 2)
-          : mesmoMes ? fmt(t.inicio).slice(0, 2) + '–' + fmt(t.fim).slice(0, 2)
-          : fmt(t.inicio) + '–' + fmt(t.fim);
-        const continua = t.inicio < ini(m);
-        return '<div class="ano-it ' + t.sit + (continua ? ' cont' : '') + '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' +
-          esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas">' +
-          '<span class="ano-d">' + quando + '</span>' +
-          '<span class="ano-n">' + esc(curto(t.turma)) + (continua ? ' <small>(continua)</small>' : '') + '</span>' +
-          '<span class="ano-l">' + esc(t.local) + '</span></div>';
-      }).join('');
-      return '<div class="card panel ano-mes' + (atual ? ' atual' : '') + (passado ? ' passado' : '') + '">' +
-        '<div class="card-head"><h2>' + nome + '</h2><span class="meta">' + (doMes.length ? doMes.length + ' turma' + (doMes.length > 1 ? 's' : '') : '—') + '</span>' + pager('ano-' + m) + '</div>' +
-        caixa('ano-' + m, itens || '<div class="ano-vazio">Sem turmas</div>', 'lista') + '</div>';
+      return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + '">' +
+        '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + (atual ? ' <span>· mês atual</span>' : '') + pager('ano-' + m) + '</div>' +
+        '<div class="tr-head larga"><span>Período</span><span>Treinamento</span><span>Vagas</span><span>Local/Obs</span></div>' +
+        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos.</div>') + '</div>';
     }).join('');
-
-    return '<div class="toolbar"><div class="pager ano-nav"><button data-ano="-1" title="Ano anterior">‹</button>' +
-      '<b class="ano-tit">' + ano + '</b><button data-ano="1" title="Próximo ano">›</button></div>' +
-      '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' turma(s) no ano</span>' +
-      '<div class="legend" style="margin-left:auto">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div></div>' +
-      '<div class="ano-grid grow" style="grid-template-columns:repeat(' + colunas + ', minmax(0, 1fr));grid-template-rows:repeat(' + linhas + ', minmax(0, 1fr))">' + meses + '</div>';
+    return nav + '<div class="ano-grid grow" style="grid-template-columns:repeat(' + colunas + ', minmax(0, 1fr));grid-template-rows:repeat(' + linhas + ', minmax(0, 1fr))">' + blocos + '</div>';
   }
 
   /* ---------- Turmas ---------- */
