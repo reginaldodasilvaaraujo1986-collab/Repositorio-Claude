@@ -33,6 +33,8 @@
     etapasModo: 'quadro', etapasConcluidas: false,
     tbl: { chave: 'prazo', asc: true },
     drawer: null, soPendentes: false, fase: 'TODAS',
+    calMes: 0,        // deslocamento do calendário da visão geral (0 = mês atual)
+    critTodas: false, // mostrar etapas de durante/depois na lista de prazos
     edit: null,       // formulário aberto: { tipo: 'turma' | 'cancelar' | 'etapa', id, campos }
     salvando: false,
     pg: {} // página atual de cada caixa paginada
@@ -195,18 +197,19 @@
   /** Estatísticas por turma, recalculadas sempre que um status muda. */
   function recalcular() {
     const d = S.dados;
-    d.turmas.forEach(t => { t.st = { total: 0, feito: 0, exec: 0, pend: 0, venc: 0, semana: 0 }; });
+    d.turmas.forEach(t => { t.st = { total: 0, feito: 0, exec: 0, pend: 0, venc: 0, semana: 0, antesTot: 0, antesFeito: 0, vencAntes: 0 }; });
     d.etapas.forEach(e => {
       const t = S.turmaIdx[e.turmaId]; if (!t) return;
       const st = t.st; st.total++;
-      if (concluida(e)) { st.feito++; return; }
+      if (e.fase === 'ANTES') st.antesTot++;
+      if (concluida(e)) { st.feito++; if (e.fase === 'ANTES') st.antesFeito++; return; }
       if (e.status === 'Em execução') st.exec++; else st.pend++;
       const n = dias(e.prazo);
-      if (n !== null && n < 0) st.venc++;
+      if (n !== null && n < 0) { st.venc++; if (e.fase === 'ANTES') st.vencAntes++; }
       else if (n !== null && n <= 7) st.semana++;
     });
     d.turmas.forEach(t => { t.st.pct = t.st.total ? t.st.feito / t.st.total * 100 : 0; });
-    const venc = d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && !concluida(e) && dias(e.prazo) < 0).length;
+    const venc = d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && e.fase === 'ANTES' && !concluida(e) && dias(e.prazo) < 0).length;
     $('#navBadge').textContent = venc || '';
   }
 
@@ -292,13 +295,18 @@
 
   /* ---------- Visão geral ---------- */
 
+  const ehAntes = e => e.fase === 'ANTES';
+  const MES_LONGO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const CORES = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
+
   function vGeral() {
     const ts = turmasF();
     const ids = {}; ts.forEach(t => { ids[t.id] = 1; });
     const es = etapasF(false).filter(e => ids[e.turmaId]);
     const abertas = es.filter(e => !concluida(e));
-    const venc = abertas.filter(e => dias(e.prazo) < 0);
-    const semana = abertas.filter(e => { const n = dias(e.prazo); return n !== null && n >= 0 && n <= 7; });
+    const antesAbertas = abertas.filter(ehAntes);
+    const venc = antesAbertas.filter(e => dias(e.prazo) < 0);
+    const semana = antesAbertas.filter(e => { const n = dias(e.prazo); return n !== null && n >= 0 && n <= 7; });
     const pct = es.length ? (es.length - abertas.length) / es.length * 100 : 0;
     const cont = k => ts.filter(t => t.sit === k).length;
     const proxima = ts.filter(t => dias(t.inicio) > 0).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
@@ -306,16 +314,16 @@
     const kpis = [
       kpi('Turmas', ts.length, '', [cont('plan') + ' planej.', cont('exec') + ' em exec.', cont('enc') + ' encerr.'].join(' · '), 'turmas'),
       kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
-      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
-      kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próxima: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
+      kpi('Vencidas antes do início', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
+      kpi('Antes do início · 7 dias', semana.length, '', semana.length ? 'próximo prazo: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
       kpi('Formados', soma(formandosF(), x => x.formados), '', 'militares em ' + HOJE.getFullYear(), 'formandos'),
       proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(proxima.turma), null, '', '', proxima.id)
               : kpi('Próxima turma', '—', '', 'nenhuma prevista')
     ].join('');
 
     return '<div class="grid g-kpi">' + kpis + '</div>' +
-      '<div class="geral-main">' + cardAgora(ts) + cardCriticas(venc.concat(semana)) +
-      cardProgresso(ts) + cardStatus(es) + cardResponsaveis(abertas) + '</div>';
+      '<div class="geral-main">' + cardProximas(ts) + cardCalendario(ts, es) + cardPrazos(ts, abertas) +
+      cardStatus(es) + cardFormadosUnidade() + '</div>';
   }
 
   function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
@@ -326,59 +334,116 @@
       '<div class="foot">' + foot + '</div></div>';
   }
 
-  function cardAgora(ts) {
-    const exec = ts.filter(t => t.sit === 'exec');
+  /** Bloco de data grande (dia + mês), usado nas listas da visão geral. */
+  function blocoData(iso, cls, rodape) {
+    const d = dt(iso);
+    return '<div class="dbloco ' + (cls || '') + '">' + (d
+      ? '<b>' + pad(d.getDate()) + '</b><span>' + MESES[d.getMonth()] + '</span>'
+      : '<b>—</b><span>s/ data</span>') + (rodape ? '<i>' + rodape + '</i>' : '') + '</div>';
+  }
+
+  function cardProximas(ts) {
+    const exec = ts.filter(t => t.sit === 'exec').sort((a, b) => String(a.fim).localeCompare(String(b.fim)));
     const prox = ts.filter(t => t.sit === 'plan' && dias(t.inicio) >= 0).sort((a, b) => a.inicio.localeCompare(b.inicio));
-    const item = (t, next) => {
-      const n = next ? dias(t.inicio) : dias(t.fim);
-      const prep = t.prazoPlanejamento ? dias(t.prazoPlanejamento) : null;
-      return '<div class="now-item ' + (next ? 'next' : '') + '" data-turma="' + t.id + '">' +
-        '<div style="display:flex;justify-content:space-between;gap:8px">' + pillSit(t.sit) + '<span class="tag">' + esc(t.curso) + '</span></div>' +
-        '<div class="t">' + esc(t.turma) + '</div>' +
-        '<div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · ' +
-        (next ? 'começa ' + relativo(n) : 'termina ' + relativo(n)) +
-        (next && prep !== null && prep < 0 ? ' · <b style="color:var(--danger)">planejamento vencido</b>' : '') + '</div>' +
-        barra(t.st) +
-        '<div class="now-meta"><span>' + t.st.feito + '/' + t.st.total + ' etapas</span><span>' +
-        (t.st.venc ? '<b style="color:var(--danger)">' + t.st.venc + ' vencida(s)</b> · ' : '') +
-        '<b class="pct">' + Math.round(t.st.pct) + '%</b></span></div></div>';
+    const item = t => {
+      const emExec = t.sit === 'exec';
+      const n = emExec ? dias(t.fim) : dias(t.inicio);
+      const quando = emExec ? (n === 0 ? 'termina hoje' : 'termina ' + relativo(n)) : (n === 0 ? 'começa hoje' : 'começa ' + relativo(n));
+      const a = t.st;
+      const pctA = a.antesTot ? a.antesFeito / a.antesTot * 100 : 0;
+      return '<div class="prox ' + (emExec ? 'exec' : '') + '" data-turma="' + t.id + '">' +
+        blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
+        '<div class="prox-c"><div class="prox-t" title="' + esc(t.turma) + '">' + esc(t.turma) + '</div>' +
+        '<div class="prox-s">' + esc(t.curso) + ' · ' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
+        '<div class="prox-a"><span class="sublabel">Antes</span>' +
+        '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
+        '<span class="pct">' + a.antesFeito + '/' + a.antesTot + '</span>' +
+        (a.vencAntes ? '<span class="alerta">⚠ ' + a.vencAntes + ' vencida' + (a.vencAntes > 1 ? 's' : '') + '</span>' : '<span class="ok">em dia</span>') +
+        '</div></div></div>';
     };
-    const html = exec.map(t => item(t, false)).concat(prox.map(t => item(t, true))).join('');
+    const html = exec.concat(prox).map(item).join('');
     return painel({
-      titulo: 'Em andamento e próximas', meta: exec.length + ' em exec. · ' + prox.length + ' a iniciar',
-      key: 'g-agora', fitCls: 'lista', auto: true, style: 'grid-area:agora',
+      titulo: 'Próximas turmas', meta: (exec.length ? exec.length + ' em execução · ' : '') + prox.length + ' a iniciar',
+      key: 'g-prox', fitCls: 'lista', auto: true, style: 'grid-area:prox',
       html: html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>'
     });
   }
 
-  function cardCriticas(lista) {
-    lista = lista.slice().sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
-    return painel({
-      titulo: 'Etapas que pedem atenção', meta: lista.length + ' · vencidas e 7 dias',
-      key: 'g-crit', cls: 'flush', auto: true, style: 'grid-area:crit',
-      html: lista.map(linhaEtapa).join('') || '<div class="empty">Tudo em dia. 🎉</div>',
-      depois: lista.length ? '<button class="more" data-goto="etapas">abrir quadro de etapas →</button>' : ''
-    });
+  function cardCalendario(ts, es) {
+    const base = new Date(HOJE.getFullYear(), HOJE.getMonth() + S.calMes, 1);
+    const ano = base.getFullYear(), mes = base.getMonth();
+    const diasMes = new Date(ano, mes + 1, 0).getDate();
+    const semanas = Math.ceil((base.getDay() + diasMes) / 7);
+    const hojeIso = S.dados.hoje;
+    const isoDe = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+
+    // prazos ANTES em aberto, por dia
+    const prazos = {};
+    es.filter(e => ehAntes(e) && !concluida(e) && e.prazo).forEach(e => { (prazos[e.prazo] = prazos[e.prazo] || []).push(e); });
+    const ordenadas = ts.slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)) || a.id.localeCompare(b.id));
+
+    let celulas = '';
+    let turmasNoMes = new Set(), prazosNoMes = 0;
+    for (let i = 0; i < semanas * 7; i++) {
+      const d = new Date(ano, mes, 1 - base.getDay() + i);
+      const iso = isoDe(d), fora = d.getMonth() !== mes;
+      const ativas = ordenadas.filter(t => t.inicio && t.fim && t.inicio <= iso && iso <= t.fim);
+      if (!fora) ativas.forEach(t => turmasNoMes.add(t.id));
+      const pz = prazos[iso] || [];
+      if (!fora) prazosNoMes += pz.length;
+      const chips = ativas.slice(0, 3).map(t => {
+        const rotulo = t.inicio === iso || d.getDay() === 0 || d.getDate() === 1;
+        return '<span class="cal-chip ' + t.sit + (t.inicio === iso ? ' ini' : '') + (t.fim === iso ? ' fim' : '') + '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' + (rotulo ? esc(curto(t.turma)) : '&nbsp;') + '</span>';
+      }).join('') + (ativas.length > 3 ? '<span class="cal-mais">+' + (ativas.length - 3) + '</span>' : '');
+      const marca = pz.length
+        ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) antes do início</b>' +
+          pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(curto(e.turma))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
+        : '';
+      celulas += '<div class="cal-d' + (fora ? ' fora' : '') + (iso === hojeIso ? ' hoje' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' fds' : '') + '">' +
+        '<div class="cal-n"><span>' + d.getDate() + '</span>' + marca + '</div>' + chips + '</div>';
+    }
+
+    return '<div class="card panel cal-card" style="grid-area:cal">' +
+      '<div class="card-head"><h2>' + MES_LONGO[mes] + ' <span class="cal-ano">' + ano + '</span></h2>' +
+      '<span class="meta">' + turmasNoMes.size + ' turma(s) · ' + prazosNoMes + ' prazo(s) antes do início</span>' +
+      '<div class="pager"><button data-cal="-1" title="Mês anterior">‹</button>' +
+      (S.calMes ? '<button data-cal="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') +
+      '<button data-cal="1" title="Próximo mês">›</button></div></div>' +
+      '<div class="cal" style="grid-template-rows:auto repeat(' + semanas + ', minmax(0, 1fr))">' +
+      ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => '<div class="cal-h">' + x + '</div>').join('') + celulas + '</div>' +
+      '<div class="legend" style="margin-top:8px">' + ['plan', 'exec', 'enc'].map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
+      '<span><b style="color:var(--danger)">⚑</b> prazo de etapa antes do início</span></div></div>';
   }
 
-  function linhaEtapa(e) {
-    return '<div class="row" data-turma="' + e.turmaId + '">' + badgeDias(e) +
-      '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
-      '<div class="s">' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') + ' · ' + fmtAno(e.prazo) + '</div></div>' +
-      seletor(e) + '</div>';
-  }
+  function cardPrazos(ts, abertas) {
+    const sit = {}; ts.forEach(t => { sit[t.id] = t.sit; });
+    const ordem = (a, b) => String(a.prazo || '9999').localeCompare(String(b.prazo || '9999'));
+    const antes = abertas.filter(ehAntes);
+    const ativas = antes.filter(e => sit[e.turmaId] !== 'enc').sort(ordem);
+    const antigas = antes.filter(e => sit[e.turmaId] === 'enc').sort(ordem);
+    const outras = abertas.filter(e => !ehAntes(e)).sort(ordem);
+    const vencN = antes.filter(e => dias(e.prazo) < 0).length;
 
-  function cardProgresso(ts) {
-    const linhas = ts.filter(t => t.st.total).map(t =>
-      '<div class="hbar click" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + SIT[t.sit].label + '<br>' + t.st.feito + ' feitas · ' + t.st.exec + ' em execução · ' + t.st.pend + ' pendentes' + (t.st.venc ? '<br>' + t.st.venc + ' vencida(s)' : '') + '">' +
-      '<span class="n">' + esc(curto(t.turma)) + '</span>' +
-      '<span class="track"><i style="width:' + t.st.pct + '%;background:' + SIT[t.sit].cor + '"></i>' +
-      '<i style="width:' + (t.st.exec / t.st.total * 100) + '%;background:var(--s-exec);opacity:.45"></i></span>' +
-      '<span class="v">' + Math.round(t.st.pct) + '%</span></div>').join('');
+    const linha = (e, apagada) => {
+      const n = dias(e.prazo);
+      const cls = n === null ? '' : n < 0 ? 'late' : n <= 7 ? 'soon' : '';
+      const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
+      return '<div class="pz' + (apagada ? ' apagada' : '') + '" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
+        '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+        '<div class="pz-s"><b class="' + cls + '">' + quando + '</b> · ' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') +
+        (apagada ? ' · ' + titulo(e.fase) : '') + '</div></div>' + seletor(e) + '</div>';
+    };
+    const divisor = txt => '<div class="pz-div grp">' + txt + '</div>';
+
+    let html = ativas.map(e => linha(e, false)).join('');
+    if (antigas.length) html += divisor('Pendências antigas · turmas já encerradas') + antigas.map(e => linha(e, true)).join('');
+    if (S.critTodas && outras.length) html += divisor('Durante e depois do curso') + outras.map(e => linha(e, true)).join('');
+
     return painel({
-      titulo: 'Progresso por turma', key: 'g-prog', fitCls: 'hbars', auto: true, style: 'grid-area:prog',
-      antes: '<div class="legend" style="margin-bottom:10px">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div>',
-      html: linhas || '<div class="empty">Sem turmas no filtro.</div>'
+      titulo: 'Prazos antes do início', meta: vencN + ' vencida(s) · ' + ativas.length + ' de turmas ativas',
+      key: 'g-prazos', cls: 'flush', style: 'grid-area:prazos',
+      html: html || '<div class="empty">Nenhum prazo antes do início em aberto. 🎉</div>',
+      depois: outras.length ? '<button class="more" data-toggle-todas>' + (S.critTodas ? 'Ocultar etapas de durante e depois' : 'Mostrar também durante e depois (' + outras.length + ')') + '</button>' : ''
     });
   }
 
@@ -398,40 +463,31 @@
       { v: c.venc, cor: 'var(--danger)', l: 'Vencida' },
       { v: c.na, cor: 'var(--s-canc)', l: 'Não se aplica' }
     ];
-    const fases = ['ANTES', 'DURANTE', 'DEPOIS'].map(f => {
-      const x = es.filter(e => e.fase === f), ok = x.filter(concluida).length;
-      const p = x.length ? ok / x.length * 100 : 0;
-      return '<div class="hbar" style="grid-template-columns:62px 1fr 40px"><span class="n">' + titulo(f) + '</span>' +
-        '<span class="track"><i style="width:' + p + '%;background:var(--s-enc)"></i></span><span class="v">' + Math.round(p) + '%</span></div>';
-    }).join('');
+    const total = es.length || 1;
     return painel({
-      titulo: 'Status das etapas', meta: es.length + ' etapas', key: 'g-status', fitCls: 'lista', auto: true, style: 'grid-area:status',
-      html: '<div class="donut-wrap">' + rosca(seg, 112) + '<div class="legend">' +
-        seg.map(s => '<span><i style="background:' + s.cor + '"></i>' + s.l + '<b>' + s.v + '</b></span>').join('') + '</div></div>' +
-        '<div class="hbars" style="gap:6px;flex:none"><div class="sublabel">Conclusão por fase</div>' + fases + '</div>'
+      titulo: 'Status das etapas', meta: es.length + ' etapas', key: 'g-status', fitCls: 'lista', style: 'grid-area:status',
+      html: donut(seg, Math.round((c.feito + c.na) / total * 100) + '%', 'concluído')
     });
   }
 
-  function cardResponsaveis(abertas) {
+  function cardFormadosUnidade() {
     const m = {};
-    abertas.forEach(e => {
-      const k = e.responsavel || '(sem responsável)';
-      m[k] = m[k] || { t: 0, v: 0 }; m[k].t++;
-      if (dias(e.prazo) < 0) m[k].v++;
-    });
-    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1].t - a[1].t);
-    const max = arr.length ? arr[0][1].t : 1;
-    const linhas = arr.map(([k, x]) =>
-      '<div class="hbar click" data-resp="' + esc(k) + '" data-tip="<b>' + esc(k) + '</b>' + x.t + ' em aberto · ' + x.v + ' vencida(s)">' +
-      '<span class="n">' + esc(k) + '</span><span class="track">' +
-      '<i style="width:' + (x.v / max * 100) + '%;background:var(--danger)"></i>' +
-      '<i style="width:' + ((x.t - x.v) / max * 100) + '%;background:var(--s-plan)"></i></span>' +
-      '<span class="v">' + x.t + '</span></div>').join('');
+    formandosF().forEach(x => { if (x.formados > 0) { const k = x.local || '(sem local)'; m[k] = (m[k] || 0) + x.formados; } });
+    let arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
+    if (arr.length > 6) arr = arr.slice(0, 5).concat([['Outras', soma(arr.slice(5), a => a[1])]]);
+    const total = soma(arr, a => a[1]);
+    const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
     return painel({
-      titulo: 'Pendências por responsável', meta: 'clique para filtrar', key: 'g-resp', fitCls: 'hbars', auto: true, style: 'grid-area:resp',
-      antes: '<div class="legend" style="margin-bottom:10px"><span><i style="background:var(--danger)"></i>Vencidas</span><span><i style="background:var(--s-plan)"></i>No prazo</span></div>',
-      html: linhas || '<div class="empty">Nenhuma pendência.</div>'
+      titulo: 'Formandos por unidade', meta: total + ' formados', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
+      html: seg.length ? donut(seg, total, 'formados') : '<div class="empty">Nenhum formado registrado ainda.</div>'
     });
+  }
+
+  /** Rosca + legenda com valores (usada em Status e Formandos). */
+  function donut(seg, centro, sub) {
+    const total = soma(seg, s => s.v) || 1;
+    return '<div class="donut-wrap">' + rosca(seg, 118, centro, sub) + '<div class="legend">' +
+      seg.map(s => '<span data-tip="<b>' + esc(s.l) + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"><i style="background:' + s.cor + '"></i>' + esc(s.l) + '<b>' + s.v + '</b></span>').join('') + '</div></div>';
   }
 
   /* ---------- Cronograma ---------- */
@@ -787,7 +843,7 @@
       '<circle cx="' + m + '" cy="' + m + '" r="' + r + '" fill="none" style="stroke:var(--s-enc)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct / 100) + ' ' + c + '" transform="rotate(-90 ' + m + ' ' + m + ')"/></svg>';
   }
 
-  function rosca(seg, tam) {
+  function rosca(seg, tam, centro, sub) {
     const total = soma(seg, s => s.v) || 1, r = tam / 2 - 11, c = 2 * Math.PI * r, m = tam / 2;
     let acc = 0;
     const arcos = seg.filter(s => s.v).map(s => {
@@ -795,10 +851,9 @@
       const el = '<circle cx="' + m + '" cy="' + m + '" r="' + r + '" fill="none" style="stroke:' + s.cor + '" stroke-width="16" stroke-dasharray="' + Math.max(0, len - 1.5) + ' ' + c + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 ' + m + ' ' + m + ')" data-tip="<b>' + s.l + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"/>';
       acc += len; return el;
     }).join('');
-    const ok = seg[0].v + seg[4].v;
     return '<svg width="' + tam + '" height="' + tam + '" style="flex:none">' + arcos +
-      '<text x="50%" y="49%" text-anchor="middle" style="font:600 21px Fraunces,serif;fill:var(--ink)">' + Math.round(ok / total * 100) + '%</text>' +
-      '<text x="50%" y="63%" text-anchor="middle" style="font:500 10.5px Inter,sans-serif;fill:var(--ink-3)">concluído</text></svg>';
+      '<text x="50%" y="49%" text-anchor="middle" style="font:600 21px Fraunces,serif;fill:var(--ink)">' + esc(centro) + '</text>' +
+      '<text x="50%" y="63%" text-anchor="middle" style="font:500 10.5px Inter,sans-serif;fill:var(--ink-3)">' + esc(sub) + '</text></svg>';
   }
 
   /* ================================================================ */
@@ -1008,6 +1063,11 @@
 
     const th = el.closest('[data-sort]');
     if (th) { const k = th.dataset.sort; S.tbl = { chave: k, asc: S.tbl.chave === k ? !S.tbl.asc : true }; S.pg['etapas-tabela'] = 0; return render(); }
+
+    const cal = el.closest('[data-cal]');
+    if (cal) { const v = Number(cal.dataset.cal); S.calMes = v === 0 ? 0 : S.calMes + v; return render(); }
+
+    if (el.closest('[data-toggle-todas]')) { S.critTodas = !S.critTodas; S.pg['g-prazos'] = 0; return render(); }
 
     const resp = el.closest('[data-resp]');
     if (resp) { S.f.resp = resp.dataset.resp === '(sem responsável)' ? '' : resp.dataset.resp; montarFiltros(); S.pg = {}; return irPara('etapas'); }

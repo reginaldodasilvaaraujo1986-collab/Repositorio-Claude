@@ -21,6 +21,7 @@
   --danger: #c0392b;   --danger-bg: #f9e1dd;
   --warn: #c77d0a;     --warn-bg: #fbeed2;
 
+  --c1: #3c6db0; --c2: #b4561f; --c3: #3d8a57; --c4: #8a5bb0; --c5: #c49108; --c6: #2a8f93;
   --shadow: 0 1px 2px rgba(40,30,15,.05), 0 4px 16px rgba(40,30,15,.05);
   --shadow-lg: 0 20px 60px rgba(20,15,5,.25);
   --r: 14px;
@@ -47,6 +48,7 @@
   --s-canc: #8f887c;   --s-canc-bg: #2a2722;
   --danger: #ef6f5e;   --danger-bg: #3d1d18;
   --warn: #eaa53e;     --warn-bg: #3a2a12;
+  --c1: #7aa5e0; --c2: #e58a50; --c3: #6cc08a; --c4: #b48be0; --c5: #e5b84a; --c6: #5cc4c8;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
 }
 
@@ -225,9 +227,63 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 /* ---------- visão geral: 3 colunas × 2 linhas ---------- */
 .geral-main {
   display: grid; gap: var(--gap); flex: 1; min-height: 0;
-  grid-template-columns: minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr); grid-template-rows: minmax(0,1fr) minmax(0,1fr);
-  grid-template-areas: "agora crit prog" "status crit resp";
+  grid-template-columns: minmax(0,1fr) minmax(0,1.45fr) minmax(0,1fr); grid-template-rows: minmax(0,1.55fr) minmax(0,1fr);
+  grid-template-areas: "prox cal prazos" "status cal form";
 }
+
+/* bloco de data grande */
+.dbloco { width: 50px; flex: none; border-radius: 10px; background: var(--surface-2); text-align: center; padding: 5px 0 4px; line-height: 1.05; align-self: center; }
+.dbloco b { display: block; font: 600 19px var(--serif); color: var(--ink); }
+.dbloco span { display: block; font: 600 10px var(--mono); text-transform: uppercase; color: var(--ink-3); margin-top: 1px; }
+.dbloco i { display: block; font: 600 9.5px var(--mono); font-style: normal; color: var(--ink-2); margin-top: 3px; }
+.dbloco.late { background: var(--danger); } .dbloco.late b, .dbloco.late span, .dbloco.late i { color: #fff; }
+.dbloco.soon { background: var(--warn-bg); } .dbloco.soon b, .dbloco.soon span { color: var(--warn); }
+.dbloco.exec { background: var(--s-exec); } .dbloco.exec b, .dbloco.exec span, .dbloco.exec i { color: #fff; }
+
+/* próximas turmas */
+.prox { display: flex; gap: 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; flex: none; transition: border-color .15s, background .15s; }
+.prox:hover { border-color: var(--accent); background: var(--surface-2); }
+.prox.exec { background: linear-gradient(135deg, var(--s-exec-bg), transparent 75%); }
+.prox-c { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.prox-t { font: 600 14px/1.25 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prox-s { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prox-s b { color: var(--ink-2); }
+.prox-a { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+.prox-a .bar { height: 5px; }
+.prox-a .alerta { color: var(--danger); font-weight: 700; white-space: nowrap; }
+.prox-a .ok { color: var(--s-enc); font-weight: 600; white-space: nowrap; }
+
+/* prazos antes do início */
+.pz { display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+.pz:hover { background: var(--surface-2); }
+.pz-t { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-s { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-s b.late { color: var(--danger); } .pz-s b.soon { color: var(--warn); }
+.pz.apagada { opacity: .62; }
+.pz.apagada .dbloco { background: var(--surface-2); } .pz.apagada .dbloco b, .pz.apagada .dbloco span { color: var(--ink-3); }
+.pz-div { font: 600 10.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); background: var(--surface-2); padding: 6px 14px; border-top: 1px solid var(--line); }
+
+/* calendário do mês */
+.cal-card .card-head h2 { font-size: 18px; }
+.cal-ano { color: var(--ink-3); font-weight: 500; }
+.cal-hoje { width: auto !important; padding: 0 9px !important; border-radius: 99px !important; font: 600 11px var(--sans) !important; }
+.cal { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal-h { font: 600 10.5px var(--mono); text-transform: uppercase; color: var(--ink-3); padding: 5px 7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.cal-d { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 3px 4px; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.cal-d.fds { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+.cal-d.fora { opacity: .4; }
+.cal-n { display: flex; justify-content: space-between; align-items: center; font: 600 11.5px var(--mono); color: var(--ink-2); padding: 1px 2px; }
+.cal-d.hoje .cal-n span { background: var(--accent); color: #fff; border-radius: 99px; padding: 0 6px; }
+.cal-d.hoje { box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-chip { display: block; font-size: 10.5px; font-weight: 600; color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; margin: 0 -4px; min-height: 15px; }
+.cal-chip.ini { margin-left: 0; border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.cal-chip.fim { margin-right: 0; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.cal-chip.plan { background: var(--s-plan); } .cal-chip.exec { background: var(--s-exec); } .cal-chip.enc { background: var(--s-enc); }
+.cal-chip.canc { background: var(--s-canc); text-decoration: line-through; }
+.cal-mais { font-size: 10px; color: var(--ink-3); font-weight: 600; }
+.cal-pz { font: 700 10px var(--mono); border-radius: 99px; padding: 0 5px; background: var(--surface-3); color: var(--ink-2); cursor: help; }
+.cal-pz.late { background: var(--danger); color: #fff; }
+.cal-pz.soon { background: var(--warn-bg); color: var(--warn); }
 .geral-main > * { min-height: 0; }
 
 /* ---------- cronograma ---------- */
