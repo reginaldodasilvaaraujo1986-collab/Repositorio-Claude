@@ -312,6 +312,28 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .g-months { position: relative; }
 .g-today-label { position: absolute; top: 6px; transform: translateX(4px); font: 600 10px var(--mono); color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
 
+/* ---------- cronograma: calendário anual ---------- */
+.ano-tit { font: 600 20px var(--serif); color: var(--ink); margin: 0 4px; }
+.toolbar .ano-nav { margin-left: 0; gap: 8px; }
+.ano-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.ano-mes { padding: 11px 13px; }
+.ano-mes .card-head { margin-bottom: 7px; }
+.ano-mes .card-head h2 { font-size: 15px; }
+.ano-mes.atual { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
+.ano-mes.atual .card-head h2 { color: var(--accent); }
+.ano-mes.passado { background: color-mix(in srgb, var(--surface) 70%, var(--bg)); }
+.ano-mes .fit.lista { gap: 5px; }
+.ano-it { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; padding: 5px 8px; border-radius: 8px; border-left: 4px solid; background: var(--surface-2); cursor: pointer; flex: none; }
+.ano-it:hover { filter: brightness(.97); }
+.ano-it.plan { border-color: var(--s-plan); } .ano-it.exec { border-color: var(--s-exec); background: var(--s-exec-bg); }
+.ano-it.enc { border-color: var(--s-enc); } .ano-it.canc { border-color: var(--s-canc); text-decoration: line-through; opacity: .7; }
+.ano-it.cont { opacity: .7; }
+.ano-d { grid-row: span 2; align-self: center; font: 600 11.5px var(--mono); color: var(--ink-2); min-width: 40px; }
+.ano-n { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ano-n small { font-weight: 400; color: var(--ink-3); }
+.ano-l { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ano-vazio { color: var(--ink-3); font-size: 12px; padding: 6px 2px; }
+
 /* ---------- turmas ---------- */
 .toolbar { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; }
 .toolbar .pager { margin-left: auto; }
@@ -523,6 +545,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   .g-kpi, .g-kpi.k3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .geral-main { display: flex; flex-direction: column; }
   .board { grid-template-columns: 1fr; }
+  .ano-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-template-rows: none !important; }
   .g-head, .g-row { grid-template-columns: 110px 1fr; }
   .g-row { min-height: 30px; }
   .gt-head { display: none; }

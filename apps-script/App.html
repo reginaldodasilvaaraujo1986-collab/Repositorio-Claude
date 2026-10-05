@@ -17,7 +17,7 @@
   };
   const VIEWS = {
     geral:      ['Visão geral', 'Panorama das turmas e pendências'],
-    cronograma: ['Cronograma', 'Linha do tempo das turmas, com janelas de planejamento e finalização'],
+    cronograma: ['Cronograma', 'Calendário do ano: as turmas de cada mês'],
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Formandos', 'Militares formados em 2026'],
@@ -33,7 +33,8 @@
     etapasModo: 'quadro', etapasConcluidas: false,
     tbl: { chave: 'prazo', asc: true },
     drawer: null, soPendentes: false, fase: 'TODAS',
-    calMes: 0,        // deslocamento do calendário da visão geral (0 = mês atual)
+    calMes: 0,
+    anoOff: 0,        // deslocamento de ano no cronograma        // deslocamento do calendário da visão geral (0 = mês atual)
     critTodas: false, // mostrar etapas de durante/depois na lista de prazos
     edit: null,       // formulário aberto: { tipo: 'turma' | 'cancelar' | 'etapa', id, campos }
     salvando: false,
@@ -490,62 +491,51 @@
       seg.map(s => '<span data-tip="<b>' + esc(s.l) + '</b>' + s.v + ' (' + Math.round(s.v / total * 100) + '%)"><i style="background:' + s.cor + '"></i>' + esc(s.l) + '<b>' + s.v + '</b></span>').join('') + '</div></div>';
   }
 
-  /* ---------- Cronograma ---------- */
+  /* ---------- Cronograma: calendário anual simples ---------- */
 
   function vCronograma() {
     const ts = turmasF();
-    if (!ts.length) return '<div class="card empty">Nenhuma turma no filtro.</div>';
-    const datas = [];
-    ts.forEach(t => [t.inicio, t.fim, t.prazoPlanejamento, t.prazoFinalizacao].forEach(x => { if (x) datas.push(x); }));
-    datas.sort();
-    const ini = dt(datas[0]); ini.setDate(1);
-    const fimD = dt(datas[datas.length - 1]);
-    const fim = new Date(fimD.getFullYear(), fimD.getMonth() + 1, 1);
-    const span = fim - ini;
-    const pos = s => Math.max(0, Math.min(100, (dt(s) - ini) / span * 100));
-    const meses = [];
-    for (let d = new Date(ini); d < fim; d.setMonth(d.getMonth() + 1)) meses.push(new Date(d));
-    const cols = meses.map(m => ((new Date(m.getFullYear(), m.getMonth() + 1, 1) - m) / span * 100) + '%').join(' ');
-    const hojePos = HOJE >= ini && HOJE < fim ? (HOJE - ini) / span * 100 : null;
-    const linhaHoje = hojePos !== null ? '<div class="g-today" style="left:' + hojePos + '%"></div>' : '';
-    const grade = '<div class="g-grid" style="grid-template-columns:' + cols + '">' + meses.map(() => '<div></div>').join('') + '</div>';
+    const ano = HOJE.getFullYear() + S.anoOff;
+    const ini = m => ano + '-' + pad(m + 1) + '-01';
+    const fimM = m => ano + '-' + pad(m + 1) + '-' + pad(new Date(ano, m + 1, 0).getDate());
+    const total = ts.filter(t => t.inicio && t.inicio.slice(0, 4) === String(ano)).length;
 
-    const grupos = {};
-    ts.forEach(t => { (grupos[t.curso] = grupos[t.curso] || []).push(t); });
+    // Mostra do primeiro ao último mês com turmas (o ano inteiro se não houver nenhuma).
+    const comTurma = MES_LONGO.map((_, m) => ts.some(t => t.inicio && t.fim && t.inicio <= fimM(m) && t.fim >= ini(m)));
+    const m0 = comTurma.indexOf(true) < 0 ? 0 : comTurma.indexOf(true);
+    const m1 = comTurma.lastIndexOf(true) < 0 ? 11 : comTurma.lastIndexOf(true);
+    const qtd = m1 - m0 + 1;
+    const colunas = qtd <= 4 ? qtd : qtd <= 8 ? Math.ceil(qtd / 2) : 4;
+    const linhas = Math.ceil(qtd / colunas);
 
-    let linhas = '';
-    Object.keys(grupos).sort((a, b) => String(grupos[a][0].inicio).localeCompare(String(grupos[b][0].inicio))).forEach(g => {
-      linhas += '<div class="g-row grp"><div class="g-group">' + esc(g) + '</div><div class="g-track">' + grade + linhaHoje + '</div></div>';
-      grupos[g].forEach(t => {
-        const l = pos(t.inicio), w = Math.max(.6, pos(t.fim) + (100 / (span / DIA)) - l);
-        const prepI = t.prazoPlanejamento ? pos(t.prazoPlanejamento) : l;
-        const posF = t.prazoFinalizacao ? pos(t.prazoFinalizacao) : l + w;
-        const tip = '<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
-          (t.duracao ? ' (' + t.duracao + ' dias)' : '') + '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas' +
-          (t.st.venc ? '<br>⚠ ' + t.st.venc + ' etapa(s) vencida(s)' : '') +
-          (t.prazoPlanejamento ? '<br>Planejamento até ' + fmt(t.prazoPlanejamento) : '') +
-          (t.prazoFinalizacao ? ' · Finalização até ' + fmt(t.prazoFinalizacao) : '');
-        linhas += '<div class="g-row"><div class="g-label" data-turma="' + t.id + '" title="' + esc(t.turma) + '">' + esc(curto(t.turma)) + '<small>' + esc(t.local) + '</small></div>' +
-          '<div class="g-track">' + grade +
-          '<div class="g-prep" style="left:' + prepI + '%;width:' + Math.max(0, posF - prepI) + '%"></div>' +
-          '<div class="g-bar ' + t.sit + '" data-turma="' + t.id + '" data-tip="' + esc(tip) + '" style="left:' + l + '%;width:' + w + '%">' +
-          (t.sit !== 'canc' ? '<div class="fill" style="width:' + t.st.pct + '%"></div>' : '') + '</div>' +
-          (t.st.venc && t.sit !== 'canc' ? '<div class="g-late" style="left:calc(' + (l + w) + '% - 4px)"></div>' : '') +
-          linhaHoje +
-          '</div></div>';
-      });
-    });
+    const meses = MES_LONGO.slice(m0, m1 + 1).map((nome, k) => {
+      const m = m0 + k;
+      const doMes = ts.filter(t => t.inicio && t.fim && t.inicio <= fimM(m) && t.fim >= ini(m))
+        .sort((a, b) => a.inicio.localeCompare(b.inicio));
+      const atual = ano === HOJE.getFullYear() && m === HOJE.getMonth();
+      const passado = ano < HOJE.getFullYear() || (ano === HOJE.getFullYear() && m < HOJE.getMonth());
+      const itens = doMes.map(t => {
+        const mesmoMes = t.inicio.slice(0, 7) === t.fim.slice(0, 7);
+        const quando = t.inicio === t.fim ? fmt(t.inicio).slice(0, 2)
+          : mesmoMes ? fmt(t.inicio).slice(0, 2) + '–' + fmt(t.fim).slice(0, 2)
+          : fmt(t.inicio) + '–' + fmt(t.fim);
+        const continua = t.inicio < ini(m);
+        return '<div class="ano-it ' + t.sit + (continua ? ' cont' : '') + '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' +
+          esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas">' +
+          '<span class="ano-d">' + quando + '</span>' +
+          '<span class="ano-n">' + esc(curto(t.turma)) + (continua ? ' <small>(continua)</small>' : '') + '</span>' +
+          '<span class="ano-l">' + esc(t.local) + '</span></div>';
+      }).join('');
+      return '<div class="card panel ano-mes' + (atual ? ' atual' : '') + (passado ? ' passado' : '') + '">' +
+        '<div class="card-head"><h2>' + nome + '</h2><span class="meta">' + (doMes.length ? doMes.length + ' turma' + (doMes.length > 1 ? 's' : '') : '—') + '</span>' + pager('ano-' + m) + '</div>' +
+        caixa('ano-' + m, itens || '<div class="ano-vazio">Sem turmas</div>', 'lista') + '</div>';
+    }).join('');
 
-    return '<div class="card panel grow"><div class="card-head"><h2>Linha do tempo</h2>' +
-      '<div class="legend" style="margin-left:auto">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
-      '<span><i style="background:var(--surface-3);height:4px"></i>Planejamento → finalização</span>' +
-      '<span><i style="background:var(--danger);border-radius:50%"></i>Etapas vencidas</span>' +
-      '<span><i style="background:var(--accent);width:2px"></i>Hoje</span></div>' + pager('crono') + '</div>' +
-      '<div class="g-head"><div class="sublabel" style="align-self:center" data-tip="A parte clara de cada barra é o % de etapas concluídas">' + ts.length + ' turma(s)</div>' +
-      '<div class="g-months" style="grid-template-columns:' + cols + '">' +
-      meses.map((m, i) => '<div>' + MESES[m.getMonth()] + (m.getMonth() === 0 || i === 0 ? ' ' + String(m.getFullYear()).slice(2) : '') + '</div>').join('') +
-      (hojePos !== null ? '<span class="g-today-label" style="left:' + hojePos + '%">hoje ' + fmt(S.dados.hoje) + '</span>' : '') + '</div></div>' +
-      '<div class="g-body">' + caixa('crono', linhas, 'g-rows') + '</div></div>';
+    return '<div class="toolbar"><div class="pager ano-nav"><button data-ano="-1" title="Ano anterior">‹</button>' +
+      '<b class="ano-tit">' + ano + '</b><button data-ano="1" title="Próximo ano">›</button></div>' +
+      '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' turma(s) no ano</span>' +
+      '<div class="legend" style="margin-left:auto">' + Object.keys(SIT).map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') + '</div></div>' +
+      '<div class="ano-grid grow" style="grid-template-columns:repeat(' + colunas + ', minmax(0, 1fr));grid-template-rows:repeat(' + linhas + ', minmax(0, 1fr))">' + meses + '</div>';
   }
 
   /* ---------- Turmas ---------- */
@@ -1063,6 +1053,9 @@
 
     const th = el.closest('[data-sort]');
     if (th) { const k = th.dataset.sort; S.tbl = { chave: k, asc: S.tbl.chave === k ? !S.tbl.asc : true }; S.pg['etapas-tabela'] = 0; return render(); }
+
+    const anoB = el.closest('[data-ano]');
+    if (anoB) { S.anoOff += Number(anoB.dataset.ano); S.pg = {}; return render(); }
 
     const cal = el.closest('[data-cal]');
     if (cal) { const v = Number(cal.dataset.cal); S.calMes = v === 0 ? 0 : S.calMes + v; return render(); }
