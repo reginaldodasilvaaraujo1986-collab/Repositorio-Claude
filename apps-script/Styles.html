@@ -502,6 +502,15 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .d-section.zona { border-top: 1px dashed var(--line); padding-top: 12px; }
 .step.editing { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); align-items: start; padding: 11px 13px; }
 
+/* ================= seletor de ano e formulários laterais ================= */
+.sel-ano { margin: -8px 8px 0; padding: 6px 10px; border-radius: 9px; border: 1px solid #36322b; background: #24221e; color: var(--side-ink); font-weight: 600; font-size: 12.5px; }
+.drawer.estreito { width: min(620px, 96vw); }
+.d-form { padding: 26px 28px 22px; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+.d-form h2 { margin-right: 40px; }
+.d-form .sub { margin-bottom: 4px; line-height: 1.5; }
+.fld select { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 7px 9px; font-size: 13px; width: 100%; outline: none; }
+.fld select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
 /* ================= misc ================= */
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; height: 100%; color: var(--ink-3); }
 .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
@@ -523,6 +532,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   .sidebar { padding: 18px 9px; align-items: center; }
   .brand { padding: 0; }
   .brand-txt, .nav .lbl, .sync, .sheet-link, .keys { display: none; }
+  .sel-ano { margin: 0; width: 46px; padding: 5px 2px; font-size: 10.5px; }
   .nav button { justify-content: center; padding: 10px 0; position: relative; }
   .nav .ico { width: auto; font-size: 15px; }
   .nav-badge { position: absolute; top: 1px; right: -4px; font-size: 9px; padding: 0 4px; }

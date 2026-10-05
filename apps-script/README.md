@@ -28,6 +28,13 @@ a *Data conclusão* é preenchida ao marcar "Feito" e tudo fica registrado na ab
 
 Toda alteração feita pelo painel fica registrada na aba **Histórico Painel**.
 
+**Turmas novas e anos novos**
+
+- **＋ Nova turma** (telas Turmas e Cronograma): escolhe o curso, a turma modelo (de onde vem o checklist), nome, datas, local e vagas. O painel cria a linha no resumo da aba do curso, o bloco de etapas (prazos recalculados pelas datas novas) e as linhas no Cadastro de Turmas, Painel Geral, Formandos e Calendario.
+- **Seletor de ano** (barra lateral): cada ano é uma planilha separada, todas no mesmo link do painel.
+- **＋ Criar 2027** (no seletor): faz uma cópia completa da planilha do último ano, avança as datas (mesmo dia da semana ou mesma data), zera status/conclusões/formados/histórico e mantém cursos, turmas, locais, vagas e checklists. A planilha de origem não é alterada. Os anos criados ficam registrados nas propriedades do script (chave `ANOS`).
+  Na primeira criação o Google pede permissão extra de acesso ao Drive (para copiar o arquivo).
+
 **Tudo cabe na tela, sem barra de rolagem** (como uma planilha): o que não cabe em um cartão vira página —
 use as setas ‹ ›, a roda do mouse sobre o cartão ou ← →. Na visão geral os cartões avançam sozinhos a cada 12 s
 (modo TV; pausa com o mouse em cima). Em telas menores a barra lateral vira uma faixa de ícones; no celular volta a rolagem natural.

@@ -80,13 +80,15 @@ function abrirPainel() {
  * Retorna todos os dados do painel como string JSON
  * (google.script.run não transporta objetos Date).
  */
-function getDadosPainel(forcar) {
+function getDadosPainel(forcar, ano) {
+  const ss = planilha_(ano);
+  const anoPlan = anoDaPlanilha_(ss);
   if (!forcar) {
-    const emCache = lerCache_();
+    const emCache = lerCache_(anoPlan);
     if (emCache) return emCache;
   }
-  const json = JSON.stringify(montarDados_());
-  gravarCache_(json);
+  const json = JSON.stringify(montarDados_(ss));
+  gravarCache_(json, anoPlan);
   return json;
 }
 
@@ -99,10 +101,10 @@ function atualizarStatusEtapa(req) {
   if (CONFIG.STATUS_ETAPA.indexOf(req.status) < 0) {
     throw new Error('Status inválido: ' + req.status);
   }
-  const lock = LockService.getDocumentLock();
-  lock.waitLock(15000);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = planilha_(req.ano);
     const aba = ss.getSheetByName(req.aba);
     if (!aba) throw new Error('Aba não encontrada: ' + req.aba);
 
@@ -160,7 +162,7 @@ function atualizarEtapa(req) {
     });
     if (mudou.length) historico_(ss, req.aba, req.linha, req.turma, req.etapa, 'Edição da etapa', mudou.join('; '));
     return { ok: true, alteracoes: mudou.length };
-  });
+  }, req.ano);
 }
 
 /**
@@ -223,7 +225,7 @@ function atualizarTurma(req) {
     }
     if (mudou.length) historico_(ss, req.aba || CONFIG.ABA_CADASTRO, req.linhaResumo || req.linhaCadastro, req.turma, '', 'Edição da turma', mudou.join('; '));
     return { ok: true, alteracoes: mudou.length };
-  });
+  }, req.ano);
 }
 
 /**
@@ -249,7 +251,7 @@ function cancelarTurma(req) {
     }
     historico_(ss, CONFIG.ABA_CADASTRO, req.linhaCadastro, req.turma, '', 'Turma cancelada', motivo);
     return { ok: true };
-  });
+  }, req.ano);
 }
 
 /** Desfaz o cancelamento: devolve a fórmula da Situação temporal. */
@@ -269,13 +271,14 @@ function reativarTurma(req) {
     if (nota.indexOf(NOTA_FORMULA) === 0) cel.clearNote();
     historico_(ss, CONFIG.ABA_CADASTRO, req.linhaCadastro, req.turma, '', 'Turma reativada', '');
     return { ok: true };
-  });
+  }, req.ano);
 }
 
 /** Atualiza a quantidade de formados de uma linha da aba "Formandos 2026". */
 function atualizarFormados(req) {
   return comTrava_(ss => {
-    const aba = abaOuErro_(ss, CONFIG.ABA_FORMANDOS);
+    const aba = abaFormandos_(ss);
+    if (!aba) throw new Error('Aba de formandos não encontrada.');
     const v = aba.getRange(1, 1, Math.min(aba.getLastRow(), 5), aba.getLastColumn()).getValues();
     const h = acharCabecalho_(v, ['curso', 'turma', 'formados'], 5);
     const c = indice_(v[h]);
@@ -286,9 +289,9 @@ function atualizarFormados(req) {
     const cel = aba.getRange(req.linha, c['formados'] + 1);
     const antigo = cel.getValue();
     gravar_(cel, n);
-    historico_(ss, CONFIG.ABA_FORMANDOS, req.linha, req.curso + ' / ' + req.turma, '', 'Formados', texto_(antigo) + ' → ' + n);
+    historico_(ss, aba.getName(), req.linha, req.curso + ' / ' + req.turma, '', 'Formados', texto_(antigo) + ' → ' + n);
     return { ok: true };
-  });
+  }, req.ano);
 }
 
 /* ---------- apoio às edições ---------- */
@@ -296,11 +299,11 @@ function atualizarFormados(req) {
 const NOTA_FORMULA = 'Fórmula original (painel): ';
 
 /** Executa a gravação com trava, limpa o cache e devolve JSON. */
-function comTrava_(fn) {
-  const lock = LockService.getDocumentLock();
-  lock.waitLock(15000);
+function comTrava_(fn, ano) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
   try {
-    const r = fn(SpreadsheetApp.getActiveSpreadsheet());
+    const r = fn(planilha_(ano));
     SpreadsheetApp.flush();
     limparCache();
     return JSON.stringify(r);
@@ -373,8 +376,8 @@ function historico_(ss, aba, linha, turma, etapa, acao, detalhe) {
 /* Montagem dos dados                                                  */
 /* ================================================================== */
 
-function montarDados_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function montarDados_(ss) {
+  ss = ss || planilha_();
   const avisos = [];
 
   const cadastro = lerCadastro_(ss, avisos);
@@ -429,6 +432,8 @@ function montarDados_() {
   return {
     titulo: CONFIG.TITULO,
     planilha: ss.getName(),
+    ano: anoDaPlanilha_(ss),
+    anos: anosDisponiveis_(),
     url: ss.getUrl(),
     geradoEm: new Date().toISOString(),
     hoje: iso_(new Date()),
@@ -487,7 +492,8 @@ function lerCadastro_(ss, avisos) {
  * "Turma | Início | Término" e ao menos um bloco "Fase ... Etapa ... Status".
  */
 function lerAbasOperacionais_(ss, avisos) {
-  const fixas = [CONFIG.ABA_CADASTRO, CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
+  const af = abaFormandos_(ss);
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -570,7 +576,7 @@ function lerAbasOperacionais_(ss, avisos) {
 
 /** "Formandos 2026": primeira tabela (Curso | Turma | Local | Formados). */
 function lerFormandos_(ss) {
-  const aba = ss.getSheetByName(CONFIG.ABA_FORMANDOS);
+  const aba = abaFormandos_(ss);
   if (!aba) return [];
   const v = aba.getDataRange().getValues();
   const h = acharCabecalho_(v, ['curso', 'turma', 'formados'], 5);
@@ -709,9 +715,10 @@ function registrarHistorico_(ss, linha) {
 /* Cache em blocos (CacheService aceita até 100 KB por chave)          */
 /* ================================================================== */
 
-const CACHE_PREFIXO = 'painel_v2_';
+const CACHE_PREFIXO_BASE = 'painel_v3_';
 
-function gravarCache_(json) {
+function gravarCache_(json, ano) {
+  const CACHE_PREFIXO = prefixoCache_(ano);
   const cache = CacheService.getScriptCache();
   const tamanho = 90000;
   const partes = {};
@@ -725,7 +732,8 @@ function gravarCache_(json) {
   cache.putAll(partes, CONFIG.CACHE_SEGUNDOS);
 }
 
-function lerCache_() {
+function lerCache_(ano) {
+  const CACHE_PREFIXO = prefixoCache_(ano);
   const cache = CacheService.getScriptCache();
   const n = Number(cache.get(CACHE_PREFIXO + 'n'));
   if (!n) return null;
@@ -736,11 +744,519 @@ function lerCache_() {
   return chaves.map(k => partes[k]).join('');
 }
 
+/** Limpa o cache de todos os anos (chamado após qualquer gravação). */
 function limparCache() {
   const cache = CacheService.getScriptCache();
-  const chaves = [CACHE_PREFIXO + 'n'];
-  for (let i = 0; i < 50; i++) chaves.push(CACHE_PREFIXO + i);
+  const chaves = [];
+  anosDisponiveis_().forEach(a => {
+    const p = prefixoCache_(a);
+    chaves.push(p + 'n');
+    for (let i = 0; i < 50; i++) chaves.push(p + i);
+  });
   cache.removeAll(chaves);
+}
+
+function prefixoCache_(ano) {
+  return CACHE_PREFIXO_BASE + (ano || '') + '_';
+}
+
+/* ================================================================== */
+/* Vários anos: uma planilha por ano, todas no mesmo painel            */
+/* ================================================================== */
+
+/** { "2027": "idDaPlanilha", ... } guardado nas propriedades do script. */
+function anosRegistrados_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('ANOS') || '{}'); }
+  catch (e) { return {}; }
+}
+
+function registrarAno_(ano, id) {
+  const m = anosRegistrados_();
+  m[ano] = id;
+  PropertiesService.getScriptProperties().setProperty('ANOS', JSON.stringify(m));
+}
+
+/** O ano de uma planilha vem do nome do arquivo ("Controle de Cursos 2026"). */
+function anoDaPlanilha_(ss) {
+  const m = String(ss.getName()).match(/\b(20\d{2})\b/);
+  return m ? Number(m[1]) : new Date().getFullYear();
+}
+
+/** Planilha do ano pedido (sem ano: a planilha onde o script está). */
+function planilha_(ano) {
+  const base = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ano || (base && anoDaPlanilha_(base) === Number(ano))) {
+    if (!base) throw new Error('Script sem planilha vinculada.');
+    return base;
+  }
+  const id = anosRegistrados_()[ano];
+  if (!id) throw new Error('Não há planilha cadastrada para ' + ano + '.');
+  return SpreadsheetApp.openById(id);
+}
+
+function anosDisponiveis_() {
+  const anos = Object.keys(anosRegistrados_()).map(Number);
+  const base = SpreadsheetApp.getActiveSpreadsheet();
+  if (base) anos.push(anoDaPlanilha_(base));
+  return Array.from(new Set(anos)).sort();
+}
+
+/** Aba de formandos: "Formandos 2026", "Formandos 2027"... */
+function abaFormandos_(ss) {
+  return ss.getSheetByName(CONFIG.ABA_FORMANDOS) ||
+    ss.getSheets().find(s => /^formandos\b/.test(semAcento_(s.getName()))) || null;
+}
+
+/* ================================================================== */
+/* Incluir turma nova (copia o checklist de uma turma modelo)          */
+/* ================================================================== */
+
+/**
+ * Cria uma turma nova numa aba de curso, copiando o checklist da turma modelo:
+ *  - linha no resumo da aba (as fórmulas de contagem apontam para o novo bloco);
+ *  - bloco de etapas com prazos recalculados pelas datas novas;
+ *  - linha no Cadastro de Turmas, no Painel Geral, em Formandos e no Calendario.
+ */
+function criarTurma(req) {
+  return comTrava_(ss => {
+    const nome = String(req.nome || '').trim();
+    const local = String(req.local || '').trim();
+    if (!nome) throw new Error('Informe o nome da turma.');
+    if (!req.inicio || !req.fim) throw new Error('Informe início e término.');
+    const ini = dataIso_(req.inicio), fim = dataIso_(req.fim);
+    if (fim < ini) throw new Error('O término não pode ser antes do início.');
+
+    const aba = abaOuErro_(ss, req.aba);
+    const nomeAba = aba.getName();
+    let v = aba.getDataRange().getValues();
+    const h = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+    if (h < 0) throw new Error('Resumo de turmas não encontrado na aba ' + nomeAba + '.');
+    const cr = indice_(v[h]);
+    const larguraResumo = larguraCabecalho_(v[h]);
+    const resumo = [];
+    for (let i = h + 1; i < v.length && texto_(v[i][0]); i++) resumo.push(i + 1);
+    if (resumo.some(l => chave_(texto_(v[l - 1][0])) === chave_(nome))) throw new Error('Já existe uma turma "' + nome + '" nesta aba.');
+    const k = resumo.findIndex(l => chave_(texto_(v[l - 1][0])) === chave_(req.modelo));
+    if (k < 0) throw new Error('Turma modelo "' + req.modelo + '" não encontrada na aba ' + nomeAba + '.');
+    const tplRow = resumo[k];
+    const ultimoResumo = resumo[resumo.length - 1];
+
+    // 1) Linha nova no resumo (as fórmulas da planilha se ajustam sozinhas à inserção).
+    aba.insertRowAfter(ultimoResumo);
+    const R = ultimoResumo + 1;
+
+    // 2) Bloco de etapas da turma modelo (posições relidas após a inserção).
+    v = aba.getDataRange().getValues();
+    const blocos = [];
+    for (let i = R; i < v.length; i++) {
+      const l = v[i].map(x => semAcento_(x));
+      if (l[0] === 'fase' && l.indexOf('etapa') >= 0 && l.indexOf('status') >= 0) blocos.push(i + 1);
+    }
+    const cab = blocos[k];
+    if (!cab) throw new Error('Bloco de etapas da turma modelo não encontrado.');
+    const srcIni = cab - 1;
+    const limite = k + 1 < blocos.length ? blocos[k + 1] - 2 : v.length;
+    let srcFim = cab;
+    for (let i = cab + 1; i <= limite; i++) if (v[i - 1].some(x => x !== '' && x !== null)) srcFim = i;
+    const nLin = srcFim - srcIni + 1;
+    const nCol = larguraCabecalho_(v[cab - 1]);
+    const col = indice_(v[cab - 1]);
+
+    const destIni = ultimaLinhaComDados_(v) + 3;
+    const D = destIni - srcIni;
+    if (aba.getMaxRows() < destIni + nLin) aba.insertRowsAfter(aba.getMaxRows(), destIni + nLin - aba.getMaxRows());
+    const src = aba.getRange(srcIni, 1, nLin, nCol), dst = aba.getRange(destIni, 1, nLin, nCol);
+    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+
+    const regras = [{ aba: null, de: tplRow, ate: tplRow, para: R }, { aba: null, de: srcIni, ate: srcFim, desloc: D }];
+    const sv = src.getValues(), sf = src.getFormulas();
+    const bloco = sv.map((row, i) => row.map((x, j) => {
+      if (sf[i][j]) return reescreverFormula_(sf[i][j], nomeAba, regras);
+      if (i > 1 && texto_(row[col['etapa']])) {
+        if (j === col['status']) return x === 'Não se aplica' ? x : 'Pendente';
+        if (j === col['data conclusao'] || j === col['observacoes']) return '';
+      }
+      return x;
+    }));
+    if (!sf[0][0]) bloco[0][0] = ' ' + nome + '  |  Período: ' + texto_(ini) + ' a ' + texto_(fim) + (local ? '  |  Local/Unidade: ' + local : '');
+    dst.setValues(bloco);
+
+    // 3) Linha do resumo: mesmas fórmulas da modelo, apontando para o novo bloco.
+    const tpl = aba.getRange(tplRow, 1, 1, larguraResumo);
+    tpl.copyTo(aba.getRange(R, 1, 1, larguraResumo), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    const tv = tpl.getValues()[0], tf = tpl.getFormulas()[0];
+    const linha = tv.map((x, j) => tf[j] ? reescreverFormula_(tf[j], nomeAba, regras) : x);
+    linha[cr['turma']] = nome;
+    if (!tf[cr['inicio']]) linha[cr['inicio']] = ini;
+    if (!tf[cr['termino']]) linha[cr['termino']] = fim;
+    if (cr['local/unidade'] !== undefined && !tf[cr['local/unidade']]) linha[cr['local/unidade']] = local;
+    if (cr['formados'] !== undefined && !tf[cr['formados']]) linha[cr['formados']] = '';
+    aba.getRange(R, 1, 1, larguraResumo).setValues([linha]);
+
+    // 4) Cadastro de Turmas, Painel Geral, Formandos e Calendario.
+    const cad = incluirNoCadastro_(ss, nomeAba, tplRow, R, req);
+    incluirNoPainelGeral_(ss, nomeAba, tplRow, R, cad);
+    incluirEmFormandos_(ss, req.curso || nomeAba, nome, local);
+    incluirNoCalendario_(ss, ini, fim, req.treinamento || nome, req.vagas, local);
+
+    historico_(ss, nomeAba, R, nome, '', 'Turma incluída', texto_(ini) + ' a ' + texto_(fim) + ' · modelo: ' + req.modelo);
+    return { ok: true, linha: R };
+  }, req.ano);
+}
+
+function incluirNoCadastro_(ss, nomeAba, tplRow, R, req) {
+  const c = cadastro_(ss);
+  const v = c.aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['id', 'curso', 'turma'], 6);
+  const largura = larguraCabecalho_(v[h]);
+  let tpl = -1, ultimo = h + 1, maxId = 0;
+  for (let i = h + 1; i < v.length; i++) {
+    if (!texto_(v[i][c.col['turma']]) && !texto_(v[i][c.col['id']])) continue;
+    ultimo = i + 1;
+    maxId = Math.max(maxId, numero_(v[i][c.col['id']]) || 0);
+    if (chave_(texto_(v[i][c.col['turma']])) === chave_(req.modelo)) tpl = i + 1;
+  }
+  if (tpl < 0) return null; // modelo fora do cadastro: segue sem esta linha
+  c.aba.insertRowAfter(ultimo);
+  const nova = ultimo + 1;
+  const src = c.aba.getRange(tpl, 1, 1, largura);
+  src.copyTo(c.aba.getRange(nova, 1, 1, largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  src.copyTo(c.aba.getRange(nova, 1, 1, largura), SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+  const regras = [{ aba: null, de: tpl, ate: tpl, para: nova }, { aba: nomeAba, de: tplRow, ate: tplRow, para: R }];
+  const sv = src.getValues()[0], sf = src.getFormulas()[0];
+  const linha = sv.map((x, j) => sf[j] ? reescreverFormula_(sf[j], c.aba.getName(), regras) : x);
+  const col = c.col;
+  linha[col['id']] = maxId + 1;
+  if (!sf[col['turma']]) linha[col['turma']] = req.nome;
+  if (col['local/unidade'] !== undefined && !sf[col['local/unidade']]) linha[col['local/unidade']] = req.local || '';
+  if (col['inicio'] !== undefined && !sf[col['inicio']]) linha[col['inicio']] = dataIso_(req.inicio);
+  if (col['termino'] !== undefined && !sf[col['termino']]) linha[col['termino']] = dataIso_(req.fim);
+  if (col['observacoes'] !== undefined) linha[col['observacoes']] = '';
+  if (col['situacao temporal'] !== undefined && !sf[col['situacao temporal']]) {
+    const fI = letra_(col['inicio'] + 1) + nova, fT = letra_(col['termino'] + 1) + nova;
+    linha[col['situacao temporal']] = '=IF(TODAY()<' + fI + ',"Planejamento",IF(TODAY()<=' + fT + ',"Em execução","Encerrado"))';
+  }
+  c.aba.getRange(nova, 1, 1, largura).setValues([linha]);
+  return { tpl: tpl, nova: nova, aba: c.aba.getName() };
+}
+
+function incluirNoPainelGeral_(ss, nomeAba, tplRow, R, cad) {
+  const aba = ss.getSheets().find(s => CONFIG.ABAS_IGNORADAS.indexOf(s.getName()) >= 0);
+  if (!aba) return;
+  const v = aba.getDataRange().getValues(), f = aba.getDataRange().getFormulas();
+  const h = acharCabecalho_(v, ['curso', 'turma', 'inicio'], 6);
+  if (h < 0) return;
+  const largura = larguraCabecalho_(v[h]);
+  const alvo = new RegExp("(^|[^A-Za-z0-9_])'?" + nomeAba.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'?!\\$?[A-Z]{1,3}\\$?" + tplRow + '(?!\\d)');
+  let tpl = -1, ultimo = h + 1;
+  for (let i = h + 1; i < v.length; i++) {
+    if (!v[i].some(x => x !== '' && x !== null) && !f[i].some(Boolean)) continue;
+    ultimo = i + 1;
+    if (f[i].some(x => alvo.test(x))) tpl = i + 1;
+  }
+  if (tpl < 0) return;
+  aba.insertRowAfter(ultimo);
+  const nova = ultimo + 1;
+  const src = aba.getRange(tpl, 1, 1, largura);
+  src.copyTo(aba.getRange(nova, 1, 1, largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  const regras = [{ aba: null, de: tpl, ate: tpl, para: nova }, { aba: nomeAba, de: tplRow, ate: tplRow, para: R }];
+  if (cad) regras.push({ aba: cad.aba, de: cad.tpl, ate: cad.tpl, para: cad.nova });
+  const sv = src.getValues()[0], sf = src.getFormulas()[0];
+  aba.getRange(nova, 1, 1, largura).setValues([sv.map((x, j) => sf[j] ? reescreverFormula_(sf[j], aba.getName(), regras) : x)]);
+}
+
+function incluirEmFormandos_(ss, curso, turma, local) {
+  const aba = abaFormandos_(ss);
+  if (!aba) return;
+  const v = aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['curso', 'turma', 'formados'], 5);
+  if (h < 0) return;
+  const c = indice_(v[h]);
+  let ultimo = -1;
+  for (let i = h + 1; i < v.length; i++) if (texto_(v[i][c['curso']])) ultimo = i + 1;
+  if (ultimo < 0) return;
+  // Insere ANTES da última linha para que os intervalos dos totais (SUMIF) se expandam.
+  aba.insertRowBefore(ultimo);
+  const largura = c['formados'] + 1;
+  aba.getRange(ultimo + 1, 1, 1, largura).copyTo(aba.getRange(ultimo, 1, 1, largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  const linha = new Array(largura).fill('');
+  linha[c['curso']] = curso; linha[c['turma']] = turma;
+  if (c['local'] !== undefined) linha[c['local']] = local;
+  linha[c['formados']] = 0;
+  aba.getRange(ultimo, 1, 1, largura).setValues([linha]);
+}
+
+function incluirNoCalendario_(ss, ini, fim, treinamento, vagas, local) {
+  const aba = ss.getSheetByName(CONFIG.ABA_CALENDARIO) || ss.getSheets().find(s => semAcento_(s.getName()).indexOf('calendario') >= 0);
+  if (!aba) return;
+  const v = aba.getDataRange().getDisplayValues();
+  const MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const mes = ini.getMonth();
+  const mesmoMes = ini.getMonth() === fim.getMonth();
+  const dd = d => ('0' + d.getDate()).slice(-2), mm = d => ('0' + (d.getMonth() + 1)).slice(-2);
+  const periodo = ini.getTime() === fim.getTime() ? dd(ini) + '/' + mm(ini)
+    : mesmoMes ? dd(ini) + ' a ' + dd(fim) + '/' + mm(fim) : dd(ini) + '/' + mm(ini) + ' a ' + dd(fim) + '/' + mm(fim);
+
+  // Blocos do calendário: { mes, titulo, cab, ultimo, col }.
+  const blocos = [];
+  for (let i = 0; i < v.length; i++) {
+    const r = v[i].map(x => String(x).trim()), cheias = r.filter(Boolean);
+    if (!cheias.length) continue;
+    const m = MESES.indexOf(semAcento_(cheias[0]));
+    if (cheias.length <= 2 && m >= 0) { blocos.push({ mes: m, titulo: i + 1, cab: -1, ultimo: -1, col: null }); continue; }
+    const b = blocos[blocos.length - 1];
+    if (!b) continue;
+    const n = r.map(x => semAcento_(x));
+    if (b.cab < 0 && n.indexOf('periodo') >= 0) { b.cab = i + 1; b.col = n; continue; }
+    if (b.cab > 0) b.ultimo = i + 1;
+  }
+  const colunas = n => ({ periodo: n.indexOf('periodo'), treinamento: n.findIndex(x => x.indexOf('treinamento') >= 0), vagas: n.findIndex(x => x.indexOf('vagas') >= 0), local: n.findIndex(x => x.indexOf('local') >= 0 || x.indexOf('obs') >= 0) });
+  const largura = aba.getLastColumn();
+  const montar = c => { const l = new Array(largura).fill(''); l[c.periodo] = periodo; l[c.treinamento] = treinamento; if (c.vagas >= 0) l[c.vagas] = vagas ? String(vagas) : '-'; if (c.local >= 0) l[c.local] = local; return l; };
+
+  const doMes = blocos.find(b => b.mes === mes && b.cab > 0);
+  if (doMes) {
+    const depois = doMes.ultimo > 0 ? doMes.ultimo : doMes.cab;
+    aba.insertRowAfter(depois);
+    if (doMes.ultimo > 0) aba.getRange(doMes.ultimo, 1, 1, largura).copyTo(aba.getRange(depois + 1, 1, 1, largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    aba.getRange(depois + 1, 1, 1, largura).setValues([montar(colunas(doMes.col))]);
+    return;
+  }
+  // Mês ainda sem bloco: cria no fim, copiando a formatação do primeiro mês.
+  const modelo = blocos.find(b => b.cab > 0);
+  if (!modelo) return;
+  const base = ultimaLinhaComDados_(v) + 2;
+  aba.getRange(modelo.titulo, 1, 3, largura).copyTo(aba.getRange(base, 1, 3, largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  const cabecalho = v[modelo.cab - 1].slice(0, largura);
+  const titulo = new Array(largura).fill(''); titulo[0] = MESES_TITULO_[mes];
+  aba.getRange(base, 1, 3, largura).setValues([titulo, cabecalho, montar(colunas(cabecalho.map(x => semAcento_(x))))]);
+}
+
+const MESES_TITULO_ = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+
+/* ================================================================== */
+/* Criar o ano seguinte: cópia "espelho" da planilha                   */
+/* ================================================================== */
+
+/**
+ * Copia a planilha do ano de origem para o ano seguinte, mantendo cursos,
+ * turmas, locais, vagas e checklists. Avança as datas, zera status
+ * (exceto "Não se aplica"), datas de conclusão, observações das etapas,
+ * formados e histórico. A planilha de origem não é alterada.
+ *  req.modoDatas: 'semana' (mesmo dia da semana, +364 dias) | 'data' (mesmo dia e mês)
+ *  req.canceladas: 'manter' | 'reativar'
+ */
+function criarAnoSeguinte(req) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const origem = planilha_(req.ano);
+    const anoOrigem = anoDaPlanilha_(origem), novoAno = anoOrigem + 1;
+    if (anosRegistrados_()[novoAno]) throw new Error('A planilha de ' + novoAno + ' já existe.');
+    const avancar = d => {
+      const n = new Date(d.getTime());
+      if (req.modoDatas === 'data') n.setFullYear(n.getFullYear() + 1);
+      else n.setDate(n.getDate() + 364);
+      return n;
+    };
+
+    const arquivo = DriveApp.getFileById(origem.getId());
+    const pastas = arquivo.getParents();
+    const nome = /\b20\d{2}\b/.test(origem.getName()) ? origem.getName().replace(/\b20\d{2}\b/, String(novoAno)) : origem.getName() + ' ' + novoAno;
+    const copia = pastas.hasNext() ? arquivo.makeCopy(nome, pastas.next()) : arquivo.makeCopy(nome);
+    const ss = SpreadsheetApp.openById(copia.getId());
+
+    const af = abaFormandos_(ss);
+    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO].concat(CONFIG.ABAS_IGNORADAS);
+
+    ss.getSheets().forEach(aba => {
+      const nomeAba = aba.getName();
+      // Títulos com o ano ("... AET/CPE 2026") nas primeiras linhas.
+      trocarAnoNosTitulos_(aba, anoOrigem, novoAno);
+      if (fixas.indexOf(nomeAba) >= 0) return;
+
+      const v = aba.getDataRange().getValues();
+      const h = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+      if (h < 0) return;
+
+      // Etapas: status, conclusão e observações por coluna de cada bloco.
+      const cabs = [];
+      for (let i = h + 1; i < v.length; i++) {
+        const l = v[i].map(x => semAcento_(x));
+        if (l[0] === 'fase' && l.indexOf('etapa') >= 0 && l.indexOf('status') >= 0) cabs.push(i);
+      }
+      cabs.forEach((i, idx) => {
+        const col = indice_(v[i]);
+        const fim = idx + 1 < cabs.length ? cabs[idx + 1] - 1 : v.length; // exclusivo: para antes do título do próximo bloco
+        const n = fim - (i + 1);
+        if (n <= 0) return;
+        const colStatus = v.slice(i + 1, fim).map(r => [texto_(r[col['etapa']]) ? (r[col['status']] === 'Não se aplica' ? 'Não se aplica' : 'Pendente') : r[col['status']]]);
+        escreverColuna_(aba, i + 2, col['status'] + 1, colStatus);
+        if (col['data conclusao'] !== undefined) escreverColuna_(aba, i + 2, col['data conclusao'] + 1, colStatus.map(() => ['']));
+        if (col['observacoes'] !== undefined) escreverColuna_(aba, i + 2, col['observacoes'] + 1, colStatus.map(() => ['']));
+      });
+
+      // Datas digitadas (sem fórmula): resumo, linhas avulsas e quadros auxiliares.
+      const v2 = aba.getDataRange().getValues(), f2 = aba.getDataRange().getFormulas();
+      for (let i = 0; i < v2.length; i++) {
+        for (let j = 0; j < v2[i].length; j++) {
+          if (v2[i][j] instanceof Date && !f2[i][j] && v2[i][j].getFullYear() > 1950) aba.getRange(i + 1, j + 1).setValue(avancar(v2[i][j]));
+        }
+      }
+
+      // Formados do resumo e títulos "Período: dd/mm/aaaa a dd/mm/aaaa" dos blocos.
+      const v3 = aba.getDataRange().getValues();
+      const cr = indice_(v3[h]);
+      const resumo = [];
+      for (let i = h + 1; i < v3.length && texto_(v3[i][0]); i++) resumo.push(i);
+      if (cr['formados'] !== undefined) resumo.forEach(i => { const c = aba.getRange(i + 1, cr['formados'] + 1); if (!c.getFormula()) c.setValue(''); });
+      let k = 0;
+      for (let i = h + 1; i < v3.length; i++) {
+        const l = v3[i].map(x => semAcento_(x));
+        if (!(l[0] === 'fase' && l.indexOf('etapa') >= 0)) continue;
+        const r = resumo[k++];
+        if (r === undefined || i < 1) continue;
+        const celT = aba.getRange(i, 1);
+        const t = String(celT.getValue()), re = /Per[ií]odo:\s*\d{2}\/\d{2}\/\d{4}(\s*a\s*\d{2}\/\d{2}\/\d{4})?/;
+        if (!celT.getFormula() && re.test(t)) celT.setValue(t.replace(re, 'Período: ' + texto_(v3[r][cr['inicio']]) + ' a ' + texto_(v3[r][cr['termino']])));
+      }
+    });
+
+    // Cadastro: canceladas (manter ou reativar) e observações limpas.
+    const cad = cadastro_(ss);
+    const cv = cad.aba.getDataRange().getValues();
+    const hc = acharCabecalho_(cv, ['id', 'curso', 'turma'], 6);
+    for (let i = hc + 1; i < cv.length; i++) {
+      if (!texto_(cv[i][cad.col['turma']])) continue;
+      const cel = cad.aba.getRange(i + 1, cad.col['situacao temporal'] + 1);
+      const cancelada = !cel.getFormula() && /cancel/i.test(String(cel.getValue()));
+      if (cancelada && req.canceladas === 'reativar') {
+        const nota = cel.getNote();
+        const fI = letra_(cad.col['inicio'] + 1) + (i + 1), fT = letra_(cad.col['termino'] + 1) + (i + 1);
+        cel.setFormula(nota.indexOf(NOTA_FORMULA) === 0 ? nota.substring(NOTA_FORMULA.length).trim()
+          : '=IF(TODAY()<' + fI + ',"Planejamento",IF(TODAY()<=' + fT + ',"Em execução","Encerrado"))');
+        cel.clearNote();
+      }
+      const obs = cad.aba.getRange(i + 1, cad.col['observacoes'] + 1);
+      if (!obs.getFormula() && !(cancelada && req.canceladas !== 'reativar')) obs.setValue('');
+    }
+
+    // Formandos: nome da aba e quantidades zeradas.
+    if (af) {
+      if (/\b20\d{2}\b/.test(af.getName())) af.setName(af.getName().replace(/\b20\d{2}\b/, String(novoAno)));
+      const fv = af.getDataRange().getValues();
+      const hf = acharCabecalho_(fv, ['curso', 'turma', 'formados'], 5);
+      if (hf >= 0) {
+        const c = indice_(fv[hf]);
+        for (let i = hf + 1; i < fv.length; i++) {
+          if (!texto_(fv[i][c['curso']])) continue;
+          const cel = af.getRange(i + 1, c['formados'] + 1);
+          if (!cel.getFormula()) cel.setValue(0);
+        }
+      }
+    }
+
+    avancarCalendario_(ss, avancar, novoAno);
+
+    // Histórico do painel começa vazio no ano novo.
+    const hist = ss.getSheetByName(CONFIG.ABA_HISTORICO);
+    if (hist && hist.getLastRow() > 1) hist.deleteRows(2, hist.getLastRow() - 1);
+
+    registrarAno_(novoAno, ss.getId());
+    SpreadsheetApp.flush();
+    limparCache();
+    historico_(origem, CONFIG.ABA_CADASTRO, '', '', '', 'Ano ' + novoAno + ' criado', ss.getUrl());
+    return JSON.stringify({ ok: true, ano: novoAno, url: ss.getUrl(), nome: ss.getName() });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Calendario: avança os períodos ("17 a 18/09") e o ano do título. */
+function avancarCalendario_(ss, avancar, novoAno) {
+  const aba = ss.getSheetByName(CONFIG.ABA_CALENDARIO) || ss.getSheets().find(s => semAcento_(s.getName()).indexOf('calendario') >= 0);
+  if (!aba) return;
+  const v = aba.getDataRange().getDisplayValues(), f = aba.getDataRange().getFormulas();
+  const MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const dd = d => ('0' + d.getDate()).slice(-2), mm = d => ('0' + (d.getMonth() + 1)).slice(-2);
+  let mes = -1, cp = -1;
+  for (let i = 0; i < v.length; i++) {
+    const r = v[i].map(x => String(x).trim()), cheias = r.filter(Boolean);
+    if (!cheias.length) continue;
+    const m = MESES.indexOf(semAcento_(cheias[0]));
+    if (cheias.length <= 2 && m >= 0) { mes = m; continue; }
+    const n = r.map(x => semAcento_(x));
+    if (n.indexOf('periodo') >= 0) { cp = n.indexOf('periodo'); continue; }
+    if (mes < 0 || cp < 0 || !r[cp] || f[i][cp]) continue;
+    const datas = periodoParaDatas_(r[cp], mes, novoAno - 1);
+    if (!datas) continue;
+    const a = avancar(datas[0]), b = avancar(datas[1]);
+    const txt = a.getTime() === b.getTime() ? dd(a) + '/' + mm(a)
+      : a.getMonth() === b.getMonth() ? dd(a) + ' a ' + dd(b) + '/' + mm(b) : dd(a) + '/' + mm(a) + ' a ' + dd(b) + '/' + mm(b);
+    aba.getRange(i + 1, cp + 1).setValue(txt);
+  }
+}
+
+function trocarAnoNosTitulos_(aba, de, para) {
+  const n = Math.min(aba.getLastRow(), 10), c = aba.getLastColumn();
+  if (n < 1 || c < 1) return;
+  const r = aba.getRange(1, 1, n, c), v = r.getValues(), f = r.getFormulas();
+  for (let i = 0; i < n; i++) for (let j = 0; j < c; j++) {
+    if (!f[i][j] && typeof v[i][j] === 'string' && v[i][j].indexOf(String(de)) >= 0 && /[A-Za-zÀ-ú]/.test(v[i][j])) {
+      aba.getRange(i + 1, j + 1).setValue(v[i][j].split(String(de)).join(String(para)));
+    }
+  }
+}
+
+/* ---------- utilitários das inclusões ---------- */
+
+/** Escreve uma coluna de valores, sem tocar nas células que têm fórmula. */
+function escreverColuna_(aba, linha, coluna, valores) {
+  const r = aba.getRange(linha, coluna, valores.length, 1);
+  const f = r.getFormulas();
+  if (f.every(x => !x[0])) { r.setValues(valores); return; }
+  valores.forEach((x, i) => { if (!f[i][0]) aba.getRange(linha + i, coluna).setValue(x[0]); });
+}
+
+/** Quantas colunas tem um cabeçalho (até a primeira célula vazia depois da coluna A). */
+function larguraCabecalho_(linha) {
+  let n = 0;
+  for (let j = 0; j < linha.length; j++) { if (texto_(linha[j])) n = j + 1; else if (j > 0) break; }
+  return Math.max(n, 1);
+}
+
+function ultimaLinhaComDados_(v) {
+  for (let i = v.length - 1; i >= 0; i--) if (v[i].some(x => x !== '' && x !== null)) return i + 1;
+  return 0;
+}
+
+/**
+ * Reescreve referências de linha (A1) numa fórmula.
+ * Cada regra: { aba: null (a própria aba) | 'Nome', de, ate, para | desloc }.
+ * Textos entre aspas não são alterados.
+ */
+function reescreverFormula_(formula, abaAtual, regras) {
+  const partes = String(formula).split('"');
+  const limpa = n => String(n || '').replace(/^'|'$/g, '');
+  for (let p = 0; p < partes.length; p += 2) { // índices pares = fora de aspas
+    partes[p] = partes[p].replace(/((?:'[^']+'|[A-Za-zÀ-ú0-9_]+)!)?(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])/g, (m, aba, d1, c, d2, lin, pos, str) => {
+      const antes = pos > 0 ? str[pos - 1] : '';
+      if (!aba && /[A-Za-z0-9_.$]/.test(antes)) return m;
+      const nomeRef = aba ? limpa(aba.slice(0, -1)) : null;
+      const mesma = !nomeRef || nomeRef === abaAtual;
+      const n = Number(lin);
+      for (const r of regras) {
+        const casa = r.aba === null ? mesma : nomeRef === r.aba || (mesma && r.aba === abaAtual);
+        if (casa && n >= r.de && n <= r.ate) {
+          const novo = r.para !== undefined ? r.para : n + r.desloc;
+          return (aba || '') + d1 + c + d2 + novo;
+        }
+      }
+      return m;
+    });
+  }
+  return partes.join('"');
 }
 
 /* ================================================================== */
