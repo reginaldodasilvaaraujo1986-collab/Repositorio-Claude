@@ -624,8 +624,7 @@
     const abertas = todas.filter(e => !concluida(e));
 
     const chips = '<div class="seg fases-sel">' + [['ANTES', 'Antes do início'], ['DURANTE', 'Durante'], ['DEPOIS', 'Depois']]
-      .map(([k, l]) => '<button data-fasechip="' + k + '" class="' + (S.fasesEtapas[k] ? 'on' : '') + '">' + l + '</button>').join('') +
-      '<button data-fasechip="TODAS" class="' + (S.fasesEtapas.ANTES && S.fasesEtapas.DURANTE && S.fasesEtapas.DEPOIS ? 'on' : '') + '">Todas</button></div>';
+      .map(([k, l]) => '<button data-fasechip="' + k + '" class="' + (S.fasesEtapas[k] ? 'on' : '') + '">' + l + '</button>').join('') + '</div>';
     const barraFerr = '<div class="toolbar">' + chips + segmento('etapasModo', [['quadro', 'Quadro'], ['tabela', 'Tabela']]) +
       (S.etapasModo === 'tabela' ? '<label class="switch"><input type="checkbox" id="chkConcl"' + (S.etapasConcluidas ? ' checked' : '') + '><span></span>Mostrar concluídas</label>' : '') +
       '<span style="color:var(--ink-3);font-size:12.5px">' + abertas.length + ' em aberto · ' + (todas.length - abertas.length) + ' concluídas</span>' +
@@ -723,24 +722,24 @@
     const nIni = dias(t.inicio);
     const fases = ['ANTES', 'DURANTE', 'DEPOIS'].filter(f => es.some(e => e.fase === f));
     es.forEach(e => { if (fases.indexOf(e.fase) < 0) fases.push(e.fase); });
-    if (S.fase !== 'TODAS' && fases.indexOf(S.fase) < 0) S.fase = fases[0] || 'TODAS';
+    if (fases.indexOf(S.fase) < 0) S.fase = fases[0] || 'ANTES';
     const pode = S.dados.podeEditar;
 
-    let lista = S.fase === 'TODAS' ? es : es.filter(e => e.fase === S.fase);
+    let lista = es.filter(e => e.fase === S.fase);
     if (S.soPendentes) lista = lista.filter(e => !concluida(e) || (S.edit && S.edit.id === e.id));
     const steps = lista.map(e => {
       if (S.edit && S.edit.tipo === 'etapa' && S.edit.id === e.id) return formEtapa(e);
       const n = dias(e.prazo), late = !concluida(e) && n !== null && n < 0;
       const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
       return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
-        '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + (S.fase === 'TODAS' ? '<span class="fase">' + esc(e.fase) + '</span>' : '') + esc(e.etapa) + '</div>' +
+        '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
         '<div class="m">Prazo ' + fmtAno(e.prazo) + ' · ' + esc(e.responsavel || 's/ resp.') + (e.documento ? ' · ' + esc(e.documento) : '') +
         (e.conclusao ? ' · concluída ' + fmt(e.conclusao) : '') + (e.observacoes ? ' · 💬 ' + esc(e.observacoes) : '') + '</div></div>' +
         '<div class="r">' + badgeDias(e) + seletor(e) + (pode ? botaoEditar(e.id) : '') + '</div></div>';
     }).join('');
 
     const rotFase = f => f === 'ANTES' ? 'Antes do início' : titulo(f);
-    const abas = fases.map(f => [f, rotFase(f), es.filter(e => e.fase === f)]).concat([['TODAS', 'Todas', es]]);
+    const abas = fases.map(f => [f, rotFase(f), es.filter(e => e.fase === f)]);
     const link = S.dados.url && t.gid != null ? S.dados.url.split('#')[0] + '#gid=' + t.gid + (t.linhaResumo ? '&range=A' + t.linhaResumo : '') : '';
     const kvSim = v => '<dd class="' + (norm(v) === 'sim' ? 'sim' : '') + '">' + esc(v || '—') + '</dd>';
     const editandoTurma = S.edit && S.edit.id === id && (S.edit.tipo === 'turma' || S.edit.tipo === 'cancelar');
@@ -1055,7 +1054,7 @@
       S.edit = { tipo: 'etapa', id: e.id, campos: { responsavel: e.responsavel || '', documento: e.documento || '', observacoes: e.observacoes || '', conclusao: e.conclusao || '' } };
       const novaTurma = S.drawer !== e.turmaId;
       S.drawer = e.turmaId;
-      if (novaTurma || (S.fase !== 'TODAS' && S.fase !== e.fase)) S.fase = e.fase || 'TODAS';
+      if (novaTurma || S.fase !== e.fase) S.fase = e.fase || 'ANTES';
       return abrirTurma(e.turmaId);
     }
     const t = S.turmaIdx[S.drawer];
@@ -1207,8 +1206,8 @@
     const fc = el.closest('[data-fasechip]');
     if (fc) {
       const k = fc.dataset.fasechip, F = S.fasesEtapas;
-      if (k === 'TODAS') { const todas = F.ANTES && F.DURANTE && F.DEPOIS; S.fasesEtapas = todas ? { ANTES: true, DURANTE: false, DEPOIS: false } : { ANTES: true, DURANTE: true, DEPOIS: true }; }
-      else { F[k] = !F[k]; if (!F.ANTES && !F.DURANTE && !F.DEPOIS) F.ANTES = true; }
+      F[k] = !F[k];
+      if (!F.ANTES && !F.DURANTE && !F.DEPOIS) F.ANTES = true;
       S.pg = {}; return render();
     }
 
