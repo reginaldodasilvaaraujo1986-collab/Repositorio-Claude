@@ -26,6 +26,10 @@ const CONFIG = {
   // Abas que nunca são tratadas como operacionais.
   ABAS_IGNORADAS: ['Painel Geral'],
 
+  // Unidades executoras. Ficam na coluna "Unidade executora" do Cadastro de
+  // Turmas (criada pelo painel na primeira gravação). Vazio = regra abaixo.
+  UNIDADES: ['BPMRv', 'BPM MAmb', 'BPGd'],
+
   // Status aceitos nas etapas (iguais à aba "Listas").
   STATUS_ETAPA: ['Pendente', 'Em execução', 'Feito', 'Não se aplica'],
 
@@ -208,6 +212,16 @@ function atualizarTurma(req) {
       }
     }
 
+    if ('unidade' in req && req.linhaCadastro && req.unidade) {
+      const cad = cadastro_(ss);
+      conferir_(cad.aba.getRange(req.linhaCadastro, cad.col['turma'] + 1).getValue(), req.turma);
+      const cel = cad.aba.getRange(req.linhaCadastro, colunaUnidade_(cad) + 1);
+      if (texto_(cel.getValue()) !== req.unidade) {
+        mudou.push('unidade executora: ' + (texto_(cel.getValue()) || '(padrão)') + ' → ' + req.unidade);
+        gravar_(cel, req.unidade);
+      }
+    }
+
     if ('observacoes' in req && req.linhaCadastro) {
       const cad = cadastro_(ss);
       conferir_(cad.aba.getRange(req.linhaCadastro, cad.col['turma'] + 1).getValue(), req.turma);
@@ -292,6 +306,27 @@ function atualizarFormados(req) {
 /* ---------- apoio às edições ---------- */
 
 const NOTA_FORMULA = 'Fórmula original (painel): ';
+
+/** Unidade executora quando a coluna está vazia: Meio Ambiente → BPM MAmb; guardas → BPGd; demais → BPMRv. */
+function unidadePadrao_(area, curso, turma) {
+  const t = semAcento_([area, curso, turma].join(' '));
+  if (/meio ambiente|ambiental|gepam|progea|mamb/.test(t)) return 'BPM MAmb';
+  if (/guarda|bpgd/.test(t)) return 'BPGd';
+  return 'BPMRv';
+}
+
+/** Índice (0-based) da coluna "Unidade executora" no Cadastro; cria o cabeçalho se não existir. */
+function colunaUnidade_(cad) {
+  if (cad.col['unidade executora'] !== undefined) return cad.col['unidade executora'];
+  const v = cad.aba.getRange(1, 1, Math.min(cad.aba.getLastRow(), 6), cad.aba.getLastColumn()).getValues();
+  const h = acharCabecalho_(v, ['id', 'curso', 'turma'], 6);
+  const largura = larguraCabecalho_(v[h]);
+  const cel = cad.aba.getRange(h + 1, largura + 1);
+  cad.aba.getRange(h + 1, largura).copyTo(cel, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  cel.setValue('Unidade executora');
+  cad.col['unidade executora'] = largura;
+  return largura;
+}
 
 /** Executa a gravação com trava, limpa o cache e devolve JSON. */
 function comTrava_(fn, ano) {
@@ -440,6 +475,7 @@ function montarDados_(ss) {
     regras: lerRegras_(ss),
     calendario: lerCalendario_(ss, avisos),
     responsaveis: lerResponsaveis_(ss),
+    unidades: CONFIG.UNIDADES,
     avisos: avisos
   };
 }
@@ -462,6 +498,7 @@ function lerCadastro_(ss, avisos) {
       id: 't' + (texto_(r[c['id']]) || i).replace(/\.0$/, ''),
       linhaCadastro: i + 1,
       area: texto_(r[c['area']]),
+      unidade: texto_(r[c['unidade executora']]) || unidadePadrao_(r[c['area']], r[c['curso']], r[c['turma']]),
       curso: texto_(r[c['curso']]),
       turma: turma,
       local: texto_(r[c['local/unidade']]),
@@ -933,6 +970,7 @@ function incluirNoCadastro_(ss, nomeAba, tplRow, R, req) {
     linha[col['situacao temporal']] = '=IF(TODAY()<' + fI + ',"Planejamento",IF(TODAY()<=' + fT + ',"Em execução","Encerrado"))';
   }
   c.aba.getRange(nova, 1, 1, largura).setValues([linha]);
+  if (req.unidade) c.aba.getRange(nova, colunaUnidade_(c) + 1).setValue(req.unidade);
   return { tpl: tpl, nova: nova, aba: c.aba.getName() };
 }
 

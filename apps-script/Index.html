@@ -521,6 +521,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .fld select { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 7px 9px; font-size: 13px; width: 100%; outline: none; }
 .fld select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
+.tag.un { background: var(--of-azul); color: #fff; }
+.fases-sel button.on { background: var(--accent); color: #fff; }
+
 /* ================= misc ================= */
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; height: 100%; color: var(--ink-3); }
 .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
@@ -652,7 +655,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       </header>
 
       <section class="filters" id="filters">
-        <select id="fArea"><option value="">Todas as áreas</option></select>
+        <select id="fUnidade"><option value="">Todas as unidades</option></select>
         <select id="fCurso"><option value="">Todos os cursos</option></select>
         <select id="fSituacao"><option value="">Todas as situações</option></select>
         <select id="fResp"><option value="">Todos os responsáveis</option></select>
@@ -701,7 +704,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   const S = {
     dados: null, idx: {}, turmaIdx: {},
     view: 'geral',
-    f: { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false },
+    f: { unidade: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false },
     turmasModo: 'cards', turmasOrdem: 'inicio',
     etapasModo: 'quadro', etapasConcluidas: false,
     tbl: { chave: 'prazo', asc: true },
@@ -710,6 +713,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     ano: null,        // ano exibido (null = planilha principal)
     form: null,       // formulário aberto no painel lateral: 'nova' | 'ano'
     critTodas: false, // mostrar etapas de durante/depois na lista de prazos
+    fasesEtapas: { ANTES: true, DURANTE: false, DEPOIS: false }, // fases visíveis na tela Etapas
     edit: null,       // formulário aberto: { tipo: 'turma' | 'cancelar' | 'etapa', id, campos }
     salvando: false,
     pg: {} // página atual de cada caixa paginada
@@ -911,7 +915,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   function montarFiltros() {
     const d = S.dados;
     const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    preencher('#fArea', uniq(d.turmas.map(t => t.area)).map(v => [v, titulo(v)]), 'Todas as áreas', S.f.area);
+    preencher('#fUnidade', unidadesLista().map(v => [v, v]), 'Todas as unidades', S.f.unidade);
     preencher('#fCurso', uniq(d.turmas.map(t => t.curso)).map(v => [v, v]), 'Todos os cursos', S.f.curso);
     preencher('#fSituacao', Object.keys(SIT).filter(k => d.turmas.some(t => t.sit === k)).map(k => [k, SIT[k].label]), 'Todas as situações', S.f.situacao);
     preencher('#fResp', uniq(d.etapas.map(e => e.responsavel)).map(v => [v, v]), 'Todos os responsáveis', S.f.resp);
@@ -923,14 +927,28 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       ops.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === atual ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('');
   }
   function marcarFiltros() {
-    [['#fArea', 'area'], ['#fCurso', 'curso'], ['#fSituacao', 'situacao'], ['#fResp', 'resp']]
+    [['#fUnidade', 'unidade'], ['#fCurso', 'curso'], ['#fSituacao', 'situacao'], ['#fResp', 'resp']]
       .forEach(([s, k]) => $(s).classList.toggle('on', !!S.f[k]));
+  }
+
+  /** Unidades executoras (ordem fixa da configuração + alguma outra digitada na planilha). */
+  function unidadesLista() {
+    const base = (S.dados.unidades || ['BPMRv', 'BPM MAmb', 'BPGd']).slice();
+    S.dados.turmas.forEach(t => { if (t.unidade && base.indexOf(t.unidade) < 0) base.push(t.unidade); });
+    return base;
+  }
+  /** Unidade de um curso da aba Formandos: a da turma desse curso ou, sem turma, pela regra padrão. */
+  function unidadeDoCurso(curso) {
+    const t = S.dados.turmas.find(x => norm(x.curso) === norm(curso));
+    if (t && t.unidade) return t.unidade;
+    const n = norm(curso);
+    return /meio ambiente|ambiental|gepam|progea/.test(n) ? 'BPM MAmb' : /guarda/.test(n) ? 'BPGd' : 'BPMRv';
   }
 
   function turmaPassa(t, comBusca) {
     const f = S.f;
     if (!f.canceladas && t.sit === 'canc' && f.situacao !== 'canc') return false;
-    if (f.area && t.area !== f.area) return false;
+    if (f.unidade && t.unidade !== f.unidade) return false;
     if (f.curso && t.curso !== f.curso) return false;
     if (f.situacao && t.sit !== f.situacao) return false;
     if (comBusca && f.busca && norm([t.turma, t.curso, t.local, t.area].join(' ')).indexOf(norm(f.busca)) < 0) return false;
@@ -946,7 +964,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       (!comBusca || !b || norm([e.etapa, e.turma, e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
   }
   function formandosF() {
-    const f = S.dados.formandos || [];
+    let f = S.dados.formandos || [];
+    if (S.f.unidade) f = f.filter(x => unidadeDoCurso(x.curso) === S.f.unidade);
     return S.f.curso ? f.filter(x => norm(x.curso) === norm(S.f.curso)) : f;
   }
 
@@ -999,8 +1018,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const kpis = [
       kpi('Turmas', ts.length, '', [cont('plan') + ' planej.', cont('exec') + ' em exec.', cont('enc') + ' encerr.'].join(' · '), 'turmas'),
       kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
-      kpi('Vencidas antes do início', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
-      kpi('Antes do início · 7 dias', semana.length, '', semana.length ? 'próximo prazo: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
+      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
+      kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próximo prazo: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
       kpi('Formados', soma(formandosF(), x => x.formados), '', 'militares em ' + anoRef(), 'formandos'),
       proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(proxima.turma), null, '', '', proxima.id)
               : kpi('Próxima turma', '—', '', 'nenhuma prevista')
@@ -1040,7 +1059,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
         '<div class="prox-c"><div class="prox-t" title="' + esc(t.turma) + '">' + esc(t.turma) + '</div>' +
         '<div class="prox-s">' + esc(t.curso) + ' · ' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
-        '<div class="prox-a"><span class="sublabel">Antes</span>' +
+        '<div class="prox-a"><span class="sublabel">Etapas</span>' +
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
         '<span class="pct">' + a.antesFeito + '/' + a.antesTot + '</span>' +
         (a.vencAntes ? '<span class="alerta">⚠ ' + a.vencAntes + ' vencida' + (a.vencAntes > 1 ? 's' : '') + '</span>' : '<span class="ok">em dia</span>') +
@@ -1081,7 +1100,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         return '<span class="cal-chip ' + t.sit + (t.inicio === iso ? ' ini' : '') + (t.fim === iso ? ' fim' : '') + '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' + (rotulo ? esc(curto(t.turma)) : '&nbsp;') + '</span>';
       }).join('') + (ativas.length > 3 ? '<span class="cal-mais">+' + (ativas.length - 3) + '</span>' : '');
       const marca = pz.length
-        ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) antes do início</b>' +
+        ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) de etapa</b>' +
           pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(curto(e.turma))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
         : '';
       celulas += '<div class="cal-d' + (fora ? ' fora' : '') + (iso === hojeIso ? ' hoje' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' fds' : '') + '">' +
@@ -1090,14 +1109,14 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
     return '<div class="card panel cal-card" style="grid-area:cal">' +
       '<div class="card-head"><h2>' + MES_LONGO[mes] + ' <span class="cal-ano">' + ano + '</span></h2>' +
-      '<span class="meta">' + turmasNoMes.size + ' turma(s) · ' + prazosNoMes + ' prazo(s) antes do início</span>' +
+      '<span class="meta">' + turmasNoMes.size + ' turma(s) · ' + prazosNoMes + ' prazo(s) de etapa</span>' +
       '<div class="pager"><button data-cal="-1" title="Mês anterior">‹</button>' +
       (S.calMes ? '<button data-cal="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') +
       '<button data-cal="1" title="Próximo mês">›</button></div></div>' +
       '<div class="cal" style="grid-template-rows:auto repeat(' + semanas + ', minmax(0, 1fr))">' +
       ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => '<div class="cal-h">' + x + '</div>').join('') + celulas + '</div>' +
       '<div class="legend" style="margin-top:8px">' + ['plan', 'exec', 'enc'].map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
-      '<span><b style="color:var(--danger)">⚑</b> prazo de etapa antes do início</span></div></div>';
+      '<span><b style="color:var(--danger)">⚑</b> prazo de etapa</span></div></div>';
   }
 
   function cardPrazos(ts, abertas) {
@@ -1121,14 +1140,14 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const divisor = txt => '<div class="pz-div grp">' + txt + '</div>';
 
     let html = ativas.map(e => linha(e, false)).join('');
-    if (antigas.length) html += divisor('Pendências antigas · turmas já encerradas') + antigas.map(e => linha(e, true)).join('');
+    if (antigas.length) html += divisor('Etapas pendentes de turmas já encerradas') + antigas.map(e => linha(e, true)).join('');
     if (S.critTodas && outras.length) html += divisor('Durante e depois do curso') + outras.map(e => linha(e, true)).join('');
 
     return painel({
-      titulo: 'Prazos antes do início', meta: vencN + ' vencida(s) · ' + ativas.length + ' de turmas ativas',
+      titulo: 'Prazos das etapas', meta: vencN + ' vencida' + (vencN === 1 ? '' : 's') + ' · ' + ativas.length + ' a cumprir',
       key: 'g-prazos', cls: 'flush', style: 'grid-area:prazos',
-      html: html || '<div class="empty">Nenhum prazo antes do início em aberto. 🎉</div>',
-      depois: outras.length ? '<button class="more" data-toggle-todas>' + (S.critTodas ? 'Ocultar etapas de durante e depois' : 'Mostrar também durante e depois (' + outras.length + ')') + '</button>' : ''
+      html: html || '<div class="empty">Nenhuma etapa em aberto. 🎉</div>',
+      depois: outras.length ? '<button class="more" data-toggle-todas>' + (S.critTodas ? 'Ocultar etapas de durante e depois do curso' : 'Mostrar etapas de durante e depois do curso (' + outras.length + ')') + '</button>' : ''
     });
   }
 
@@ -1144,7 +1163,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       return cal.filter(c => c.ano === ano && c.mes === m).map(c => {
         const t = S.dados.turmas.find(x => x.inicio === c.inicio && x.fim === c.fim) || S.dados.turmas.find(x => x.inicio && x.inicio === c.inicio);
         return { periodo: c.periodo, treinamento: c.treinamento, vagas: c.vagas, local: c.local, turma: t || null, inicio: c.inicio };
-      }).filter(x => !x.turma || turmaPassa(x.turma, true) || (!S.f.area && !S.f.curso && !S.f.situacao && !S.f.busca));
+      }).filter(x => !x.turma || turmaPassa(x.turma, true) || (!S.f.unidade && !S.f.curso && !S.f.situacao && !S.f.busca));
     }
     return turmasF().filter(t => t.inicio && t.fim && t.inicio <= fim && t.fim >= ini)
       .sort((a, b) => a.inicio.localeCompare(b.inicio))
@@ -1178,14 +1197,15 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
   function cardFormadosUnidade() {
     const m = {};
-    formandosF().forEach(x => { if (x.formados > 0) { const k = x.local || '(sem local)'; m[k] = (m[k] || 0) + x.formados; } });
-    let arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
-    if (arr.length > 6) arr = arr.slice(0, 5).concat([['Outras', soma(arr.slice(5), a => a[1])]]);
+    unidadesLista().forEach(u => { m[u] = 0; });
+    formandosF().forEach(x => { const k = unidadeDoCurso(x.curso); m[k] = (m[k] || 0) + (x.formados || 0); });
+    if (S.f.unidade) Object.keys(m).forEach(k => { if (k !== S.f.unidade) delete m[k]; });
+    const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
     const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
     return painel({
       titulo: 'Formandos por unidade', meta: total + ' formados', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
-      html: seg.length ? donut(seg, total, 'formados') : '<div class="empty">Nenhum formado registrado ainda.</div>'
+      html: donut(seg, total, 'formados')
     });
   }
 
@@ -1255,7 +1275,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     return barraFerr + '<div class="grow" style="display:flex;flex-direction:column">' + caixa('turmas-cards', ts.map(t => {
       const n = t.sit === 'plan' ? dias(t.inicio) : null;
       return '<div class="card tcard" data-turma="' + t.id + '">' +
-        '<div class="top"><span class="tag">' + esc(t.curso) + '</span>' + pillSit(t.sit) + '</div>' +
+        '<div class="top"><span><span class="tag">' + esc(t.curso) + '</span> <span class="tag un">' + esc(t.unidade || '') + '</span></span>' + pillSit(t.sit) + '</div>' +
         '<div><h3 title="' + esc(t.turma) + '">' + esc(t.turma) + '</h3><div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
         (t.duracao ? ' · ' + t.duracao + 'd' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
         '<div>' + barra(t.st) + '<div class="nums" style="margin-top:6px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
@@ -1276,10 +1296,13 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   /* ---------- Etapas ---------- */
 
   function vEtapas() {
-    const todas = etapasF();
+    const todas = etapasF().filter(e => S.fasesEtapas[e.fase] || (['ANTES', 'DURANTE', 'DEPOIS'].indexOf(e.fase) < 0 && S.fasesEtapas.DEPOIS));
     const abertas = todas.filter(e => !concluida(e));
 
-    const barraFerr = '<div class="toolbar">' + segmento('etapasModo', [['quadro', 'Quadro'], ['tabela', 'Tabela']]) +
+    const chips = '<div class="seg fases-sel">' + [['ANTES', 'Antes do início'], ['DURANTE', 'Durante'], ['DEPOIS', 'Depois']]
+      .map(([k, l]) => '<button data-fasechip="' + k + '" class="' + (S.fasesEtapas[k] ? 'on' : '') + '">' + l + '</button>').join('') +
+      '<button data-fasechip="TODAS" class="' + (S.fasesEtapas.ANTES && S.fasesEtapas.DURANTE && S.fasesEtapas.DEPOIS ? 'on' : '') + '">Todas</button></div>';
+    const barraFerr = '<div class="toolbar">' + chips + segmento('etapasModo', [['quadro', 'Quadro'], ['tabela', 'Tabela']]) +
       (S.etapasModo === 'tabela' ? '<label class="switch"><input type="checkbox" id="chkConcl"' + (S.etapasConcluidas ? ' checked' : '') + '><span></span>Mostrar concluídas</label>' : '') +
       '<span style="color:var(--ink-3);font-size:12.5px">' + abertas.length + ' em aberto · ' + (todas.length - abertas.length) + ' concluídas</span>' +
       (S.etapasModo === 'tabela' ? pager('etapas-tabela') : '') + '</div>';
@@ -1369,14 +1392,14 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
   function abrirTurma(id) {
     const t = S.turmaIdx[id]; if (!t) return;
-    if (S.drawer !== id) { S.fase = 'TODAS'; delete S.pg['d-steps']; }
+    if (S.drawer !== id) { S.fase = 'ANTES'; delete S.pg['d-steps']; }
     if (S.edit && S.edit.id !== id && !(S.edit.tipo === 'etapa' && S.idx[S.edit.id] && S.idx[S.edit.id].turmaId === id)) S.edit = null;
     S.drawer = id;
     const es = S.dados.etapas.filter(e => e.turmaId === id);
     const nIni = dias(t.inicio);
     const fases = ['ANTES', 'DURANTE', 'DEPOIS'].filter(f => es.some(e => e.fase === f));
     es.forEach(e => { if (fases.indexOf(e.fase) < 0) fases.push(e.fase); });
-    if (S.fase !== 'TODAS' && fases.indexOf(S.fase) < 0) S.fase = 'TODAS';
+    if (S.fase !== 'TODAS' && fases.indexOf(S.fase) < 0) S.fase = fases[0] || 'TODAS';
     const pode = S.dados.podeEditar;
 
     let lista = S.fase === 'TODAS' ? es : es.filter(e => e.fase === S.fase);
@@ -1392,14 +1415,15 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         '<div class="r">' + badgeDias(e) + seletor(e) + (pode ? botaoEditar(e.id) : '') + '</div></div>';
     }).join('');
 
-    const abas = [['TODAS', 'Todas', es]].concat(fases.map(f => [f, titulo(f), es.filter(e => e.fase === f)]));
+    const rotFase = f => f === 'ANTES' ? 'Antes do início' : titulo(f);
+    const abas = fases.map(f => [f, rotFase(f), es.filter(e => e.fase === f)]).concat([['TODAS', 'Todas', es]]);
     const link = S.dados.url && t.gid != null ? S.dados.url.split('#')[0] + '#gid=' + t.gid + (t.linhaResumo ? '&range=A' + t.linhaResumo : '') : '';
     const kvSim = v => '<dd class="' + (norm(v) === 'sim' ? 'sim' : '') + '">' + esc(v || '—') + '</dd>';
     const editandoTurma = S.edit && S.edit.id === id && (S.edit.tipo === 'turma' || S.edit.tipo === 'cancelar');
 
     const cabecalho =
       '<div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="tag">' + esc(t.curso) + '</span>' +
-      (t.area && norm(t.area) !== norm(t.curso) ? '<span class="tag">' + esc(titulo(t.area)) + '</span>' : '') + pillSit(t.sit) + '</div>' +
+      (t.unidade ? '<span class="tag un" title="Unidade executora">' + esc(t.unidade) + '</span>' : '') + pillSit(t.sit) + '</div>' +
       '<h2>' + esc(t.turma) + '</h2><div class="sub">' + esc(t.local) + ' · ' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
       (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? '<br><a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div>' +
       (pode && !editandoTurma ? '<button class="btn small" data-acao="editar-turma" style="margin-top:8px">✎ Editar datas, local ou cancelar</button>' : '') + '</div>';
@@ -1474,7 +1498,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     return '<div class="d-section"><h3>Editar turma</h3><div class="form">' +
       '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
-      (t.aba ? campo('Local / unidade', 'local', c.local, 'text') : '') +
+      '<div class="form g2" style="margin-top:0">' + (t.aba ? campo('Local', 'local', c.local, 'text') : '<span></span>') +
+        (t.linhaCadastro ? campoSel('Unidade executora', 'unidade', c.unidade, unidadesLista().map(u => [u, u])) : '') + '</div>' +
       campo('Observações', 'observacoes', c.observacoes, 'textarea') +
       '<div class="hint">Ao mudar as datas, a planilha recalcula sozinha os prazos de todas as etapas desta turma.</div>' +
       '</div><div class="form-acoes">' + botao('salvar-turma', 'Salvar', 'primary') + botao('descartar', 'Descartar', '') + '</div></div>' +
@@ -1510,6 +1535,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     S.dados.turmas.filter(t => t.aba).forEach(t => { if (!m[t.aba]) m[t.aba] = { aba: t.aba, curso: t.curso, area: t.area, turmas: [] }; m[t.aba].turmas.push(t); });
     return Object.keys(m).map(k => m[k]).sort((a, b) => a.curso.localeCompare(b.curso, 'pt-BR'));
   }
+  function unidadeDoModelo(aba, modelo) {
+    const t = S.dados.turmas.find(x => x.aba === aba && x.turma === modelo);
+    return (t && t.unidade) || 'BPMRv';
+  }
   function modeloPadrao(aba) {
     const c = cursosComAba().find(x => x.aba === aba);
     if (!c) return '';
@@ -1540,6 +1569,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
           '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
           '<div class="form g2" style="margin-top:0">' + campo('Local / unidade', 'local', c.local, 'text', ' placeholder="' + esc(mod ? mod.local : '') + '"') +
             campo('Vagas', 'vagas', c.vagas, 'text', ' placeholder="Ex.: 40 vagas"') + '</div>' +
+          campoSel('Unidade executora', 'unidade', c.unidade, unidadesLista().map(u => [u, u])) +
           campo('Nome no calendário oficial (opcional)', 'treinamento', c.treinamento, 'text', ' placeholder="Ex.: Identificação Veicular e Documental"') +
           '<div class="hint">Também são criadas as linhas no Cadastro de Turmas, no Painel Geral, em Formandos e no Calendario. ' +
           'Responsáveis e documentos vêm da turma modelo; status começam como "Pendente".</div>' +
@@ -1575,7 +1605,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (!c.inicio || !c.fim) return toast('Preencha início e término.', 'err');
     if (c.fim < c.inicio) return toast('O término não pode ser antes do início.', 'err');
     gravarNoServidor('criarTurma', {
-      aba: c.aba, modelo: c.modelo, nome: c.nome.trim(), curso: curso ? curso.curso : c.aba,
+      aba: c.aba, modelo: c.modelo, nome: c.nome.trim(), curso: curso ? curso.curso : c.aba, unidade: c.unidade,
       inicio: c.inicio, fim: c.fim, local: c.local.trim(), vagas: c.vagas.trim(), treinamento: c.treinamento.trim()
     }, () => {
       toast('✓ Turma criada: ' + c.nome.trim() + (RUN ? '. Atualizando…' : ''));
@@ -1690,7 +1720,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (nome === 'nova-turma') {
       const abas = cursosComAba();
       if (!abas.length) return toast('Nenhuma aba de curso encontrada na planilha.', 'err');
-      S.edit = { tipo: 'nova', campos: { aba: abas[0].aba, modelo: modeloPadrao(abas[0].aba), nome: '', inicio: '', fim: '', local: '', treinamento: '', vagas: '' } };
+      S.edit = { tipo: 'nova', campos: { aba: abas[0].aba, modelo: modeloPadrao(abas[0].aba), unidade: unidadeDoModelo(abas[0].aba, modeloPadrao(abas[0].aba)), nome: '', inicio: '', fim: '', local: '', treinamento: '', vagas: '' } };
       return abrirForm('nova');
     }
     if (nome === 'salvar-nova') return salvarNovaTurma();
@@ -1699,12 +1729,15 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (nome === 'editar-etapa') {
       const e = S.idx[el.dataset.id]; if (!e) return;
       S.edit = { tipo: 'etapa', id: e.id, campos: { responsavel: e.responsavel || '', documento: e.documento || '', observacoes: e.observacoes || '', conclusao: e.conclusao || '' } };
+      const novaTurma = S.drawer !== e.turmaId;
+      S.drawer = e.turmaId;
+      if (novaTurma || (S.fase !== 'TODAS' && S.fase !== e.fase)) S.fase = e.fase || 'TODAS';
       return abrirTurma(e.turmaId);
     }
     const t = S.turmaIdx[S.drawer];
     if (!t) return;
     if (nome === 'editar-turma') {
-      S.edit = { tipo: 'turma', id: t.id, campos: { inicio: t.inicio || '', fim: t.fim || '', local: t.local || '', observacoes: t.observacoes || '' } };
+      S.edit = { tipo: 'turma', id: t.id, campos: { inicio: t.inicio || '', fim: t.fim || '', local: t.local || '', unidade: t.unidade || '', observacoes: t.observacoes || '' } };
       return abrirTurma(t.id);
     }
     if (nome === 'cancelar-turma') { S.edit = { tipo: 'cancelar', id: t.id, campos: { motivo: '' } }; return abrirTurma(t.id); }
@@ -1733,9 +1766,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const mudouDatas = c.inicio !== t.inicio || c.fim !== t.fim;
     gravarNoServidor('atualizarTurma', {
       aba: t.aba, linhaResumo: t.linhaResumo, tituloLinha: t.tituloLinha, linhaCadastro: t.linhaCadastro,
-      turma: t.turma, inicio: c.inicio, fim: c.fim, local: c.local, observacoes: c.observacoes
+      turma: t.turma, inicio: c.inicio, fim: c.fim, local: c.local, unidade: c.unidade, observacoes: c.observacoes
     }, () => {
-      Object.assign(t, { inicio: c.inicio, fim: c.fim, local: c.local.trim(), observacoes: c.observacoes.trim() });
+      Object.assign(t, { inicio: c.inicio, fim: c.fim, local: c.local.trim(), unidade: c.unidade || t.unidade, observacoes: c.observacoes.trim() });
       t.duracao = Math.round((dt(c.fim) - dt(c.inicio)) / DIA) + 1;
       if (t.sit !== 'canc') t.sit = sitPorDatas(t);
       S.edit = null;
@@ -1800,8 +1833,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       linhas = etapasF().map(e => [fmtAno(e.prazo), e.etapa, e.fase, e.status, e.responsavel, e.turma, e.curso, e.documento, e.observacoes, e.aba, e.linha]);
       nome = 'etapas';
     } else {
-      cab = ['Turma', 'Curso', 'Área', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Concluídas', 'Em execução', 'Pendentes', 'Vencidas', '% Conclusão', 'Formados'];
-      linhas = turmasF().map(t => [t.turma, t.curso, t.area, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
+      cab = ['Turma', 'Curso', 'Unidade executora', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Concluídas', 'Em execução', 'Pendentes', 'Vencidas', '% Conclusão', 'Formados'];
+      linhas = turmasF().map(t => [t.turma, t.curso, t.unidade, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
       nome = 'turmas';
     }
     const csv = '\ufeff' + [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
@@ -1847,6 +1880,14 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const seg = el.closest('[data-seg] button');
     if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
 
+    const fc = el.closest('[data-fasechip]');
+    if (fc) {
+      const k = fc.dataset.fasechip, F = S.fasesEtapas;
+      if (k === 'TODAS') { const todas = F.ANTES && F.DURANTE && F.DEPOIS; S.fasesEtapas = todas ? { ANTES: true, DURANTE: false, DEPOIS: false } : { ANTES: true, DURANTE: true, DEPOIS: true }; }
+      else { F[k] = !F[k]; if (!F.ANTES && !F.DURANTE && !F.DEPOIS) F.ANTES = true; }
+      S.pg = {}; return render();
+    }
+
     const ft = el.closest('[data-fasetab]');
     if (ft) { S.fase = ft.dataset.fasetab; S.pg['d-steps'] = 0; return abrirTurma(S.drawer); }
 
@@ -1884,12 +1925,13 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (el.dataset && el.dataset.campo === 'aba' && S.form === 'nova') {
       S.edit.campos.aba = el.value; S.edit.campos.modelo = modeloPadrao(el.value);
+      S.edit.campos.unidade = unidadeDoModelo(el.value, S.edit.campos.modelo);
       return abrirForm('nova');
     }
     if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; S.pg = {}; return render(); }
     if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; S.pg = {}; return render(); }
     if (el.id === 'chkPend') { S.soPendentes = el.checked; S.pg['d-steps'] = 0; return abrirTurma(S.drawer); }
-    const mapa = { fArea: 'area', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
+    const mapa = { fUnidade: 'unidade', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
     if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; return filtrosMudaram(); }
     if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return filtrosMudaram(); }
   });
@@ -1906,7 +1948,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     tBusca = setTimeout(() => { S.f.busca = ev.target.value; filtrosMudaram(); }, 180);
   });
   $('#btnLimpar').addEventListener('click', () => {
-    S.f = { area: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false };
+    S.f = { unidade: '', curso: '', situacao: '', resp: '', busca: '', canceladas: false };
     $('#search').value = '';
     montarFiltros(); filtrosMudaram();
   });
