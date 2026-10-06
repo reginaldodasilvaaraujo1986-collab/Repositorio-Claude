@@ -20,6 +20,7 @@ a *Data conclusão* é preenchida ao marcar "Feito" e tudo fica registrado na ab
 | O que | Onde editar no painel | Onde grava na planilha |
 |---|---|---|
 | Status da etapa | seletor colorido | coluna Status da aba do curso |
+| Quem executa a etapa | seletor de responsável ao lado de cada etapa (integrantes da lista *Responsáveis AET* da aba Listas, cada um com sua cor) | coluna Responsável da aba do curso |
 | Responsável, documento, observações e data de conclusão da etapa | botão ✎ da etapa | colunas da etapa na aba do curso |
 | Datas e local da turma | detalhe da turma › *Editar datas, local ou cancelar* | linha da turma no resumo da aba do curso (Cadastro e prazos das etapas acompanham pelas fórmulas) |
 | Observações da turma | idem | Cadastro de Turmas |

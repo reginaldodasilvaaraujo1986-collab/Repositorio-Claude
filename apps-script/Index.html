@@ -270,6 +270,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .pz:hover { background: var(--surface-2); }
 .pz-t { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pz-s { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-s { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.pz-s > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pz-s .resp-select { padding-top: 0; padding-bottom: 0; font-size: 10.5px; }
 .pz-s b.late { color: var(--danger); } .pz-s b.soon { color: var(--warn); }
 .pz.apagada { opacity: .62; }
 .pz.apagada .dbloco { background: var(--surface-2); } .pz.apagada .dbloco b, .pz.apagada .dbloco span { color: var(--ink-3); }
@@ -279,21 +282,29 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .cal-card .card-head h2 { font-size: 18px; }
 .cal-ano { color: var(--ink-3); font-weight: 500; }
 .cal-hoje { width: auto !important; padding: 0 9px !important; border-radius: 99px !important; font: 600 11px var(--sans) !important; }
-.cal { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal-hs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); flex: none; }
 .cal-h { font: 600 10.5px var(--mono); text-transform: uppercase; color: var(--ink-3); padding: 5px 7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface-2); }
-.cal-d { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 3px 4px; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.cal-sem { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 3px; overflow: hidden; }
+.cal-d { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 3px 4px; min-height: 0; overflow: hidden; }
 .cal-d.fds { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
-.cal-d.fora { opacity: .4; }
-.cal-n { display: flex; justify-content: space-between; align-items: center; font: 600 11.5px var(--mono); color: var(--ink-2); padding: 1px 2px; }
-.cal-d.hoje .cal-n span { background: var(--accent); color: #fff; border-radius: 99px; padding: 0 6px; }
+.cal-d.fora { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.cal-d.fora .cal-n > span:first-child { opacity: .45; }
+.cal-n { display: flex; align-items: center; gap: 4px; font: 600 11.5px var(--mono); color: var(--ink-2); padding: 1px 2px; }
+.cal-n > span:first-child { margin-right: auto; }
+.cal-d.hoje .cal-n > span:first-child { background: var(--accent); color: #fff; border-radius: 99px; padding: 0 6px; }
 .cal-d.hoje { box-shadow: inset 0 0 0 2px var(--accent); }
-.cal-chip { display: block; font-size: 10.5px; font-weight: 600; color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; margin: 0 -4px; min-height: 15px; }
-.cal-chip.ini { margin-left: 0; border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-.cal-chip.fim { margin-right: 0; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
-.cal-chip.plan { background: var(--s-plan); } .cal-chip.exec { background: var(--s-exec); } .cal-chip.enc { background: var(--s-enc); }
-.cal-chip.canc { background: var(--s-canc); text-decoration: line-through; }
-.cal-mais { font-size: 10px; color: var(--ink-3); font-weight: 600; }
-.cal-pz { font: 700 10px var(--mono); border-radius: 99px; padding: 0 5px; background: var(--surface-3); color: var(--ink-2); cursor: help; }
+.cal-bar { position: relative; z-index: 1; min-width: 0; margin: 0 4px; padding: 3px 8px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 700; line-height: 1.22; letter-spacing: .01em; color: #fff; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18); text-shadow: 0 1px 1px rgba(0,0,0,.18); }
+.cal-bar > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.cal-bar:hover { filter: brightness(1.08); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.cal-bar.cont-e { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal-bar.cont-d { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal-bar.plan { background: var(--s-plan); } .cal-bar.exec { background: var(--s-exec); } .cal-bar.enc { background: var(--s-enc); }
+.cal-bar.canc { background: var(--s-canc); text-decoration: line-through; }
+.cal-mais { font-size: 10px; color: var(--ink-3); font-weight: 700; }
+.cal-pz { white-space: nowrap; font: 700 10px var(--mono); border-radius: 99px; padding: 0 5px; background: var(--surface-3); color: var(--ink-2); cursor: help; }
 .cal-pz.late { background: var(--danger); color: #fff; }
 .cal-pz.soon { background: var(--warn-bg); color: var(--warn); }
 .geral-main > * { min-height: 0; }
@@ -425,6 +436,16 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
 .st-select { appearance: none; -webkit-appearance: none; border: 0; border-radius: 99px; padding: 3px 10px; font-size: 11px; font-weight: 600; cursor: pointer; max-width: 120px; }
 .st-select:disabled { cursor: default; opacity: .9; }
+.resp-select { appearance: none; -webkit-appearance: none; border: 1px solid color-mix(in srgb, var(--rc) 45%, transparent); border-radius: 99px; padding: 2px 17px 2px 8px; font-size: 11px; font-weight: 700; cursor: pointer; max-width: 118px; flex: none; field-sizing: content;
+  color: var(--rc); background-color: color-mix(in srgb, var(--rc) 13%, var(--surface));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23948c7e'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+.resp-select:disabled { background-image: none; padding-right: 9px; }
+.resp-select.vazio { font-weight: 500; font-style: italic; border-style: dashed; }
+.resp-select:disabled { cursor: default; }
+.ecard .s2 { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 3px; }
+.ecard .s2 .s { margin-top: 0; min-width: 0; }
+.resp-select.saving { opacity: .5; pointer-events: none; }
+.resp-select option { color: var(--ink); background: var(--surface); font-style: normal; }
 .st-Pendente { background: var(--danger-bg); color: var(--danger); }
 .st-Em-execucao { background: var(--s-exec-bg); color: var(--s-exec); }
 .st-Feito { background: var(--s-enc-bg); color: var(--s-enc); }
@@ -563,6 +584,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 }
 /* telas baixas: compacta um pouco mais */
 @media (max-height: 760px) and (min-width: 861px) {
+  .cal-sem { --cal-n: 18px; row-gap: 2px; }
+  .cal-n { font-size: 10.5px; padding: 0 2px; }
+  .cal-d { padding: 2px 3px; }
+  .cal-bar { font-size: 11px; padding: 2px 7px; line-height: 1.15; }
   .topbar { padding: 10px 0 6px; }
   h1 { font-size: 21px; }
   .filters { padding: 2px 0 9px; }
@@ -1086,25 +1111,52 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     es.filter(e => ehAntes(e) && !concluida(e) && e.prazo).forEach(e => { (prazos[e.prazo] = prazos[e.prazo] || []).push(e); });
     const ordenadas = ts.slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)) || a.id.localeCompare(b.id));
 
-    let celulas = '';
+    const marcaPrazo = (pz, iso) => pz.length
+      ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) de etapa</b>' +
+        pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(curto(e.turma))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
+      : '';
+    const MAX_FAIXAS = semanas > 5 ? 3 : 4;
+
+    let linhas = '';
     let turmasNoMes = new Set(), prazosNoMes = 0;
-    for (let i = 0; i < semanas * 7; i++) {
-      const d = new Date(ano, mes, 1 - base.getDay() + i);
-      const iso = isoDe(d), fora = d.getMonth() !== mes;
-      const ativas = ordenadas.filter(t => t.inicio && t.fim && t.inicio <= iso && iso <= t.fim);
-      if (!fora) ativas.forEach(t => turmasNoMes.add(t.id));
-      const pz = prazos[iso] || [];
-      if (!fora) prazosNoMes += pz.length;
-      const chips = ativas.slice(0, 3).map(t => {
-        const rotulo = t.inicio === iso || d.getDay() === 0 || d.getDate() === 1;
-        return '<span class="cal-chip ' + t.sit + (t.inicio === iso ? ' ini' : '') + (t.fim === iso ? ' fim' : '') + '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' + (rotulo ? esc(curto(t.turma)) : '&nbsp;') + '</span>';
-      }).join('') + (ativas.length > 3 ? '<span class="cal-mais">+' + (ativas.length - 3) + '</span>' : '');
-      const marca = pz.length
-        ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) de etapa</b>' +
-          pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(curto(e.turma))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
-        : '';
-      celulas += '<div class="cal-d' + (fora ? ' fora' : '') + (iso === hojeIso ? ' hoje' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' fds' : '') + '">' +
-        '<div class="cal-n"><span>' + d.getDate() + '</span>' + marca + '</div>' + chips + '</div>';
+    for (let w = 0; w < semanas; w++) {
+      const dias7 = [];
+      for (let k = 0; k < 7; k++) dias7.push(new Date(ano, mes, 1 - base.getDay() + w * 7 + k));
+      const isos = dias7.map(isoDe), ini = isos[0], fim = isos[6];
+
+      // barras da semana: cada turma vira um trecho contínuo, em faixas sem sobreposição
+      const trechos = ordenadas.filter(t => t.inicio && t.fim && t.inicio <= fim && t.fim >= ini).map(t => ({
+        t: t, a: t.inicio < ini ? 0 : isos.indexOf(t.inicio), b: t.fim > fim ? 6 : isos.indexOf(t.fim)
+      })).sort((x, y) => x.a - y.a || (y.b - y.a) - (x.b - x.a));
+      const faixas = [];
+      trechos.forEach(x => {
+        let f = faixas.findIndex(fim => fim < x.a);
+        if (f < 0) { f = faixas.length; faixas.push(-1); }
+        faixas[f] = x.b; x.f = f;
+      });
+      const nF = Math.min(faixas.length, MAX_FAIXAS);
+      const ocultas = [0, 0, 0, 0, 0, 0, 0];
+      trechos.filter(x => x.f >= nF).forEach(x => { for (let k = x.a; k <= x.b; k++) ocultas[k]++; });
+
+      let cel = '';
+      dias7.forEach((d, k) => {
+        const iso = isos[k], fora = d.getMonth() !== mes;
+        const pz = prazos[iso] || [];
+        if (!fora) {
+          prazosNoMes += pz.length;
+          trechos.forEach(x => { if (x.a <= k && k <= x.b) turmasNoMes.add(x.t.id); });
+        }
+        cel += '<div class="cal-d' + (fora ? ' fora' : '') + (iso === hojeIso ? ' hoje' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' fds' : '') +
+          '" style="grid-column:' + (k + 1) + ';grid-row:1 / -1"><div class="cal-n"><span>' + d.getDate() + '</span>' +
+          (ocultas[k] ? '<span class="cal-mais">+' + ocultas[k] + '</span>' : '') + marcaPrazo(pz, iso) + '</div></div>';
+      });
+      const barras = trechos.filter(x => x.f < nF).map(x => {
+        const t = x.t, contE = t.inicio < ini, contD = t.fim > fim;
+        return '<span class="cal-bar ' + t.sit + (contE ? ' cont-e' : '') + (contD ? ' cont-d' : '') + '" style="grid-column:' + (x.a + 1) + ' / ' + (x.b + 2) + ';grid-row:' + (x.f + 2) +
+          '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' +
+          '<span>' + (contE ? '‹ ' : '') + esc(x.b - x.a >= 3 ? t.turma : curto(t.turma)) + (contD ? ' ›' : '') + '</span></span>';
+      }).join('');
+      linhas += '<div class="cal-sem" style="grid-template-rows:var(--cal-n, 22px) repeat(' + nF + ', auto) 1fr">' + cel + barras + '</div>';
     }
 
     return '<div class="card panel cal-card" style="grid-area:cal">' +
@@ -1113,8 +1165,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       '<div class="pager"><button data-cal="-1" title="Mês anterior">‹</button>' +
       (S.calMes ? '<button data-cal="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') +
       '<button data-cal="1" title="Próximo mês">›</button></div></div>' +
-      '<div class="cal" style="grid-template-rows:auto repeat(' + semanas + ', minmax(0, 1fr))">' +
-      ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => '<div class="cal-h">' + x + '</div>').join('') + celulas + '</div>' +
+      '<div class="cal"><div class="cal-hs">' + ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => '<div class="cal-h">' + x + '</div>').join('') + '</div>' + linhas + '</div>' +
       '<div class="legend" style="margin-top:8px">' + ['plan', 'exec', 'enc'].map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
       '<span><b style="color:var(--danger)">⚑</b> prazo de etapa</span></div></div>';
   }
@@ -1134,8 +1185,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
       return '<div class="pz' + (apagada ? ' apagada' : '') + '" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
         '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
-        '<div class="pz-s"><b class="' + cls + '">' + quando + '</b> · ' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') +
-        (apagada ? ' · ' + titulo(e.fase) : '') + '</div></div>' + seletor(e) + '</div>';
+        '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(curto(e.turma)) +
+        (apagada ? ' · ' + titulo(e.fase) : '') + '</span></div></div>' + seletor(e) + '</div>';
     };
     const divisor = txt => '<div class="pz-div grp">' + txt + '</div>';
 
@@ -1317,7 +1368,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         caixa('etapas-tabela', lista.map(e =>
           '<div class="gt-row" style="' + cols + '"><span><span class="mono">' + fmt(e.prazo) + '</span> ' + badgeDias(e) + '</span>' +
           '<span title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</span><a href="#" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</a>' +
-          '<span><span class="tag">' + esc(e.fase) + '</span></span><span>' + esc(e.responsavel) + '</span>' +
+          '<span><span class="tag">' + esc(e.fase) + '</span></span><span>' + seletorResp(e) + '</span>' +
           '<span class="dim">' + esc(e.documento) + '</span><span class="b-r">' + seletor(e) + (S.dados.podeEditar ? botaoEditar(e.id) : '') + '</span></div>').join('') || '<div class="empty">Nenhuma etapa.</div>') +
         '</div>';
     }
@@ -1333,7 +1384,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       return '<div class="col ' + c.k + '"><div class="col-head"><span>' + c.l + '</span><span class="count">' + itens.length + '</span>' + pager('col-' + c.k) + '</div>' +
         caixa('col-' + c.k, itens.map(e =>
           '<div class="ecard"><div class="t">' + esc(e.etapa) + '</div>' +
-          '<div class="s" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + ' · ' + esc(e.responsavel || 's/ resp.') + '</div>' +
+          '<div class="s2"><span class="s" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</span>' + seletorResp(e) + '</div>' +
           '<div class="b">' + badgeDias(e) + '<span class="b-r">' + seletor(e) + (S.dados.podeEditar ? botaoEditar(e.id) : '') + '</span></div></div>').join('') || '<div class="empty">Nada aqui.</div>') + '</div>';
     }).join('') + '</div>';
   }
@@ -1409,9 +1460,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
       return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
         '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
-        '<div class="m">Prazo ' + fmtAno(e.prazo) + ' · ' + esc(e.responsavel || 's/ resp.') + (e.documento ? ' · ' + esc(e.documento) : '') +
+        '<div class="m">Prazo ' + fmtAno(e.prazo) + (e.documento ? ' · ' + esc(e.documento) : '') +
         (e.conclusao ? ' · concluída ' + fmt(e.conclusao) : '') + (e.observacoes ? ' · 💬 ' + esc(e.observacoes) : '') + '</div></div>' +
-        '<div class="r">' + badgeDias(e) + seletor(e) + (pode ? botaoEditar(e.id) : '') + '</div></div>';
+        '<div class="r">' + badgeDias(e) + seletorResp(e) + seletor(e) + (pode ? botaoEditar(e.id) : '') + '</div></div>';
     }).join('');
 
     const rotFase = f => f === 'ANTES' ? 'Antes do início' : titulo(f);
@@ -1642,6 +1693,20 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       ops.concat(ops.indexOf(e.status) < 0 ? [e.status] : []).map(o => '<option' + (o === e.status ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
   }
 
+  /** Seletor de quem executa a etapa (integrantes da seção, aba Listas), com cor própria por pessoa. */
+  function corResp(nome) {
+    const i = (S.dados.responsaveis || []).indexOf(nome);
+    return i < 0 ? 'var(--ink-3)' : CORES[i % CORES.length];
+  }
+  function seletorResp(e) {
+    const atual = e.responsavel || '';
+    const ops = (S.dados.responsaveis || []).slice();
+    if (atual && ops.indexOf(atual) < 0) ops.push(atual);
+    return '<select class="resp-select' + (atual ? '' : ' vazio') + '" data-resp="' + e.id + '" style="--rc:' + corResp(atual) + '" title="Quem executa a etapa"' + (S.dados.podeEditar ? '' : ' disabled') + '>' +
+      '<option value="">— definir</option>' +
+      ops.map(o => '<option' + (o === atual ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
+  }
+
   function anel(pct, tam) {
     const r = tam / 2 - 5, c = 2 * Math.PI * r, m = tam / 2;
     return '<svg class="ring" width="' + tam + '" height="' + tam + '" viewBox="0 0 ' + tam + ' ' + tam + '">' +
@@ -1697,6 +1762,18 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         colConclusao: e.colConclusao, etapa: e.etapa, status: novo, turma: e.turma, ano: anoRef()
       });
     refrescar();
+  }
+
+  function mudarResponsavel(id, novo, el) {
+    const e = S.idx[id];
+    if (!e || (e.responsavel || '') === novo) return;
+    const anterior = e.responsavel;
+    e.responsavel = novo;
+    el.classList.add('saving');
+    gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, campos: { responsavel: novo } }, () => {
+      toast('✓ ' + e.etapa + ' → ' + (novo || 'sem responsável'));
+      montarFiltros(); refrescar();
+    }, () => { e.responsavel = anterior; });
   }
 
   /** Chama uma função de gravação no servidor (no modo demonstração, só simula). */
@@ -1911,6 +1988,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   document.addEventListener('change', ev => {
     const el = ev.target;
     if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
+    if (el.matches('select[data-resp]')) return mudarResponsavel(el.dataset.resp, el.value, el);
     if (el.matches('input[data-formando]')) return salvarFormados(el);
     if (el.id === 'selAno') {
       if (el.value === 'novo') {
