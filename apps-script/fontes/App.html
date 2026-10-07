@@ -240,7 +240,7 @@
     const d = S.dados;
     const uniq = arr => Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     preencher('#fUnidade', unidadesLista().map(v => [v, v]), 'Todas as unidades', S.f.unidade);
-    preencher('#fCurso', uniq(d.turmas.map(t => t.curso)).map(v => [v, v]), 'Todos os cursos', S.f.curso);
+    preencher('#fCurso', uniq(d.turmas.map(nomeCurso)).map(v => [v, cursoCurto(v)]), 'Todos os cursos', S.f.curso);
     preencher('#fSituacao', Object.keys(SIT).filter(k => d.turmas.some(t => t.sit === k)).map(k => [k, SIT[k].label]), 'Todas as situações', S.f.situacao);
     preencher('#fResp', uniq(d.etapas.map(e => e.responsavel)).map(v => [v, v]), 'Todos os responsáveis', S.f.resp);
     $('#fCanceladas').checked = S.f.canceladas;
@@ -261,9 +261,61 @@
     S.dados.turmas.forEach(t => { if (t.unidade && base.indexOf(t.unidade) < 0) base.push(t.unidade); });
     return base;
   }
+  /** Nome do curso como está no SiGE (sem o ano da matriz), ou o curso da planilha. */
+  function nomeCurso(t) { return (t && (t.cursoOficial || t.curso)) || ''; }
+  /** Rótulo curto: a sigla ("… - GEPAM", "… (PP)") ou o nome sem "Curso de". */
+  const SIGLAS = [[/identifica[cç][aã]o veicular/i, 'IVD'], [/radiopatrulhamento/i, 'CRTR'], [/^curso de policiamento rodovi/i, 'CEPTR'],
+    [/est[aá]gio t[aá]tico/i, 'ETR'], [/^curso de pilotagem/i, 'CPP'], [/velado/i, 'Velado'], [/alta energia/i, 'Armas AE'],
+    [/policiamento de meio ambiente/i, 'Meio Ambiente'], [/guardas/i, 'Guardas']];
+  function cursoCurto(nome) {
+    const sg = SIGLAS.find(x => x[0].test(nome));
+    if (sg) return sg[1];
+    const m = String(nome).match(/\(([A-Z0-9]{2,})\)\s*$/) || String(nome).match(/\s-\s([A-Z0-9]{2,})\s*$/);
+    if (m) return m[1];
+    return String(nome).replace(/^(Curso de |Curso )/i, '');
+  }
+  /** Cursos da Resolução de um ano, agrupados como no painel (EPP junta 3 cursos do SiGE). */
+  function resolucaoDoAno(ano) {
+    const g = {};
+    (S.dados.resolucao || []).filter(r => r.ano === ano).forEach(r => {
+      const x = g[r.grupo] = g[r.grupo] || { grupo: r.grupo, unidade: r.unidade, turmas: 0, alunos: 0, cursos: [], ids: [], status: r.status };
+      x.turmas = Math.max(x.turmas, r.turmas); x.alunos = Math.max(x.alunos, r.alunos);
+      x.cursos.push(r.curso); x.ids.push(r.id);
+    });
+    return Object.keys(g).map(k => g[k]).sort((a, b) => a.grupo.localeCompare(b.grupo, 'pt-BR'));
+  }
+  function estimativaPorTurma(r) { return r && r.turmas ? Math.round(r.alunos / r.turmas) : null; }
+  function cursosOficiais() {
+    const set = new Set((S.dados.resolucao || []).map(r => r.grupo));
+    S.dados.turmas.forEach(t => { if (t.cursoOficial) set.add(t.cursoOficial); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+  /** Turma ligada a uma linha da aba Formandos (por curso + nome/cidade da turma). */
+  function turmaDoFormando(x) {
+    if (x._t !== undefined) return x._t;
+    const nt = norm(x.turma), nl = norm(x.local);
+    const unidadeLike = /^(bpm|cpe|bpgd|meio ambiente|interior)/;
+    let melhor = null, pts = 0;
+    S.dados.turmas.forEach(t => {
+      const nome = norm(t.turma);
+      let p = norm(t.curso) === norm(x.curso) ? 2 : 0;
+      if (nt && (nome === nt || nome.indexOf(nt) >= 0)) p += 3;
+      if (nl && !unidadeLike.test(nl) && (nome.indexOf(nl) >= 0 || norm(t.cidade) === nl)) p += 2;
+      if (p > pts) { pts = p; melhor = t; }
+    });
+    x._t = pts >= 3 ? melhor : null;
+    return x._t;
+  }
+  function cursoDoFormando(x) {
+    const t = turmaDoFormando(x);
+    if (t) return nomeCurso(t);
+    const t2 = S.dados.turmas.find(y => norm(y.curso) === norm(x.curso));
+    return t2 ? nomeCurso(t2) : x.curso;
+  }
+
   /** Unidade de um curso da aba Formandos: a da turma desse curso ou, sem turma, pela regra padrão. */
   function unidadeDoCurso(curso) {
-    const t = S.dados.turmas.find(x => norm(x.curso) === norm(curso));
+    const t = S.dados.turmas.find(x => norm(x.curso) === norm(curso) || norm(nomeCurso(x)) === norm(curso));
     if (t && t.unidade) return t.unidade;
     const n = norm(curso);
     return /meio ambiente|ambiental|gepam|progea/.test(n) ? 'BPM MAmb' : /guarda/.test(n) ? 'BPGd' : 'BPMRv';
@@ -273,9 +325,9 @@
     const f = S.f;
     if (!f.canceladas && t.sit === 'canc' && f.situacao !== 'canc') return false;
     if (f.unidade && t.unidade !== f.unidade) return false;
-    if (f.curso && t.curso !== f.curso) return false;
+    if (f.curso && nomeCurso(t) !== f.curso) return false;
     if (f.situacao && t.sit !== f.situacao) return false;
-    if (comBusca && f.busca && norm([t.turma, t.curso, t.local, t.area].join(' ')).indexOf(norm(f.busca)) < 0) return false;
+    if (comBusca && f.busca && norm([t.turma, t.curso, nomeCurso(t), t.cidade, t.local, t.area].join(' ')).indexOf(norm(f.busca)) < 0) return false;
     return true;
   }
   const turmasF = (comBusca = true) => S.dados.turmas.filter(t => turmaPassa(t, comBusca));
@@ -289,8 +341,8 @@
   }
   function formandosF() {
     let f = S.dados.formandos || [];
-    if (S.f.unidade) f = f.filter(x => unidadeDoCurso(x.curso) === S.f.unidade);
-    return S.f.curso ? f.filter(x => norm(x.curso) === norm(S.f.curso)) : f;
+    if (S.f.unidade) f = f.filter(x => { const t = turmaDoFormando(x); return (t ? t.unidade : unidadeDoCurso(x.curso)) === S.f.unidade; });
+    return S.f.curso ? f.filter(x => cursoDoFormando(x) === S.f.curso) : f;
   }
 
   /* ================================================================ */
@@ -382,7 +434,7 @@
       return '<div class="prox ' + (emExec ? 'exec' : '') + '" data-turma="' + t.id + '">' +
         blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
         '<div class="prox-c"><div class="prox-t" title="' + esc(t.turma) + '">' + esc(t.turma) + '</div>' +
-        '<div class="prox-s">' + esc(t.curso) + ' · ' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
+        '<div class="prox-s">' + esc(cursoCurto(nomeCurso(t))) + ' · ' + esc(t.cidade || t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
         '<div class="prox-a"><span class="sublabel">Etapas</span>' +
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
         '<span class="pct">' + a.antesFeito + '/' + a.antesTot + '</span>' +
@@ -613,9 +665,9 @@
     if (S.turmasModo === 'tabela') {
       const cols = 'grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) 84px 84px 112px 64px minmax(110px,1fr) 64px 70px';
       return barraFerr + '<div class="card flush panel grow">' +
-        '<div class="gt-head" style="' + cols + '"><span>Turma</span><span>Curso</span><span>Local</span><span>Início</span><span>Término</span><span>Situação</span><span>Etapas</span><span>Conclusão</span><span>Vencidas</span><span>Formados</span></div>' +
+        '<div class="gt-head" style="' + cols + '"><span>Turma</span><span>Curso</span><span>Cidade</span><span>Início</span><span>Término</span><span>Situação</span><span>Etapas</span><span>Conclusão</span><span>Vencidas</span><span>Formados</span></div>' +
         caixa('turmas-tabela', ts.map(t =>
-          '<div class="gt-row click" style="' + cols + '" data-turma="' + t.id + '"><b title="' + esc(t.turma) + '">' + esc(t.turma) + '</b><span>' + esc(t.curso) + '</span><span>' + esc(t.local) + '</span>' +
+          '<div class="gt-row click" style="' + cols + '" data-turma="' + t.id + '"><b title="' + esc(t.turma) + '">' + esc(t.turma) + '</b><span title="' + esc(nomeCurso(t)) + '">' + esc(cursoCurto(nomeCurso(t))) + '</span><span>' + esc(t.cidade || t.local) + '</span>' +
           '<span class="mono">' + fmtAno(t.inicio) + '</span><span class="mono">' + fmtAno(t.fim) + '</span><span>' + pillSit(t.sit) + '</span>' +
           '<span class="mono">' + t.st.feito + '/' + t.st.total + '</span><span style="display:flex;gap:8px;align-items:center">' + barra(t.st) + '<span class="pct">' + Math.round(t.st.pct) + '%</span></span>' +
           '<span class="mono" style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + (t.st.venc || '—') + '</span><span class="mono">' + (t.formados != null ? t.formados : '—') + '</span></div>').join('')) +
@@ -625,8 +677,8 @@
     return barraFerr + '<div class="grow" style="display:flex;flex-direction:column">' + caixa('turmas-cards', ts.map(t => {
       const n = t.sit === 'plan' ? dias(t.inicio) : null;
       return '<div class="card tcard" data-turma="' + t.id + '">' +
-        '<div class="top"><span><span class="tag">' + esc(t.curso) + '</span> <span class="tag un">' + esc(t.unidade || '') + '</span></span>' + pillSit(t.sit) + '</div>' +
-        '<div><h3 title="' + esc(t.turma) + '">' + esc(t.turma) + '</h3><div class="s">' + esc(t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
+        '<div class="top"><span><span class="tag" title="' + esc(nomeCurso(t)) + '">' + esc(cursoCurto(nomeCurso(t))) + '</span> <span class="tag un">' + esc(t.unidade || '') + '</span></span>' + pillSit(t.sit) + '</div>' +
+        '<div><h3 title="' + esc(t.turma) + '">' + esc(t.turma) + '</h3><div class="s">' + esc(t.cidade || t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
         (t.duracao ? ' · ' + t.duracao + 'd' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
         '<div>' + barra(t.st) + '<div class="nums" style="margin-top:6px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
         '<div class="foot-line"><div class="flags">' + bandeiras(t) + '</div>' +
@@ -693,31 +745,53 @@
   function vFormandos() {
     const f = formandosF();
     const b = norm(S.f.busca);
-    const lista = b ? f.filter(x => norm([x.curso, x.turma, x.local].join(' ')).indexOf(b) >= 0) : f;
+    const lista = b ? f.filter(x => norm([x.curso, cursoDoFormando(x), x.turma, x.local].join(' ')).indexOf(b) >= 0) : f;
+    const res = resolucaoDoAno(anoRef());
+    const resIdx = {}; res.forEach(r => { resIdx[r.grupo] = r; });
+    const estDe = x => estimativaPorTurma(resIdx[cursoDoFormando(x)]);
+    const matr = x => x.matriculados != null ? x.matriculados : estDe(x);
     const total = soma(f, x => x.formados);
-    const comFormados = f.filter(x => x.formados > 0).length;
+    const totMatr = soma(f, x => matr(x) || 0);
+    const estimados = f.filter(x => x.matriculados == null && estDe(x)).length;
+    const encerradas = f.filter(x => { const t = turmaDoFormando(x); return t && t.sit === 'enc' && matr(x); });
+    const aprov = soma(encerradas, x => matr(x)) ? Math.round(soma(encerradas, x => x.formados) / soma(encerradas, x => matr(x)) * 100) : null;
 
-    const m = {};
-    f.forEach(x => { m[x.curso] = (m[x.curso] || 0) + x.formados; });
-    const arr = Object.keys(m).map(k => [k, m[k]]).sort((a, b) => b[1] - a[1]);
-    const max = Math.max(1, ...arr.map(a => a[1]));
-    const cols = 'grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) minmax(0,1.2fr) 80px';
+    // Resolução × planilha, por curso
+    const linhas = res.filter(r => !S.f.curso || r.grupo === S.f.curso).filter(r => !S.f.unidade || r.unidade === S.f.unidade).map(r => {
+      const ts = S.dados.turmas.filter(t => nomeCurso(t) === r.grupo && t.sit !== 'canc');
+      const fs = f.filter(x => cursoDoFormando(x) === r.grupo);
+      return { r: r, cad: ts.length, matr: soma(fs, x => matr(x) || 0), form: soma(fs, x => x.formados) };
+    });
+    const colsR = 'grid-template-columns:minmax(0,1fr) 70px 64px 64px 64px';
+    const corT = l => l.cad === l.r.turmas ? '' : l.cad > l.r.turmas ? 'color:var(--warn)' : 'color:var(--danger)';
+    const resHtml = linhas.map(l => '<div class="gt-row" style="' + colsR + '"><span title="' + esc(l.r.cursos.join('\n')) + '">' + esc(l.r.grupo) +
+      '<small class="dim" style="display:block">' + esc(cursoCurto(l.r.grupo)) + ' · ' + esc(l.r.unidade) + ' · ' + esc(l.r.status || '') + '</small></span>' +
+      '<span class="mono" style="text-align:right;' + corT(l) + '" title="cadastradas na planilha / previstas na Resolução">' + l.cad + ' / ' + l.r.turmas + '</span>' +
+      '<span class="mono" style="text-align:right">' + l.r.alunos + '</span><span class="mono" style="text-align:right">' + l.matr + '</span>' +
+      '<span class="mono" style="text-align:right;font-weight:600">' + l.form + '</span></div>').join('');
 
-    return '<div class="grid g-kpi k3">' +
-      kpi('Total de formados', total, '', 'militares em ' + anoRef()) +
-      kpi('Turmas com formatura', comFormados, '', 'de ' + f.length + ' turmas listadas') +
-      kpi('Média por turma', comFormados ? Math.round(total / comFormados) : 0, '', 'considerando turmas com formados') +
-      '</div><div class="grid grow" style="grid-template-columns:1fr 1.3fr">' +
-      painel({
-        titulo: 'Formados por curso', meta: 'total ' + total, key: 'f-curso', fitCls: 'hbars',
-        html: arr.map(([k, v]) => '<div class="hbar"><span class="n">' + esc(k) + '</span><span class="track"><i style="width:' + (v / max * 100) + '%;background:var(--accent)"></i></span><span class="v">' + v + '</span></div>').join('') || '<div class="empty">Sem registros.</div>'
-      }) +
-      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">edite o número e aperte Enter</span>' + pager('f-turma') + '</div>' +
-      '<div class="gt-head" style="' + cols + ';margin-top:8px"><span>Curso</span><span>Turma</span><span>Local</span><span style="text-align:right">Formados</span></div>' +
-      caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + cols + (x.formados ? '' : ';color:var(--ink-3)') + '"><span>' + esc(x.curso) + '</span><span>' + esc(x.turma) + '</span><span>' + esc(x.local) + '</span>' +
-        (S.dados.podeEditar && x.linha
-          ? '<span style="text-align:right"><input class="num-in" type="number" min="0" step="1" data-formando="' + S.dados.formandos.indexOf(x) + '" value="' + x.formados + '" title="Digite e aperte Enter para gravar"' + (S.salvando ? ' disabled' : '') + '></span>'
-          : '<span class="mono" style="text-align:right;font-weight:600">' + x.formados + '</span>') + '</div>').join('')) +
+    const colsT = 'grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 92px 86px 40px';
+    const num = (x, campo, valor, ph) => S.dados.podeEditar && x.linha
+      ? '<input class="num-in" type="number" min="0" step="1" data-formando="' + S.dados.formandos.indexOf(x) + '" data-campo-f="' + campo + '" value="' + (valor == null ? '' : valor) + '"' +
+        (ph != null ? ' placeholder="' + ph + '"' : '') + ' title="Digite e aperte Enter para gravar"' + (S.salvando ? ' disabled' : '') + '>'
+      : '<span class="mono">' + (valor == null ? '—' : valor) + '</span>';
+    const pct = x => { const m = matr(x); return m && x.formados ? Math.round(x.formados / m * 100) + '%' : ''; };
+
+    return '<div class="grid g-kpi k4">' +
+      kpi('Previstos na Resolução', soma(res, r => r.alunos), '', 'alunos em ' + anoRef() + ' · ' + soma(res, r => r.turmas) + ' turmas') +
+      kpi('Matriculados', totMatr, '', estimados ? estimados + ' turma(s) com estimativa da Resolução' : 'informados por turma') +
+      kpi('Formados', total, '', 'militares em ' + anoRef()) +
+      kpi('Aproveitamento', aprov == null ? '—' : aprov, aprov == null ? '' : '%', 'formados ÷ matriculados (turmas encerradas)') +
+      '</div><div class="grid grow" style="grid-template-columns:1.05fr 1fr">' +
+      '<div class="card flush panel"><div class="card-head"><h2>Resolução ' + anoRef() + '</h2><span class="meta">turmas: planilha / Resolução</span>' + pager('f-res') + '</div>' +
+      '<div class="gt-head" style="' + colsR + ';margin-top:8px"><span>Curso no SiGE</span><span style="text-align:right">Turmas</span><span style="text-align:right">Alunos</span><span style="text-align:right">Matric.</span><span style="text-align:right">Form.</span></div>' +
+      caixa('f-res', resHtml || '<div class="empty">Sem cursos na aba Resolução para ' + anoRef() + '.</div>') + '</div>' +
+      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">edite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
+      '<div class="gt-head" style="' + colsT + ';margin-top:8px"><span>Curso</span><span>Turma</span><span style="text-align:right">Matriculados</span><span style="text-align:right">Formados</span><span></span></div>' +
+      caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + colsT + (x.formados ? '' : ';color:var(--ink-3)') + '">' +
+        '<span title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoCurto(cursoDoFormando(x))) + '</span><span title="' + esc(x.local) + '">' + esc(x.turma) + (x.local && x.local !== x.turma ? ' <small class="dim">' + esc(x.local) + '</small>' : '') + '</span>' +
+        '<span style="text-align:right">' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</span>' +
+        '<span style="text-align:right">' + num(x, 'formados', x.formados) + '</span><span class="mono dim" style="text-align:right">' + pct(x) + '</span></div>').join('')) +
       '</div></div>';
   }
 
@@ -771,11 +845,11 @@
     const editandoTurma = S.edit && S.edit.id === id && (S.edit.tipo === 'turma' || S.edit.tipo === 'cancelar');
 
     const cabecalho =
-      '<div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="tag">' + esc(t.curso) + '</span>' +
+      '<div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="tag" title="Curso no SiGE">' + esc(cursoCurto(nomeCurso(t))) + '</span>' +
       (t.unidade ? '<span class="tag un" title="Unidade executora">' + esc(t.unidade) + '</span>' : '') + pillSit(t.sit) + '</div>' +
-      '<h2>' + esc(t.turma) + '</h2><div class="sub">' + esc(t.local) + ' · ' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
+      '<h2>' + esc(t.turma) + '</h2><div class="sub"><b>' + esc(nomeCurso(t)) + '</b><br>' + (t.cidade ? esc(t.cidade) + ' · ' : '') + (t.local && t.local !== t.cidade ? esc(t.local) + ' · ' : '') + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
       (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? '<br><a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div>' +
-      (pode && !editandoTurma ? '<button class="btn small" data-acao="editar-turma" style="margin-top:8px">✎ Editar datas, local ou cancelar</button>' : '') + '</div>';
+      (pode && !editandoTurma ? '<button class="btn small" data-acao="editar-turma" style="margin-top:8px">✎ Editar curso, cidade, datas ou cancelar</button>' : '') + '</div>';
 
     const resumo =
       '<div class="d-kpis">' + dk('Conclusão', Math.round(t.st.pct) + '%') + dk('Etapas', t.st.feito + '/' + t.st.total) +
@@ -846,9 +920,11 @@
         '<div class="form-acoes">' + botao('confirmar-cancelamento', 'Confirmar cancelamento', 'danger') + botao('descartar', 'Voltar', '') + '</div></div>';
     }
     return '<div class="d-section"><h3>Editar turma</h3><div class="form">' +
+      (t.linhaCadastro ? campoSel('Curso (nome no SiGE)', 'cursoOficial', c.cursoOficial, [['', '—']].concat(cursosOficiais().map(n => [n, n]))) : '') +
       '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
-      '<div class="form g2" style="margin-top:0">' + (t.aba ? campo('Local', 'local', c.local, 'text') : '<span></span>') +
-        (t.linhaCadastro ? campoSel('Unidade executora', 'unidade', c.unidade, unidadesLista().map(u => [u, u])) : '') + '</div>' +
+      '<div class="form g2" style="margin-top:0">' + (t.linhaCadastro ? campo('Cidade', 'cidade', c.cidade, 'text', ' placeholder="Ex.: Montes Claros"') : '<span></span>') +
+        (t.aba ? campo('Local / unidade', 'local', c.local, 'text') : '<span></span>') + '</div>' +
+      (t.linhaCadastro ? campoSel('Unidade executora', 'unidade', c.unidade, unidadesLista().map(u => [u, u])) : '') +
       campo('Observações', 'observacoes', c.observacoes, 'textarea') +
       '<div class="hint">Ao mudar as datas, a planilha recalcula sozinha os prazos de todas as etapas desta turma.</div>' +
       '</div><div class="form-acoes">' + botao('salvar-turma', 'Salvar', 'primary') + botao('descartar', 'Descartar', '') + '</div></div>' +
@@ -888,6 +964,10 @@
     const t = S.dados.turmas.find(x => x.aba === aba && x.turma === modelo);
     return (t && t.unidade) || 'BPMRv';
   }
+  function cursoDoModelo(aba, modelo) {
+    const t = S.dados.turmas.find(x => x.aba === aba && x.turma === modelo);
+    return t ? nomeCurso(t) : '';
+  }
   function modeloPadrao(aba) {
     const c = cursosComAba().find(x => x.aba === aba);
     if (!c) return '';
@@ -907,6 +987,7 @@
       const curso = cursos.find(x => x.aba === c.aba) || cursos[0];
       const modelos = curso.turmas.slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
       const mod = modelos.find(t => t.turma === c.modelo);
+      const estNova = estimativaPorTurma(resolucaoDoAno(anoRef()).find(r => r.grupo === c.cursoOficial));
       html = '<h2>Nova turma</h2><div class="sub">A turma é criada na planilha de ' + anoRef() + ' com o checklist completo copiado da turma modelo. ' +
         'Os prazos das etapas são calculados pelas datas que você informar.</div>' +
         '<div class="form" style="margin-top:18px">' +
@@ -914,33 +995,40 @@
             campoSel('Curso (aba da planilha)', 'aba', c.aba, cursos.map(x => [x.aba, x.curso + (x.curso !== x.aba ? ' · aba ' + x.aba : '')])) +
             campoSel('Copiar o checklist de', 'modelo', c.modelo, modelos.map(t => [t.turma, t.turma + ' (' + fmt(t.inicio) + ')'])) +
           '</div>' +
-          campo('Nome da turma', 'nome', c.nome, 'text', ' placeholder="Ex.: IVD - Juiz de Fora"') +
+          campoSel('Curso (nome no SiGE)', 'cursoOficial', c.cursoOficial, [['', '—']].concat(cursosOficiais().map(n => [n, n]))) +
+          '<div class="form g2" style="margin-top:0">' + campo('Nome da turma', 'nome', c.nome, 'text', ' placeholder="Ex.: IVD - Juiz de Fora"') +
+            campo('Cidade', 'cidade', c.cidade, 'text', ' placeholder="Ex.: Juiz de Fora"') + '</div>' +
           '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
           '<div class="form g2" style="margin-top:0">' + campo('Local / unidade', 'local', c.local, 'text', ' placeholder="' + esc(mod ? mod.local : '') + '"') +
-            campo('Vagas', 'vagas', c.vagas, 'text', ' placeholder="Ex.: 40 vagas"') + '</div>' +
+            campo('Vagas (alunos previstos)', 'vagas', c.vagas, 'text', ' placeholder="' + (estNova ? 'Resolução: ' + estNova + ' por turma' : 'Ex.: 40 vagas') + '"') + '</div>' +
           campoSel('Unidade executora', 'unidade', c.unidade, unidadesLista().map(u => [u, u])) +
           campo('Nome no calendário oficial (opcional)', 'treinamento', c.treinamento, 'text', ' placeholder="Ex.: Identificação Veicular e Documental"') +
           '<div class="hint">Também são criadas as linhas no Cadastro de Turmas, no Painel Geral, em Formandos e no Calendario. ' +
           'Responsáveis e documentos vêm da turma modelo; status começam como "Pendente".</div>' +
         '</div><div class="form-acoes">' + botao('salvar-nova', 'Criar turma', 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
     } else {
-      const anos = S.dados.anos && S.dados.anos.length ? S.dados.anos : [anoRef()];
-      const origem = Math.max.apply(null, anos), novo = origem + 1;
+      const origem = anoRef(), novo = origem + 1;
       const ex = new Date(origem, 9, 5), exS = new Date(ex.getTime() + 364 * DIA), exD = new Date(novo, 9, 5);
       const dsem = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-      const fx = d => dsem[d.getDay()] + ' ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
-      html = '<h2>Criar o ano de ' + novo + '</h2><div class="sub">É feita uma <b>cópia completa</b> da planilha de ' + origem + ' com o nome “… ' + novo + '”. ' +
-        'A planilha de ' + origem + ' não é alterada. Depois você ajusta só o que mudar: datas, turmas que saem e turmas que entram.</div>' +
-        '<div class="d-section" style="margin-top:18px"><h3>Na cópia de ' + novo + '</h3><dl class="kv">' +
-          '<dt>Cursos, turmas, locais, vagas e checklists</dt><dd class="sim">mantidos</dd>' +
-          '<dt>Status das etapas</dt><dd>“Pendente” (exceto “Não se aplica”)</dd>' +
-          '<dt>Datas de conclusão, observações das etapas</dt><dd>apagadas</dd>' +
-          '<dt>Formados e histórico do painel</dt><dd>zerados</dd></dl></div>' +
-        '<div class="form" style="margin-top:14px">' +
-          campoSel('Datas das turmas em ' + novo, 'modoDatas', c.modoDatas, [['semana', 'Mesmo dia da semana (' + fx(ex) + ' → ' + fx(exS) + ')'], ['data', 'Mesma data (' + fx(ex) + ' → ' + fx(exD) + ')']]) +
-          campoSel('Turmas canceladas em ' + origem, 'canceladas', c.canceladas, [['manter', 'Copiar como canceladas'], ['reativar', 'Copiar como ativas (reativar)']]) +
-          '<div class="hint">A criação leva de 30 segundos a 1 minuto. Depois, escolha o ano no seletor da barra lateral.</div>' +
-        '</div><div class="form-acoes">' + botao('criar-ano', 'Criar planilha de ' + novo, 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
+      const fx = d => dsem[d.getDay()] + ' ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+      const plano = planoDoAno(novo);
+      const nRes = resolucaoDoAno(novo).length;
+      const linhaPlano = p => '<div class="ano-curso' + (p.r ? '' : ' fora') + '"><div class="ano-c-h"><b title="' + esc(p.grupo) + '">' + esc(p.grupo) + '</b>' +
+        '<span class="mono ' + (p.ok ? 'ok' : 'warn') + '">' + (p.r ? p.marcadas + ' / ' + p.r.turmas + ' turma(s) · ' + p.r.alunos + ' alunos' + (p.est ? ' · ~' + p.est + '/turma' : '') : 'fora da Resolução ' + novo) + '</span></div>' +
+        '<div class="ano-c-t">' + (p.turmas.length ? p.turmas.map(t => '<label class="chk-t"><input type="checkbox" data-manter="' + t.id + '"' + (c.manter.indexOf(t.id) >= 0 ? ' checked' : '') + (S.salvando ? ' disabled' : '') + '>' +
+          '<span title="' + esc(t.turma) + '">' + esc(t.cidade || t.turma) + ' <small>' + fmt(t.inicio) + '</small></span></label>').join('')
+          : '<span class="dim">Sem turma no espelho — inclua depois com <b>＋ Nova turma</b> (ou crie a aba do curso).</span>') + '</div></div>';
+      html = '<h2>Criar o ano de ' + novo + '</h2><div class="sub">Cópia completa da planilha de ' + origem + ' (que não é alterada), já ajustada à <b>Resolução ' + novo + '</b>' +
+        (nRes ? '' : ' — <span style="color:var(--danger)">a aba Resolução ainda não tem cursos de ' + novo + '</span>') +
+        '. Marque as turmas que continuam; as desmarcadas entram como canceladas. Status das etapas voltam a “Pendente”; formados zerados; matriculados = estimativa da Resolução (editável).</div>' +
+        '<div class="form g2" style="margin-top:12px">' +
+          campoSel('Datas', 'modoDatas', c.modoDatas, [['semana', 'Mesmo dia da semana (' + fx(ex) + ' → ' + fx(exS) + ')'], ['data', 'Mesma data (' + fx(ex) + ' → ' + fx(exD) + ')']]) +
+          campoSel('Já canceladas em ' + origem, 'canceladas', c.canceladas, [['manter', 'Copiar como canceladas'], ['reativar', 'Reativar']]) +
+        '</div>' +
+        '<div class="ano-plano-h"><h3>Turmas × Resolução ' + novo + '</h3>' + pager('ano-plano') + '</div>' +
+        caixa('ano-plano', plano.map(linhaPlano).join('') || '<div class="empty">Nenhuma turma.</div>', 'ano-lista') +
+        '<div class="form-acoes">' + botao('criar-ano', 'Criar planilha de ' + novo, 'primary') + '<button class="btn" data-fechar>Cancelar</button>' +
+        '<span class="dim" style="font-size:12px;margin-left:auto">leva de 30 s a 1 min</span></div>';
     }
     $('#drawer').innerHTML = '<button class="close" data-fechar title="Fechar (Esc)">✕</button><div class="d-form">' + html + '</div>';
     $('#drawer').classList.add('open', 'estreito'); $('#drawer').setAttribute('aria-hidden', 'false');
@@ -955,6 +1043,8 @@
     if (c.fim < c.inicio) return toast('O término não pode ser antes do início.', 'err');
     gravarNoServidor('criarTurma', {
       aba: c.aba, modelo: c.modelo, nome: c.nome.trim(), curso: curso ? curso.curso : c.aba, unidade: c.unidade,
+      cursoOficial: c.cursoOficial, cidade: (c.cidade || '').trim(),
+      matriculados: (String(c.vagas || '').match(/\d+/) || [estimativaPorTurma(resolucaoDoAno(anoRef()).find(r => r.grupo === c.cursoOficial)) || ''])[0],
       inicio: c.inicio, fim: c.fim, local: c.local.trim(), vagas: c.vagas.trim(), treinamento: c.treinamento.trim()
     }, () => {
       toast('✓ Turma criada: ' + c.nome.trim() + (RUN ? '. Atualizando…' : ''));
@@ -963,9 +1053,43 @@
     });
   }
 
+  /** Turmas atuais agrupadas pelo curso do SiGE, comparadas à Resolução do ano novo. */
+  function planoDoAno(novo) {
+    const res = resolucaoDoAno(novo), idx = {};
+    res.forEach(r => { idx[r.grupo] = r; });
+    const grupos = {};
+    S.dados.turmas.filter(t => t.sit !== 'canc').forEach(t => { const g = nomeCurso(t); (grupos[g] = grupos[g] || []).push(t); });
+    res.forEach(r => { grupos[r.grupo] = grupos[r.grupo] || []; });
+    const c = S.edit.campos;
+    if (!c.manter) { // padrão: as primeiras N turmas (por data), N = turmas previstas
+      c.manter = [];
+      Object.keys(grupos).forEach(g => {
+        const n = idx[g] ? idx[g].turmas : 0;
+        grupos[g].slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio))).slice(0, n).forEach(t => c.manter.push(t.id));
+      });
+    }
+    return Object.keys(grupos).map(g => {
+      const turmas = grupos[g].slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
+      const marcadas = turmas.filter(t => c.manter.indexOf(t.id) >= 0).length;
+      const r = idx[g] || null;
+      return { grupo: g, r: r, turmas: turmas, marcadas: marcadas, est: estimativaPorTurma(r), ok: r ? marcadas === r.turmas : marcadas === 0 };
+    }).sort((a, b) => (!!b.r - !!a.r) || (a.ok - b.ok) || a.grupo.localeCompare(b.grupo, 'pt-BR'));
+  }
+
   function criarAno() {
     const c = S.edit.campos;
-    gravarNoServidor('criarAnoSeguinte', { modoDatas: c.modoDatas, canceladas: c.canceladas }, r => {
+    const novo = anoRef() + 1;
+    const idx = {}; resolucaoDoAno(novo).forEach(r => { idx[r.grupo] = r; });
+    const cancelar = S.dados.turmas.filter(t => t.sit !== 'canc' && t.linhaCadastro && c.manter.indexOf(t.id) < 0).map(t => t.linhaCadastro);
+    const matriculados = {};
+    (S.dados.formandos || []).forEach(x => {
+      const t = turmaDoFormando(x);
+      if (!x.linha) return;
+      if (t && c.manter.indexOf(t.id) < 0) { matriculados[x.linha] = 0; return; }
+      const est = estimativaPorTurma(idx[cursoDoFormando(x)]);
+      if (est != null) matriculados[x.linha] = est;
+    });
+    gravarNoServidor('criarAnoSeguinte', { modoDatas: c.modoDatas, canceladas: c.canceladas, cancelar: cancelar, matriculados: matriculados }, r => {
       fecharDrawer();
       if (!RUN) { refrescar(); return; }
       toast('✓ Planilha de ' + r.ano + ' criada: ' + r.nome);
@@ -1095,7 +1219,7 @@
     if (nome === 'nova-turma') {
       const abas = cursosComAba();
       if (!abas.length) return toast('Nenhuma aba de curso encontrada na planilha.', 'err');
-      S.edit = { tipo: 'nova', campos: { aba: abas[0].aba, modelo: modeloPadrao(abas[0].aba), unidade: unidadeDoModelo(abas[0].aba, modeloPadrao(abas[0].aba)), nome: '', inicio: '', fim: '', local: '', treinamento: '', vagas: '' } };
+      S.edit = { tipo: 'nova', campos: { aba: abas[0].aba, modelo: modeloPadrao(abas[0].aba), unidade: unidadeDoModelo(abas[0].aba, modeloPadrao(abas[0].aba)), cursoOficial: cursoDoModelo(abas[0].aba, modeloPadrao(abas[0].aba)), nome: '', cidade: '', inicio: '', fim: '', local: '', treinamento: '', vagas: '' } };
       return abrirForm('nova');
     }
     if (nome === 'salvar-nova') return salvarNovaTurma();
@@ -1112,7 +1236,7 @@
     const t = S.turmaIdx[S.drawer];
     if (!t) return;
     if (nome === 'editar-turma') {
-      S.edit = { tipo: 'turma', id: t.id, campos: { inicio: t.inicio || '', fim: t.fim || '', local: t.local || '', unidade: t.unidade || '', observacoes: t.observacoes || '' } };
+      S.edit = { tipo: 'turma', id: t.id, campos: { inicio: t.inicio || '', fim: t.fim || '', local: t.local || '', unidade: t.unidade || '', observacoes: t.observacoes || '', cursoOficial: t.cursoOficial || '', cidade: t.cidade || '' } };
       return abrirTurma(t.id);
     }
     if (nome === 'cancelar-turma') { S.edit = { tipo: 'cancelar', id: t.id, campos: { motivo: '' } }; return abrirTurma(t.id); }
@@ -1141,9 +1265,10 @@
     const mudouDatas = c.inicio !== t.inicio || c.fim !== t.fim;
     gravarNoServidor('atualizarTurma', {
       aba: t.aba, linhaResumo: t.linhaResumo, tituloLinha: t.tituloLinha, linhaCadastro: t.linhaCadastro,
-      turma: t.turma, inicio: c.inicio, fim: c.fim, local: c.local, unidade: c.unidade, observacoes: c.observacoes
+      turma: t.turma, inicio: c.inicio, fim: c.fim, local: c.local, unidade: c.unidade, observacoes: c.observacoes, cursoOficial: c.cursoOficial, cidade: c.cidade
     }, () => {
-      Object.assign(t, { inicio: c.inicio, fim: c.fim, local: c.local.trim(), unidade: c.unidade || t.unidade, observacoes: c.observacoes.trim() });
+      Object.assign(t, { inicio: c.inicio, fim: c.fim, local: c.local.trim(), unidade: c.unidade || t.unidade, observacoes: c.observacoes.trim(), cursoOficial: c.cursoOficial || t.cursoOficial, cidade: c.cidade.trim() });
+      montarFiltros();
       t.duracao = Math.round((dt(c.fim) - dt(c.inicio)) / DIA) + 1;
       if (t.sit !== 'canc') t.sit = sitPorDatas(t);
       S.edit = null;
@@ -1178,14 +1303,17 @@
 
   function salvarFormados(el) {
     const x = S.dados.formandos[Number(el.dataset.formando)];
+    const campo = el.dataset.campoF === 'matriculados' ? 'matriculados' : 'formados';
     const n = Number(el.value);
-    if (el.value === '' || !(n >= 0) || Math.floor(n) !== n) { toast('Informe um número inteiro (0 ou mais).', 'err'); el.value = x.formados; return; }
-    if (n === x.formados) return;
-    const antes = x.formados;
-    x.formados = n;
-    gravarNoServidor('atualizarFormados', { linha: x.linha, curso: x.curso, turma: x.turma, formados: n },
-      () => { toast('✓ Formados de ' + x.curso + ' / ' + x.turma + ': ' + n); refrescar(); },
-      () => { x.formados = antes; });
+    if (el.value === '' || !(n >= 0) || Math.floor(n) !== n) { toast('Informe um número inteiro (0 ou mais).', 'err'); el.value = x[campo] == null ? '' : x[campo]; return; }
+    if (n === x[campo]) return;
+    const antes = x[campo];
+    x[campo] = n;
+    const req = { linha: x.linha, curso: x.curso, turma: x.turma, campo: campo };
+    req[campo] = n;
+    gravarNoServidor('atualizarFormados', req,
+      () => { toast('✓ ' + (campo === 'matriculados' ? 'Matriculados' : 'Formados') + ' de ' + x.curso + ' / ' + x.turma + ': ' + n); refrescar(); },
+      () => { x[campo] = antes; });
   }
 
   function sitPorDatas(t) {
@@ -1302,7 +1430,14 @@
     if (el.dataset && el.dataset.campo === 'aba' && S.form === 'nova') {
       S.edit.campos.aba = el.value; S.edit.campos.modelo = modeloPadrao(el.value);
       S.edit.campos.unidade = unidadeDoModelo(el.value, S.edit.campos.modelo);
+      S.edit.campos.cursoOficial = cursoDoModelo(el.value, S.edit.campos.modelo);
       return abrirForm('nova');
+    }
+    if (el.dataset && el.dataset.campo === 'cursoOficial' && S.form === 'nova') { S.edit.campos.cursoOficial = el.value; return abrirForm('nova'); }
+    if (el.matches('input[data-manter]')) {
+      const m = S.edit.campos.manter, id = el.dataset.manter;
+      if (el.checked) { if (m.indexOf(id) < 0) m.push(id); } else m.splice(m.indexOf(id), 1);
+      return abrirForm('ano');
     }
     if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; S.pg = {}; return render(); }
     if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; S.pg = {}; return render(); }

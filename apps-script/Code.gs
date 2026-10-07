@@ -22,6 +22,7 @@ const CONFIG = {
   ABA_LISTAS: 'Listas',
   ABA_CALENDARIO: 'Calendario', // calendário oficial (Período | Treinamento | Qtd vagas | Local/Obs)
   ABA_HISTORICO: 'Histórico Painel',
+  ABA_RESOLUCAO: 'Resolução', // cursos aprovados no SiGE por ano (criada pelo painel com os dados iniciais)
 
   // Abas que nunca são tratadas como operacionais.
   ABAS_IGNORADAS: ['Painel Geral'],
@@ -56,6 +57,7 @@ function onOpen() {
     .addItem('Abrir painel', 'abrirPainel')
     .addItem('Diagnóstico da leitura', 'diagnosticarUi')
     .addItem('Corrigir datas das etapas', 'corrigirReferenciasUi')
+    .addItem('Preencher curso (SiGE) e cidade das turmas', 'preencherCursosUi')
     .addSeparator()
     .addItem('Limpar cache', 'limparCache')
     .addToUi();
@@ -223,6 +225,18 @@ function atualizarTurma(req) {
       }
     }
 
+    [['cursoOficial', 'curso (sige)', 'Curso (SiGE)', 'curso'], ['cidade', 'cidade', 'Cidade', 'cidade']].forEach(([k, chave, rotulo, nome]) => {
+      if (!(k in req) || !req.linhaCadastro) return;
+      const cad = cadastro_(ss);
+      conferir_(cad.aba.getRange(req.linhaCadastro, cad.col['turma'] + 1).getValue(), req.turma);
+      const cel = cad.aba.getRange(req.linhaCadastro, colunaCadastro_(cad, chave, rotulo) + 1);
+      const novo = String(req[k] || '').trim();
+      if (texto_(cel.getValue()) !== novo) {
+        mudou.push(nome + ': ' + (texto_(cel.getValue()) || '(vazio)') + ' → ' + (novo || '(vazio)'));
+        gravar_(cel, novo);
+      }
+    });
+
     if ('observacoes' in req && req.linhaCadastro) {
       const cad = cadastro_(ss);
       conferir_(cad.aba.getRange(req.linhaCadastro, cad.col['turma'] + 1).getValue(), req.turma);
@@ -294,12 +308,14 @@ function atualizarFormados(req) {
     const c = indice_(v[h]);
     conferir_(aba.getRange(req.linha, c['curso'] + 1).getValue(), req.curso);
     conferir_(aba.getRange(req.linha, c['turma'] + 1).getValue(), req.turma);
-    const n = Number(req.formados);
-    if (!(n >= 0) || Math.floor(n) !== n) throw new Error('Informe um número inteiro de formados (0 ou mais).');
-    const cel = aba.getRange(req.linha, c['formados'] + 1);
+    const campo = req.campo === 'matriculados' ? 'matriculados' : 'formados';
+    const n = Number(campo === 'matriculados' ? req.matriculados : req.formados);
+    if (!(n >= 0) || Math.floor(n) !== n) throw new Error('Informe um número inteiro (0 ou mais).');
+    const coluna = campo === 'matriculados' ? colunaMatriculados_(aba, h, v[h]) : c['formados'];
+    const cel = aba.getRange(req.linha, coluna + 1);
     const antigo = cel.getValue();
     gravar_(cel, n);
-    historico_(ss, aba.getName(), req.linha, req.curso + ' / ' + req.turma, '', 'Formados', texto_(antigo) + ' → ' + n);
+    historico_(ss, aba.getName(), req.linha, req.curso + ' / ' + req.turma, '', campo === 'matriculados' ? 'Matriculados' : 'Formados', texto_(antigo) + ' → ' + n);
     return { ok: true };
   }, req.ano);
 }
@@ -318,15 +334,33 @@ function unidadePadrao_(area, curso, turma) {
 
 /** Índice (0-based) da coluna "Unidade executora" no Cadastro; cria o cabeçalho se não existir. */
 function colunaUnidade_(cad) {
-  if (cad.col['unidade executora'] !== undefined) return cad.col['unidade executora'];
+  return colunaCadastro_(cad, 'unidade executora', 'Unidade executora');
+}
+
+/** Índice (0-based) de uma coluna do Cadastro pelo cabeçalho; cria a coluna no fim se não existir. */
+function colunaCadastro_(cad, chave, rotulo) {
+  if (cad.col[chave] !== undefined) return cad.col[chave];
   const v = cad.aba.getRange(1, 1, Math.min(cad.aba.getLastRow(), 6), cad.aba.getLastColumn()).getValues();
   const h = acharCabecalho_(v, ['id', 'curso', 'turma'], 6);
   const largura = larguraCabecalho_(v[h]);
+  if (cad.aba.getMaxColumns() <= largura) cad.aba.insertColumnAfter(cad.aba.getMaxColumns());
   const cel = cad.aba.getRange(h + 1, largura + 1);
   cad.aba.getRange(h + 1, largura).copyTo(cel, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-  cel.setValue('Unidade executora');
-  cad.col['unidade executora'] = largura;
+  cel.setValue(rotulo);
+  cad.col[chave] = largura;
   return largura;
+}
+
+/** Coluna "Matriculados" da aba de formandos (logo depois de Formados; criada se faltar). */
+function colunaMatriculados_(aba, h, cabecalho) {
+  const c = indice_(cabecalho);
+  if (c['matriculados'] !== undefined) return c['matriculados'];
+  let col = c['formados'] + 1;
+  if (texto_(cabecalho[col])) col = larguraCabecalho_(cabecalho);
+  const cel = aba.getRange(h + 1, col + 1);
+  aba.getRange(h + 1, c['formados'] + 1).copyTo(cel, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  cel.setValue('Matriculados');
+  return col;
 }
 
 /** Executa a gravação com trava, limpa o cache e devolve JSON. */
@@ -411,6 +445,7 @@ function montarDados_(ss) {
   ss = ss || planilha_();
   const avisos = [];
 
+  const resolucao = lerResolucao_(ss);
   const cadastro = lerCadastro_(ss, avisos);
   const operacionais = lerAbasOperacionais_(ss, avisos);
 
@@ -477,6 +512,7 @@ function montarDados_(ss) {
     calendario: lerCalendario_(ss, avisos),
     responsaveis: lerResponsaveis_(ss),
     unidades: CONFIG.UNIDADES,
+    resolucao: resolucao,
     avisos: avisos
   };
 }
@@ -501,6 +537,9 @@ function lerCadastro_(ss, avisos) {
       area: texto_(r[c['area']]),
       unidade: texto_(r[c['unidade executora']]) || unidadePadrao_(r[c['area']], r[c['curso']], r[c['turma']]),
       curso: texto_(r[c['curso']]),
+      cursoOficial: texto_(r[c['curso (sige)']]) || grupoPadrao_([r[c['curso']], r[c['turma']]].join(' ')),
+      cursoOficialSugerido: !texto_(r[c['curso (sige)']]),
+      cidade: texto_(r[c['cidade']]) || cidadePadrao_(texto_(r[c['turma']]), texto_(r[c['local/unidade']])),
       turma: turma,
       local: texto_(r[c['local/unidade']]),
       inicio: iso_(data_(r[c['inicio']])),
@@ -526,7 +565,7 @@ function lerCadastro_(ss, avisos) {
  */
 function lerAbasOperacionais_(ss, avisos) {
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -624,7 +663,8 @@ function lerFormandos_(ss) {
       curso: curso,
       turma: texto_(v[i][c['turma']]),
       local: texto_(v[i][c['local']]),
-      formados: numero_(v[i][c['formados']]) || 0
+      formados: numero_(v[i][c['formados']]) || 0,
+      matriculados: c['matriculados'] === undefined ? null : numero_(v[i][c['matriculados']])
     });
   }
   return out;
@@ -930,7 +970,7 @@ function criarTurma(req) {
     // 4) Cadastro de Turmas, Painel Geral, Formandos e Calendario.
     const cad = incluirNoCadastro_(ss, nomeAba, tplRow, R, req);
     incluirNoPainelGeral_(ss, nomeAba, tplRow, R, cad);
-    incluirEmFormandos_(ss, req.curso || nomeAba, nome, local);
+    incluirEmFormandos_(ss, req.curso || nomeAba, nome, req.cidade || local, req.matriculados);
     incluirNoCalendario_(ss, ini, fim, req.treinamento || nome, req.vagas, local);
 
     historico_(ss, nomeAba, R, nome, '', 'Turma incluída', texto_(ini) + ' a ' + texto_(fim) + ' · modelo: ' + req.modelo);
@@ -972,6 +1012,8 @@ function incluirNoCadastro_(ss, nomeAba, tplRow, R, req) {
   }
   c.aba.getRange(nova, 1, 1, largura).setValues([linha]);
   if (req.unidade) c.aba.getRange(nova, colunaUnidade_(c) + 1).setValue(req.unidade);
+  if (req.cursoOficial) c.aba.getRange(nova, colunaCadastro_(c, 'curso (sige)', 'Curso (SiGE)') + 1).setValue(req.cursoOficial);
+  if (req.cidade) c.aba.getRange(nova, colunaCadastro_(c, 'cidade', 'Cidade') + 1).setValue(req.cidade);
   return { tpl: tpl, nova: nova, aba: c.aba.getName() };
 }
 
@@ -1000,7 +1042,7 @@ function incluirNoPainelGeral_(ss, nomeAba, tplRow, R, cad) {
   aba.getRange(nova, 1, 1, largura).setValues([sv.map((x, j) => sf[j] ? reescreverFormula_(sf[j], aba.getName(), regras) : x)]);
 }
 
-function incluirEmFormandos_(ss, curso, turma, local) {
+function incluirEmFormandos_(ss, curso, turma, local, matriculados) {
   const aba = abaFormandos_(ss);
   if (!aba) return;
   const v = aba.getDataRange().getValues();
@@ -1019,6 +1061,8 @@ function incluirEmFormandos_(ss, curso, turma, local) {
   if (c['local'] !== undefined) linha[c['local']] = local;
   linha[c['formados']] = 0;
   aba.getRange(ultimo, 1, 1, largura).setValues([linha]);
+  const n = Number(matriculados);
+  if (matriculados !== '' && matriculados != null && n >= 0) aba.getRange(ultimo, colunaMatriculados_(aba, h, v[h]) + 1).setValue(Math.round(n));
 }
 
 function incluirNoCalendario_(ss, ini, fim, treinamento, vagas, local) {
@@ -1102,7 +1146,7 @@ function criarAnoSeguinte(req) {
     const ss = SpreadsheetApp.openById(copia.getId());
 
     const af = abaFormandos_(ss);
-    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO].concat(CONFIG.ABAS_IGNORADAS);
+    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
 
     ss.getSheets().forEach(aba => {
       const nomeAba = aba.getName();
@@ -1174,6 +1218,13 @@ function criarAnoSeguinte(req) {
       }
       const obs = cad.aba.getRange(i + 1, cad.col['observacoes'] + 1);
       if (!obs.getFormula() && !(cancelada && req.canceladas !== 'reativar')) obs.setValue('');
+      // Turmas desmarcadas no formulário (fora da Resolução do ano novo) já nascem canceladas.
+      if ((req.cancelar || []).indexOf(i + 1) >= 0 && !(cancelada && req.canceladas !== 'reativar')) {
+        const f = cel.getFormula();
+        if (f) cel.setNote(NOTA_FORMULA + f);
+        cel.setValue('Cancelado');
+        if (!obs.getFormula()) obs.setValue('Não prevista na Resolução ' + novoAno + '.');
+      }
     }
 
     // Formandos: nome da aba e quantidades zeradas.
@@ -1187,6 +1238,16 @@ function criarAnoSeguinte(req) {
           if (!texto_(fv[i][c['curso']])) continue;
           const cel = af.getRange(i + 1, c['formados'] + 1);
           if (!cel.getFormula()) cel.setValue(0);
+        }
+        // Matriculados: estimativa da Resolução do ano novo (alunos ÷ turmas), editável depois.
+        const est = req.matriculados || {};
+        if (Object.keys(est).length) {
+          const colM = colunaMatriculados_(af, hf, fv[hf]);
+          for (let i = hf + 1; i < fv.length; i++) {
+            if (!texto_(fv[i][c['curso']])) continue;
+            const n = est[i + 1];
+            af.getRange(i + 1, colM + 1).setValue(n == null ? '' : n);
+          }
         }
       }
     }
@@ -1294,6 +1355,161 @@ function reescreverFormula_(formula, abaAtual, regras) {
 }
 
 /* ================================================================== */
+/* Resolução (cursos aprovados no SiGE)                                */
+/* ================================================================== */
+
+// Estágio de Pilotagem Policial: Condução Defensiva, Condução 4x4 e
+// Deslocamento de Comboio são executados juntos, numa mesma turma.
+const GRUPO_EPP = 'Estágio de Pilotagem Policial (EPP)';
+
+// Dados iniciais da aba "Resolução" (copiados do SiGE). Depois de criada,
+// a aba é a fonte: edite lá para incluir anos ou corrigir números.
+const RESOLUCAO_INICIAL = [
+  // ano, ID SiGE, curso, grupo no painel, unidade, turmas, alunos, status
+  [2026, 9388, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 160, 'Em curso'],
+  [2026, 9391, 'Curso de Policiamento de Guardas', '', 'BPGd', 1, 30, 'Cancelado'],
+  [2026, 9597, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 38, 'Pendente de conclusão'],
+  [2026, 9614, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Pendente de conclusão'],
+  [2026, 9623, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 4, 71, 'Em curso'],
+  [2026, 9624, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 4, 75, 'Em curso'],
+  [2026, 9625, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 4, 155, 'Em curso'],
+  [2026, 9634, 'Estágio Tático Rodoviário', '', 'BPMRv', 4, 152, 'Em curso'],
+  [2026, 9639, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 50, 'Autorizado pelo comando'],
+  [2026, 9640, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 37, 'Pendente de conclusão'],
+  [2026, 9646, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 2, 88, 'Em curso'],
+  [2026, 9651, 'Curso de Pilotagem Policial', '', 'BPMRv', 2, 48, 'Em curso'],
+  [2026, 9654, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 53, 'Em curso'],
+  [2026, 9786, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 4, 67, 'Em curso'],
+  [2027, 11850, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise'],
+  [2027, 11851, 'Estágio Tático Rodoviário', '', 'BPMRv', 2, 60, 'Aguardando análise'],
+  [2027, 11852, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
+  [2027, 11853, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
+  [2027, 11854, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
+  [2027, 11855, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 80, 'Aguardando análise'],
+  [2027, 11856, 'Curso de Credenciamento para o Serviço de Policiamento Velado', '', 'BPMRv', 1, 30, 'Aguardando análise'],
+  [2027, 11857, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Aguardando análise'],
+  [2027, 11867, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 120, 'Aguardando análise'],
+  [2027, 11869, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise'],
+  [2027, 11870, 'Curso de Pilotagem Policial', '', 'BPMRv', 1, 24, 'Aguardando análise'],
+  [2027, 11871, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 1, 30, 'Aguardando análise'],
+  [2027, 11872, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 40, 'Aguardando análise'],
+  [2027, 11873, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 30, 'Aguardando análise']
+];
+
+/** Lê a aba "Resolução" (cria com os dados iniciais na primeira vez). */
+function lerResolucao_(ss) {
+  let aba = ss.getSheetByName(CONFIG.ABA_RESOLUCAO);
+  if (!aba) {
+    aba = ss.insertSheet(CONFIG.ABA_RESOLUCAO);
+    const cab = ['Ano', 'ID SiGE', 'Curso', 'Grupo no painel', 'Unidade', 'Turmas', 'Alunos', 'Status'];
+    aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    aba.getRange(2, 1, RESOLUCAO_INICIAL.length, cab.length).setValues(RESOLUCAO_INICIAL);
+    aba.setFrozenRows(1);
+    aba.setColumnWidth(3, 520); aba.setColumnWidth(4, 260); aba.setColumnWidth(8, 200);
+  }
+  const v = aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['ano', 'curso', 'turmas'], 5);
+  if (h < 0) return [];
+  const c = indice_(v[h]);
+  const out = [];
+  for (let i = h + 1; i < v.length; i++) {
+    const curso = nomeCurso_(v[i][c['curso']]);
+    const ano = numero_(v[i][c['ano']]);
+    if (!curso || !ano) continue;
+    out.push({
+      ano: ano,
+      id: texto_(v[i][c['id sige']]).replace(/\.0$/, ''),
+      curso: curso,
+      grupo: nomeCurso_(v[i][c['grupo no painel']]) || curso,
+      unidade: texto_(v[i][c['unidade']]).replace(/\/CPE$/i, ''),
+      turmas: numero_(v[i][c['turmas']]) || 0,
+      alunos: numero_(v[i][c['alunos']]) || 0,
+      status: texto_(v[i][c['status']])
+    });
+  }
+  return out;
+}
+
+/** Nome do curso sem o ano da matriz curricular ("... 2022 atualizada" → "..."). */
+function nomeCurso_(s) {
+  return texto_(s).replace(/^[-–\s]+/, '').replace(/\s+\b(19|20)\d{2}\b.*$/, '').replace(/\s+atualizad[oa]s?\s*$/i, '').trim();
+}
+
+/** Curso (grupo da Resolução) sugerido pelo nome/curso da turma, quando a coluna "Curso (SiGE)" está vazia. */
+function grupoPadrao_(txt) {
+  const t = semAcento_(txt);
+  const regras = [
+    [/\bivd\b|identificacao veicular/, 'Curso de Identificação Veicular e Documental'],
+    [/crtr|radiopatrulhamento/, 'Curso de Radiopatrulhamento Tático Rodoviário'],
+    [/ceptr|policiamento rodoviario/, 'Curso de Policiamento Rodoviário'],
+    [/estagio tatico|\betr\b/, 'Estágio Tático Rodoviário'],
+    [/estagio de pilotagem|\bepp\b|conducao|comboio|4x4/, GRUPO_EPP],
+    [/pilotagem|\bcpp\b/, 'Curso de Pilotagem Policial'],
+    [/produtos perigosos|\bpp\b/, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)'],
+    [/alta energia|armas portateis/, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia'],
+    [/velado/, 'Curso de Credenciamento para o Serviço de Policiamento Velado'],
+    [/gepam/, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM'],
+    [/progea|educacao ambiental/, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA'],
+    [/meio ambiente|ambiental/, 'Curso de Policiamento de Meio Ambiente'],
+    [/guarda/, 'Curso de Policiamento de Guardas']
+  ];
+  for (const [re, nome] of regras) if (re.test(t)) return nome;
+  return '';
+}
+
+/** Cidade sugerida: o que vem depois do " - " no nome da turma, ou o local (se não for unidade). */
+function cidadePadrao_(turma, local) {
+  const naoCidade = /turma|\bbpm|\bcpe\b|bpgd|ambiente|interior|semad|convenio|\bcia\b|^\s*$/i;
+  const partes = String(turma).split(/\s[-–]\s/);
+  const cand = [partes.length > 1 ? partes[partes.length - 1] : '', local];
+  for (const c of cand) if (c && !naoCidade.test(semAcento_(c))) return c.trim();
+  return '';
+}
+
+/**
+ * Preenche, no Cadastro de Turmas, as colunas "Curso (SiGE)" e "Cidade"
+ * que estiverem vazias com a sugestão do painel (nome oficial do curso,
+ * sem o ano da matriz curricular). Não altera o que já foi preenchido.
+ */
+function preencherCursos(aplicar, ano) {
+  const ss = planilha_(ano);
+  const cad = cadastro_(ss);
+  const v = cad.aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['id', 'curso', 'turma'], 6);
+  const c = cad.col, out = [];
+  for (let i = h + 1; i < v.length; i++) {
+    const turma = texto_(v[i][c['turma']]);
+    if (!turma) continue;
+    const curso = c['curso (sige)'] !== undefined ? texto_(v[i][c['curso (sige)']]) : '';
+    const cidade = c['cidade'] !== undefined ? texto_(v[i][c['cidade']]) : '';
+    const sCurso = curso ? '' : grupoPadrao_([v[i][c['curso']], turma].join(' '));
+    const sCidade = cidade ? '' : cidadePadrao_(turma, texto_(v[i][c['local/unidade']]));
+    if (sCurso || sCidade) out.push({ linha: i + 1, turma: turma, curso: sCurso, cidade: sCidade });
+  }
+  if (aplicar && out.length) {
+    const colC = colunaCadastro_(cad, 'curso (sige)', 'Curso (SiGE)'), colD = colunaCadastro_(cad, 'cidade', 'Cidade');
+    out.forEach(x => {
+      if (x.curso) cad.aba.getRange(x.linha, colC + 1).setValue(x.curso);
+      if (x.cidade) cad.aba.getRange(x.linha, colD + 1).setValue(x.cidade);
+    });
+    historico_(ss, CONFIG.ABA_CADASTRO, '', '', '', 'Curso (SiGE) e cidade preenchidos', out.length + ' turma(s)');
+    SpreadsheetApp.flush();
+    limparCache();
+  }
+  return out.map(x => x.turma + ' → ' + [x.curso, x.cidade].filter(Boolean).join(' · '));
+}
+
+function preencherCursosUi() {
+  const ui = SpreadsheetApp.getUi();
+  const lista = preencherCursos(false);
+  if (!lista.length) return ui.alert('Curso (SiGE) e cidade', 'Todas as turmas já estão preenchidas.', ui.ButtonSet.OK);
+  const ok = ui.alert('Curso (SiGE) e cidade', lista.length + ' turma(s) receberão a sugestão (as vazias; o resto fica como está):\n\n' + lista.join('\n') + '\n\nAplicar?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  preencherCursos(true);
+  ui.alert('Curso (SiGE) e cidade', '✓ Preenchido. Confira as colunas no fim do Cadastro de Turmas e atualize o painel.', ui.ButtonSet.OK);
+}
+
+/* ================================================================== */
 /* Correção das referências das etapas                                 */
 /* ================================================================== */
 
@@ -1307,7 +1523,7 @@ function reescreverFormula_(formula, abaAtual, regras) {
 function corrigirReferencias(aplicar, ano) {
   const ss = planilha_(ano);
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO]
     .concat(CONFIG.ABAS_IGNORADAS);
   const correcoes = [], manuais = [];
 

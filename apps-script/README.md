@@ -89,3 +89,16 @@ de cada etapa apontam para a linha da própria turma no resumo do topo da aba (e
 Linhas copiadas costumam apontar para a turma vizinha ou para uma linha vazia (prazo em 1899).
 Mostra a lista do que vai mudar e só grava se você confirmar; cada correção fica no Histórico Painel.
 Prazos digitados à mão (sem fórmula) são apenas listados para correção manual.
+
+## Resolução, curso no SiGE, cidade e matriculados
+
+- **Aba "Resolução"** (criada pelo painel na primeira leitura, já com 2026 e 2027 do SiGE):
+  Ano | ID SiGE | Curso | Grupo no painel | Unidade | Turmas | Alunos | Status. Os nomes ficam sem o ano da
+  matriz curricular ("2022 atualizada"). Condução Defensiva, Condução 4x4 e Deslocamento de Comboio têm o
+  grupo *Estágio de Pilotagem Policial (EPP)*, porque são executados juntos.
+- **Cadastro de Turmas** ganha as colunas *Curso (SiGE)* e *Cidade* (editáveis no detalhe da turma). Vazias,
+  o painel usa uma sugestão; o menu **📊 Painel › Preencher curso (SiGE) e cidade das turmas** grava as sugestões.
+- **Formandos** ganha a coluna *Matriculados* (editável). Vazia, o painel mostra a estimativa da Resolução
+  (alunos ÷ turmas). A tela Formandos compara Resolução × planilha por curso.
+- **Criar o ano seguinte**: o formulário lista as turmas por curso ao lado da Resolução do ano novo; as
+  desmarcadas entram canceladas ("Não prevista na Resolução") e os matriculados já vêm estimados.
