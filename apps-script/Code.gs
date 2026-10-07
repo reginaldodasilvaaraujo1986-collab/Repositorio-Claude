@@ -55,6 +55,7 @@ function onOpen() {
     .createMenu('📊 Painel')
     .addItem('Abrir painel', 'abrirPainel')
     .addItem('Diagnóstico da leitura', 'diagnosticarUi')
+    .addItem('Corrigir datas das etapas', 'corrigirReferenciasUi')
     .addSeparator()
     .addItem('Limpar cache', 'limparCache')
     .addToUi();
@@ -1290,6 +1291,103 @@ function reescreverFormula_(formula, abaAtual, regras) {
     });
   }
   return partes.join('"');
+}
+
+/* ================================================================== */
+/* Correção das referências das etapas                                 */
+/* ================================================================== */
+
+/**
+ * Em cada bloco de etapas, Início, Término e Prazo sugerido devem apontar
+ * para a linha da própria turma no resumo do topo da aba (ex.: =B5, =C5,
+ * =B5-25). Linhas copiadas/inseridas costumam "andar" a referência para a
+ * turma vizinha ou para uma linha vazia (o prazo vira 1899).
+ * Com aplicar=false só lista o que mudaria.
+ */
+function corrigirReferencias(aplicar, ano) {
+  const ss = planilha_(ano);
+  const af = abaFormandos_(ss);
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO]
+    .concat(CONFIG.ABAS_IGNORADAS);
+  const correcoes = [], manuais = [];
+
+  ss.getSheets().forEach(aba => {
+    const nome = aba.getName();
+    if (fixas.indexOf(nome) >= 0) return;
+    const rng = aba.getDataRange(), v = rng.getValues(), f = rng.getFormulas();
+    const hResumo = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+    if (hResumo < 0) return;
+    const cr = indice_(v[hResumo]);
+    if (cr['inicio'] === undefined || cr['termino'] === undefined) return;
+
+    const resumo = [];
+    for (let i = hResumo + 1; i < v.length && texto_(v[i][0]); i++) resumo.push(i + 1);
+    const blocos = [];
+    for (let i = hResumo + 1; i < v.length; i++) {
+      const linha = v[i].map(x => semAcento_(x));
+      if (linha[0] === 'fase' && linha.indexOf('etapa') >= 0 && linha.indexOf('status') >= 0) blocos.push({ linhaCab: i, col: indice_(v[i]) });
+    }
+    if (!blocos.length || blocos.length !== resumo.length) {
+      if (blocos.length) manuais.push(nome + ': ' + resumo.length + ' turma(s) no resumo e ' + blocos.length + ' bloco(s) — confira manualmente.');
+      return;
+    }
+    // área do resumo: da 1ª turma até a linha antes do 1º bloco (inclui as linhas vazias)
+    const areaIni = hResumo + 2, areaFim = blocos[0].linhaCab - 1;
+    const letraIni = letra_(cr['inicio'] + 1), letraFim = letra_(cr['termino'] + 1);
+
+    blocos.forEach((b, k) => {
+      const R = resumo[k], col = b.col;
+      const fimBloco = k + 1 < blocos.length ? blocos[k + 1].linhaCab - 1 : v.length;
+      const regras = [{ aba: null, de: areaIni, ate: areaFim, para: R }];
+      for (let i = b.linhaCab + 1; i < fimBloco; i++) {
+        const etapa = texto_(v[i][col['etapa']]);
+        if (!etapa) continue;
+        [['inicio', '=' + letraIni + R], ['termino', '=' + letraFim + R], ['prazo sugerido', null]].forEach(([chave, padrao]) => {
+          const c = col[chave];
+          if (c === undefined) return;
+          const atual = f[i][c];
+          let nova = null;
+          if (atual && padrao && /^=\$?[A-Z]{1,3}\$?\d+$/.test(atual)) nova = padrao; // =B6 → =B5
+          else if (atual && new RegExp('^=\\$?(' + letraIni + '|' + letraFim + ')\\$?\\d+\\s*[+-]\\s*\\d+$').test(atual)) nova = atual.replace(/\d+(?=\s*[+-])/, String(R)); // =B6-25 → =B5-25
+          else if (atual) nova = reescreverFormula_(atual, nome, regras);
+          else if (padrao) nova = padrao;
+          else if (v[i][c] !== '') manuais.push(nome + '!' + letra_(c + 1) + (i + 1) + ' ("' + etapa + '"): prazo digitado (' + texto_(v[i][c]) + '); use =' + letraIni + R + '-dias.');
+          if (!nova || nova === atual) return;
+          correcoes.push({ aba: aba, nome: nome, cel: letra_(c + 1) + (i + 1), linha: i + 1, etapa: etapa, de: atual || texto_(v[i][c]), para: nova });
+        });
+      }
+    });
+  });
+
+  if (aplicar && correcoes.length) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      correcoes.forEach(x => {
+        x.aba.getRange(x.cel).setFormula(x.para);
+        historico_(ss, x.nome, x.linha, '', x.etapa, 'Correção de referência', x.cel + ': ' + x.de + ' → ' + x.para);
+      });
+      SpreadsheetApp.flush();
+      limparCache();
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  return {
+    correcoes: correcoes.map(x => x.nome + '!' + x.cel + ' ("' + x.etapa + '"): ' + x.de + ' → ' + x.para),
+    manuais: manuais
+  };
+}
+
+function corrigirReferenciasUi() {
+  const ui = SpreadsheetApp.getUi();
+  const r = corrigirReferencias(false);
+  const extra = r.manuais.length ? '\n\nCorrigir à mão:\n' + r.manuais.join('\n') : '';
+  if (!r.correcoes.length) return ui.alert('Datas das etapas', 'Nenhuma referência errada encontrada.' + extra, ui.ButtonSet.OK);
+  const ok = ui.alert('Datas das etapas', r.correcoes.length + ' célula(s) serão corrigidas:\n\n' + r.correcoes.join('\n') + extra + '\n\nAplicar?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  corrigirReferencias(true);
+  ui.alert('Datas das etapas', '✓ ' + r.correcoes.length + ' célula(s) corrigidas. Atualize o painel.', ui.ButtonSet.OK);
 }
 
 /* ================================================================== */

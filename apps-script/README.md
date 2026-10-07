@@ -81,3 +81,11 @@ O painel avisa quando um prazo sai como data inválida (ano < 1950). Na versão 
 
 - `Pilotagem!D156` = `=B8-25` → deveria ser `=B7-25`
 - `Produtos Perigosos!D65` = `=B6-25` → deveria ser `=B5-25`
+
+## Corrigir datas das etapas
+
+Menu **📊 Painel › Corrigir datas das etapas** (na planilha): confere se Início, Término e Prazo sugerido
+de cada etapa apontam para a linha da própria turma no resumo do topo da aba (ex.: `=B5`, `=C5`, `=B5-25`).
+Linhas copiadas costumam apontar para a turma vizinha ou para uma linha vazia (prazo em 1899).
+Mostra a lista do que vai mudar e só grava se você confirmar; cada correção fica no Histórico Painel.
+Prazos digitados à mão (sem fórmula) são apenas listados para correção manual.
