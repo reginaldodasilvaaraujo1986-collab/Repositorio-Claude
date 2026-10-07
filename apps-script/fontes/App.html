@@ -191,6 +191,7 @@
     S.idx = {}; S.turmaIdx = {};
     d.turmas.forEach(t => { t.sit = sitKey(t.situacao); S.turmaIdx[t.id] = t; });
     d.etapas.forEach(e => { S.idx[e.id] = e; });
+    prepararNomes();
     recalcular();
     montarFiltros();
     $('#brandSub').textContent = 'AET/CPE · ' + anoRef();
@@ -206,6 +207,21 @@
     render();
     if (S.drawer) abrirTurma(S.drawer);
   }
+
+  /**
+   * Nomes de exibição: o painel ignora o nome da turma na planilha e mostra
+   * o curso do SiGE + a cidade (ou "2ª turma" quando não há cidade).
+   * O nome da planilha (t.turma) continua sendo usado só para gravar.
+   */
+  function prepararNomes() {
+    const g = {};
+    S.dados.turmas.forEach(t => { (g[nomeCurso(t)] = g[nomeCurso(t)] || []).push(t); });
+    Object.keys(g).forEach(k => g[k].sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)))
+      .forEach((t, i, arr) => { t.onde = t.cidade || (arr.length > 1 ? (i + 1) + 'ª turma' : ''); }));
+  }
+  const nomeLongo = t => t ? nomeCurso(t) + (t.onde ? ' — ' + t.onde : '') : '';
+  const nomeCurto = t => t ? cursoCurto(nomeCurso(t)) + (t.onde ? ' · ' + t.onde : '') : '';
+  const nomeDaEtapa = e => nomeCurto(S.turmaIdx[e.turmaId]) || curto(e.turma);
 
   /** Estatísticas por turma, recalculadas sempre que um status muda. */
   function recalcular() {
@@ -337,7 +353,7 @@
     const b = norm(S.f.busca);
     return S.dados.etapas.filter(e => ok[e.turmaId] &&
       (!S.f.resp || e.responsavel === S.f.resp) &&
-      (!comBusca || !b || norm([e.etapa, e.turma, e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
+      (!comBusca || !b || norm([e.etapa, e.turma, nomeLongo(S.turmaIdx[e.turmaId]), e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
   }
   function formandosF() {
     let f = S.dados.formandos || [];
@@ -397,7 +413,7 @@
       kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
       kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próximo prazo: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
       kpi('Formados', soma(formandosF(), x => x.formados), '', 'militares em ' + anoRef(), 'formandos'),
-      proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(proxima.turma), null, '', '', proxima.id)
+      proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(nomeCurto(proxima)), null, '', '', proxima.id)
               : kpi('Próxima turma', '—', '', 'nenhuma prevista')
     ].join('');
 
@@ -433,8 +449,8 @@
       const pctA = a.antesTot ? a.antesFeito / a.antesTot * 100 : 0;
       return '<div class="prox ' + (emExec ? 'exec' : '') + '" data-turma="' + t.id + '">' +
         blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
-        '<div class="prox-c"><div class="prox-t" title="' + esc(t.turma) + '">' + esc(t.turma) + '</div>' +
-        '<div class="prox-s">' + esc(cursoCurto(nomeCurso(t))) + ' · ' + esc(t.cidade || t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
+        '<div class="prox-c"><div class="prox-t" title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurso(t)) + '</div>' +
+        '<div class="prox-s">' + (t.onde ? '<b>' + esc(t.onde) + '</b> · ' : '') + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
         '<div class="prox-a"><span class="sublabel">Etapas</span>' +
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
         '<span class="pct">' + a.antesFeito + '/' + a.antesTot + '</span>' +
@@ -464,7 +480,7 @@
 
     const marcaPrazo = (pz, iso) => pz.length
       ? '<span class="cal-pz ' + (iso < hojeIso ? 'late' : iso <= isoDe(new Date(HOJE.getTime() + 7 * DIA)) ? 'soon' : '') + '" data-tip="<b>' + pz.length + ' prazo(s) de etapa</b>' +
-        pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(curto(e.turma))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
+        pz.slice(0, 6).map(e => esc(e.etapa) + ' — ' + esc(nomeDaEtapa(e))).join('<br>') + (pz.length > 6 ? '<br>…' : '') + '">⚑ ' + pz.length + '</span>'
       : '';
     const MAX_FAIXAS = semanas > 5 ? 3 : 4;
 
@@ -504,8 +520,8 @@
       const barras = trechos.filter(x => x.f < nF).map(x => {
         const t = x.t, contE = t.inicio < ini, contD = t.fim > fim;
         return '<span class="cal-bar ' + t.sit + (contE ? ' cont-e' : '') + (contD ? ' cont-d' : '') + '" style="grid-column:' + (x.a + 1) + ' / ' + (x.b + 2) + ';grid-row:' + (x.f + 2) +
-          '" data-turma="' + t.id + '" data-tip="<b>' + esc(t.turma) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' +
-          '<span>' + (contE ? '‹ ' : '') + esc(x.b - x.a >= 3 ? t.turma : curto(t.turma)) + (contD ? ' ›' : '') + '</span></span>';
+          '" data-turma="' + t.id + '" data-tip="<b>' + esc(nomeLongo(t)) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' +
+          '<span>' + (contE ? '‹ ' : '') + esc(x.b - x.a >= 3 ? nomeLongo(t) : nomeCurto(t)) + (contD ? ' ›' : '') + '</span></span>';
       }).join('');
       linhas += '<div class="cal-sem" style="grid-template-rows:var(--cal-n, 22px) repeat(' + nF + ', auto) 1fr">' + cel + barras + '</div>';
     }
@@ -536,7 +552,7 @@
       const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
       return '<div class="pz' + (apagada ? ' apagada' : '') + '" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
         '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
-        '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(curto(e.turma)) +
+        '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(nomeDaEtapa(e)) +
         (apagada ? ' · ' + titulo(e.fase) : '') + '</span></div></div>' + seletor(e) + '</div>';
     };
     const divisor = txt => '<div class="pz-div grp">' + txt + '</div>';
@@ -571,7 +587,7 @@
       .sort((a, b) => a.inicio.localeCompare(b.inicio))
       .map(t => ({
         periodo: t.inicio.slice(0, 7) === t.fim.slice(0, 7) ? t.inicio.slice(8, 10) + ' a ' + doisDig(t.fim) : doisDig(t.inicio) + ' a ' + doisDig(t.fim),
-        treinamento: t.turma, vagas: '', local: t.local, turma: t, inicio: t.inicio
+        treinamento: nomeLongo(t), vagas: '', local: t.local, turma: t, inicio: t.inicio
       }));
   }
 
@@ -650,7 +666,7 @@
       inicio: (a, b) => String(a.inicio).localeCompare(String(b.inicio)),
       progresso: (a, b) => a.st.pct - b.st.pct,
       vencidas: (a, b) => b.st.venc - a.st.venc,
-      nome: (a, b) => a.turma.localeCompare(b.turma, 'pt-BR')
+      nome: (a, b) => nomeLongo(a).localeCompare(nomeLongo(b), 'pt-BR')
     }[S.turmasOrdem];
     const ts = turmasF().slice().sort(ord);
 
@@ -665,9 +681,9 @@
     if (S.turmasModo === 'tabela') {
       const cols = 'grid-template-columns:minmax(0,2.4fr) minmax(0,1fr) minmax(0,1fr) 84px 84px 112px 64px minmax(110px,1fr) 64px 70px';
       return barraFerr + '<div class="card flush panel grow">' +
-        '<div class="gt-head" style="' + cols + '"><span>Turma</span><span>Curso</span><span>Cidade</span><span>Início</span><span>Término</span><span>Situação</span><span>Etapas</span><span>Conclusão</span><span>Vencidas</span><span>Formados</span></div>' +
+        '<div class="gt-head" style="' + cols + '"><span>Curso</span><span>Cidade / turma</span><span>Unidade</span><span>Início</span><span>Término</span><span>Situação</span><span>Etapas</span><span>Conclusão</span><span>Vencidas</span><span>Formados</span></div>' +
         caixa('turmas-tabela', ts.map(t =>
-          '<div class="gt-row click" style="' + cols + '" data-turma="' + t.id + '"><b title="' + esc(t.turma) + '">' + esc(t.turma) + '</b><span title="' + esc(nomeCurso(t)) + '">' + esc(cursoCurto(nomeCurso(t))) + '</span><span>' + esc(t.cidade || t.local) + '</span>' +
+          '<div class="gt-row click" style="' + cols + '" data-turma="' + t.id + '"><b title="' + esc(nomeCurso(t)) + '">' + esc(nomeCurso(t)) + '</b><span>' + esc(t.onde || '—') + '</span><span>' + esc(t.unidade || '') + '</span>' +
           '<span class="mono">' + fmtAno(t.inicio) + '</span><span class="mono">' + fmtAno(t.fim) + '</span><span>' + pillSit(t.sit) + '</span>' +
           '<span class="mono">' + t.st.feito + '/' + t.st.total + '</span><span style="display:flex;gap:8px;align-items:center">' + barra(t.st) + '<span class="pct">' + Math.round(t.st.pct) + '%</span></span>' +
           '<span class="mono" style="color:' + (t.st.venc ? 'var(--danger)' : 'inherit') + '">' + (t.st.venc || '—') + '</span><span class="mono">' + (t.formados != null ? t.formados : '—') + '</span></div>').join('')) +
@@ -678,7 +694,7 @@
       const n = t.sit === 'plan' ? dias(t.inicio) : null;
       return '<div class="card tcard" data-turma="' + t.id + '">' +
         '<div class="top"><span><span class="tag" title="' + esc(nomeCurso(t)) + '">' + esc(cursoCurto(nomeCurso(t))) + '</span> <span class="tag un">' + esc(t.unidade || '') + '</span></span>' + pillSit(t.sit) + '</div>' +
-        '<div><h3 title="' + esc(t.turma) + '">' + esc(t.turma) + '</h3><div class="s">' + esc(t.cidade || t.local) + ' · ' + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
+        '<div><h3 title="' + esc(nomeCurso(t)) + '">' + esc(nomeCurso(t)) + '</h3><div class="s">' + (t.onde ? '<b>' + esc(t.onde) + '</b> · ' : '') + fmt(t.inicio) + ' a ' + fmtAno(t.fim) +
         (t.duracao ? ' · ' + t.duracao + 'd' : '') + (n !== null && n >= 0 ? ' · começa ' + relativo(n) : '') + '</div></div>' +
         '<div>' + barra(t.st) + '<div class="nums" style="margin-top:6px"><span><b>' + t.st.feito + '</b> feitas · <b>' + t.st.exec + '</b> exec. · <b>' + t.st.pend + '</b> pend.</span><span class="pct">' + Math.round(t.st.pct) + '%</span></div></div>' +
         '<div class="foot-line"><div class="flags">' + bandeiras(t) + '</div>' +
@@ -718,7 +734,7 @@
         '<div class="gt-head" style="' + cols + '">' + cab.map(([c, l]) => '<span data-sort="' + c + '" class="' + (k === c ? 'sorted' + (S.tbl.asc ? ' asc' : '') : '') + '">' + l + '</span>').join('') + '</div>' +
         caixa('etapas-tabela', lista.map(e =>
           '<div class="gt-row" style="' + cols + '"><span><span class="mono">' + fmt(e.prazo) + '</span> ' + badgeDias(e) + '</span>' +
-          '<span title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</span><a href="#" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</a>' +
+          '<span title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</span><a href="#" data-turma="' + e.turmaId + '">' + esc(nomeDaEtapa(e)) + '</a>' +
           '<span><span class="tag">' + esc(e.fase) + '</span></span><span>' + seletorResp(e) + '</span>' +
           '<span class="dim">' + esc(e.documento) + '</span><span class="b-r">' + seletor(e) + (S.dados.podeEditar ? botaoEditar(e.id) : '') + '</span></div>').join('') || '<div class="empty">Nenhuma etapa.</div>') +
         '</div>';
@@ -735,7 +751,7 @@
       return '<div class="col ' + c.k + '"><div class="col-head"><span>' + c.l + '</span><span class="count">' + itens.length + '</span>' + pager('col-' + c.k) + '</div>' +
         caixa('col-' + c.k, itens.map(e =>
           '<div class="ecard"><div class="t">' + esc(e.etapa) + '</div>' +
-          '<div class="s2"><span class="s" data-turma="' + e.turmaId + '">' + esc(curto(e.turma)) + '</span>' + seletorResp(e) + '</div>' +
+          '<div class="s2"><span class="s" data-turma="' + e.turmaId + '">' + esc(nomeDaEtapa(e)) + '</span>' + seletorResp(e) + '</div>' +
           '<div class="b">' + badgeDias(e) + '<span class="b-r">' + seletor(e) + (S.dados.podeEditar ? botaoEditar(e.id) : '') + '</span></div></div>').join('') || '<div class="empty">Nada aqui.</div>') + '</div>';
     }).join('') + '</div>';
   }
@@ -789,7 +805,7 @@
       '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">edite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
       '<div class="gt-head" style="' + colsT + ';margin-top:8px"><span>Curso</span><span>Turma</span><span style="text-align:right">Matriculados</span><span style="text-align:right">Formados</span><span></span></div>' +
       caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + colsT + (x.formados ? '' : ';color:var(--ink-3)') + '">' +
-        '<span title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoCurto(cursoDoFormando(x))) + '</span><span title="' + esc(x.local) + '">' + esc(x.turma) + (x.local && x.local !== x.turma ? ' <small class="dim">' + esc(x.local) + '</small>' : '') + '</span>' +
+        '<span title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoCurto(cursoDoFormando(x))) + '</span><span title="' + esc(x.turma + (x.local ? ' · ' + x.local : '')) + '">' + esc((turmaDoFormando(x) && turmaDoFormando(x).onde) || x.turma) + '</span>' +
         '<span style="text-align:right">' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</span>' +
         '<span style="text-align:right">' + num(x, 'formados', x.formados) + '</span><span class="mono dim" style="text-align:right">' + pct(x) + '</span></div>').join('')) +
       '</div></div>';
@@ -847,8 +863,8 @@
     const cabecalho =
       '<div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="tag" title="Curso no SiGE">' + esc(cursoCurto(nomeCurso(t))) + '</span>' +
       (t.unidade ? '<span class="tag un" title="Unidade executora">' + esc(t.unidade) + '</span>' : '') + pillSit(t.sit) + '</div>' +
-      '<h2>' + esc(t.turma) + '</h2><div class="sub"><b>' + esc(nomeCurso(t)) + '</b><br>' + (t.cidade ? esc(t.cidade) + ' · ' : '') + (t.local && t.local !== t.cidade ? esc(t.local) + ' · ' : '') + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
-      (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + (link ? '<br><a href="' + esc(link) + '" target="_blank" rel="noopener">abrir na planilha ↗</a>' : '') + '</div>' +
+      '<h2>' + esc(nomeCurso(t)) + '</h2><div class="sub">' + (t.onde ? '<b>' + esc(t.onde) + '</b> · ' : '') + (t.local && t.local !== t.cidade ? esc(t.local) + ' · ' : '') + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) +
+      (t.duracao ? ' · ' + t.duracao + ' dia(s)' : '') + '<br><small class="dim">na planilha: ' + esc(t.turma) + '</small>' + (link ? ' · <a href="' + esc(link) + '" target="_blank" rel="noopener">abrir ↗</a>' : '') + '</div>' +
       (pode && !editandoTurma ? '<button class="btn small" data-acao="editar-turma" style="margin-top:8px">✎ Editar curso, cidade, datas ou cancelar</button>' : '') + '</div>';
 
     const resumo =
@@ -993,7 +1009,7 @@
         '<div class="form" style="margin-top:18px">' +
           '<div class="form g2" style="margin-top:0">' +
             campoSel('Curso (aba da planilha)', 'aba', c.aba, cursos.map(x => [x.aba, x.curso + (x.curso !== x.aba ? ' · aba ' + x.aba : '')])) +
-            campoSel('Copiar o checklist de', 'modelo', c.modelo, modelos.map(t => [t.turma, t.turma + ' (' + fmt(t.inicio) + ')'])) +
+            campoSel('Copiar o checklist de', 'modelo', c.modelo, modelos.map(t => [t.turma, nomeCurto(t) + ' (' + fmt(t.inicio) + ')'])) +
           '</div>' +
           campoSel('Curso (nome no SiGE)', 'cursoOficial', c.cursoOficial, [['', '—']].concat(cursosOficiais().map(n => [n, n]))) +
           '<div class="form g2" style="margin-top:0">' + campo('Nome da turma', 'nome', c.nome, 'text', ' placeholder="Ex.: IVD - Juiz de Fora"') +
@@ -1016,7 +1032,7 @@
       const linhaPlano = p => '<div class="ano-curso' + (p.r ? '' : ' fora') + '"><div class="ano-c-h"><b title="' + esc(p.grupo) + '">' + esc(p.grupo) + '</b>' +
         '<span class="mono ' + (p.ok ? 'ok' : 'warn') + '">' + (p.r ? p.marcadas + ' / ' + p.r.turmas + ' turma(s) · ' + p.r.alunos + ' alunos' + (p.est ? ' · ~' + p.est + '/turma' : '') : 'fora da Resolução ' + novo) + '</span></div>' +
         '<div class="ano-c-t">' + (p.turmas.length ? p.turmas.map(t => '<label class="chk-t"><input type="checkbox" data-manter="' + t.id + '"' + (c.manter.indexOf(t.id) >= 0 ? ' checked' : '') + (S.salvando ? ' disabled' : '') + '>' +
-          '<span title="' + esc(t.turma) + '">' + esc(t.cidade || t.turma) + ' <small>' + fmt(t.inicio) + '</small></span></label>').join('')
+          '<span title="' + esc(t.turma) + '">' + esc(t.onde || cursoCurto(nomeCurso(t))) + ' <small>' + fmt(t.inicio) + '</small></span></label>').join('')
           : '<span class="dim">Sem turma no espelho — inclua depois com <b>＋ Nova turma</b> (ou crie a aba do curso).</span>') + '</div></div>';
       html = '<h2>Criar o ano de ' + novo + '</h2><div class="sub">Cópia completa da planilha de ' + origem + ' (que não é alterada), já ajustada à <b>Resolução ' + novo + '</b>' +
         (nRes ? '' : ' — <span style="color:var(--danger)">a aba Resolução ainda não tem cursos de ' + novo + '</span>') +
@@ -1268,7 +1284,7 @@
       turma: t.turma, inicio: c.inicio, fim: c.fim, local: c.local, unidade: c.unidade, observacoes: c.observacoes, cursoOficial: c.cursoOficial, cidade: c.cidade
     }, () => {
       Object.assign(t, { inicio: c.inicio, fim: c.fim, local: c.local.trim(), unidade: c.unidade || t.unidade, observacoes: c.observacoes.trim(), cursoOficial: c.cursoOficial || t.cursoOficial, cidade: c.cidade.trim() });
-      montarFiltros();
+      prepararNomes(); montarFiltros();
       t.duracao = Math.round((dt(c.fim) - dt(c.inicio)) / DIA) + 1;
       if (t.sit !== 'canc') t.sit = sitPorDatas(t);
       S.edit = null;
@@ -1333,11 +1349,11 @@
     let cab, linhas, nome;
     if (S.view === 'etapas') {
       cab = ['Prazo', 'Etapa', 'Fase', 'Status', 'Responsável', 'Turma', 'Curso', 'Documento', 'Observações', 'Aba', 'Linha'];
-      linhas = etapasF().map(e => [fmtAno(e.prazo), e.etapa, e.fase, e.status, e.responsavel, e.turma, e.curso, e.documento, e.observacoes, e.aba, e.linha]);
+      linhas = etapasF().map(e => [fmtAno(e.prazo), e.etapa, e.fase, e.status, e.responsavel, nomeLongo(S.turmaIdx[e.turmaId]) || e.turma, nomeCurso(S.turmaIdx[e.turmaId]) || e.curso, e.documento, e.observacoes, e.aba, e.linha]);
       nome = 'etapas';
     } else {
       cab = ['Turma', 'Curso', 'Unidade executora', 'Local', 'Início', 'Término', 'Situação', 'Etapas', 'Concluídas', 'Em execução', 'Pendentes', 'Vencidas', '% Conclusão', 'Formados'];
-      linhas = turmasF().map(t => [t.turma, t.curso, t.unidade, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
+      linhas = turmasF().map(t => [nomeLongo(t), nomeCurso(t), t.unidade, t.local, fmtAno(t.inicio), fmtAno(t.fim), SIT[t.sit].label, t.st.total, t.st.feito, t.st.exec, t.st.pend, t.st.venc, Math.round(t.st.pct), t.formados == null ? '' : t.formados]);
       nome = 'turmas';
     }
     const csv = '\ufeff' + [cab].concat(linhas).map(l => l.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
