@@ -111,3 +111,14 @@ de etapas na mesma ordem. Antes de mover, corrige referências de etapas que apo
 Cadastro de Turmas e Painel Geral passam a apontar para as abas novas; a planilha original não é alterada.
 O painel passa a abrir a cópia para o ano (registro em Propriedades do script › ANOS). Os quadros auxiliares
 "Controle especial — diárias" que ficavam ao lado do resumo de algumas abas não são levados.
+
+## Equipe da seção (responsáveis)
+
+- A lista oficial fica na aba **Listas**, coluna *Responsáveis AET*; no painel, botão **👥 Equipe da seção**
+  (barra lateral) para incluir/remover integrantes. O filtro de responsáveis e o seletor de cada etapa
+  mostram só essa lista (+ "Sem responsável definido").
+- Menu **📊 Painel › Padronizar responsáveis das etapas**: variações ("Flávia", "Sgt Flavia", "AsPM Maurício")
+  viram o nome da lista; o que não é da equipe ("AET", "Coordenação"...) fica vazio — quando não é só "AET",
+  o texto antigo é anotado nas Observações da etapa ("Responsável anterior: …"). A coluna Responsável ganha
+  lista de seleção ligada à aba Listas.
+- A **planilha nova por unidade** já sai com essas correções (e com curso SiGE/cidade preenchidos).

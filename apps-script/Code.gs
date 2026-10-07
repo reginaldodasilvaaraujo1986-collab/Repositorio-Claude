@@ -58,8 +58,9 @@ function onOpen() {
     .addItem('Diagnóstico da leitura', 'diagnosticarUi')
     .addItem('Corrigir datas das etapas', 'corrigirReferenciasUi')
     .addItem('Preencher curso (SiGE) e cidade das turmas', 'preencherCursosUi')
+    .addItem('Padronizar responsáveis das etapas', 'padronizarResponsaveisUi')
     .addSeparator()
-    .addItem('Reorganizar por unidade (cria cópia)', 'reorganizarPorUnidadeUi')
+    .addItem('Criar planilha nova (por unidade, já corrigida)', 'reorganizarPorUnidadeUi')
     .addSeparator()
     .addItem('Limpar cache', 'limparCache')
     .addToUi();
@@ -297,6 +298,25 @@ function reativarTurma(req) {
     if (nota.indexOf(NOTA_FORMULA) === 0) cel.clearNote();
     historico_(ss, CONFIG.ABA_CADASTRO, req.linhaCadastro, req.turma, '', 'Turma reativada', '');
     return { ok: true };
+  }, req.ano);
+}
+
+/**
+ * Grava a equipe da seção (coluna "Responsáveis AET" da aba Listas).
+ * A lista de seleção da coluna Responsável das etapas usa esse intervalo.
+ */
+function salvarResponsaveis(req) {
+  return comTrava_(ss => {
+    const lista = (req.lista || []).map(x => String(x || '').trim()).filter(Boolean);
+    if (!lista.length) throw new Error('Informe ao menos um nome.');
+    const col = colunaResponsaveisListas_(ss);
+    const aba = ss.getSheetByName(CONFIG.ABA_LISTAS);
+    const antes = lerResponsaveis_(ss);
+    const n = Math.max(antes.length, lista.length, 1);
+    aba.getRange(2, col + 1, n, 1).setValues(Array.from({ length: n }, (_, i) => [lista[i] || '']));
+    validacaoResponsaveis_(ss);
+    historico_(ss, CONFIG.ABA_LISTAS, '', '', '', 'Equipe atualizada', antes.join(', ') + ' → ' + lista.join(', '));
+    return { ok: true, lista: lista };
   }, req.ano);
 }
 
@@ -1539,6 +1559,9 @@ function reorganizarPorUnidade(req) {
 
     corrigirReferencias(true, ss); // referências tortas viram #REF ao mover; acerta antes
     const r = reorganizar_(ss, ano);
+    // Correções de cadastro na planilha nova: curso do SiGE, cidade e responsáveis padronizados.
+    r.cursos = preencherCursos(true, ss).length;
+    r.responsaveis = padronizarResponsaveis(true, ss).total;
 
     if (req.registrar) registrarAno_(ano, ss.getId());
     SpreadsheetApp.flush();
@@ -1556,6 +1579,8 @@ function reorganizarPorUnidadeUi() {
   const ok = ui.alert('Reorganizar por unidade',
     'Será criada uma CÓPIA desta planilha com uma aba por unidade executora (' + CONFIG.UNIDADES.join(', ') + '), ' +
     'turmas em ordem de data, cada uma com seu checklist completo.\n\n' +
+    'Na cópia também são corrigidos: datas de etapas que apontavam para outra turma, curso (SiGE) e cidade das turmas, ' +
+    'e responsáveis das etapas (só a equipe da aba Listas, com lista de seleção).\n\n' +
     'Esta planilha não é alterada. O painel passa a abrir a cópia para ' + anoDaPlanilha_(ss) + '.\n\n' +
     'Leva cerca de 1 minuto. Continuar?', ui.ButtonSet.YES_NO);
   if (ok !== ui.Button.YES) return;
@@ -1563,6 +1588,7 @@ function reorganizarPorUnidadeUi() {
   ui.alert('Reorganizar por unidade', '✓ Criada: ' + r.nome + '\n\n' +
     r.abas.map(a => '• ' + a.aba + ': ' + a.turmas + ' turma(s)').join('\n') +
     '\n\nEtapas: ' + r.etapasDepois + ' (antes ' + r.etapasAntes + ')' +
+    '\nCurso (SiGE)/cidade preenchidos: ' + r.cursos + ' turma(s) · responsáveis corrigidos: ' + r.responsaveis + ' etapa(s)' +
     (r.semUnidade.length ? '\n\nAtenção — confira: ' + r.semUnidade.join(', ') : '') +
     '\n\nAbra pelo link (também em Arquivo › Abrir recentes):\n' + r.url, ui.ButtonSet.OK);
 }
@@ -1736,6 +1762,135 @@ function reorganizar_(ss, ano) {
   SpreadsheetApp.flush();
   const etapasDepois = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
   return { abas: resultado, etapasAntes: etapasAntes, etapasDepois: etapasDepois, removidas: nomesAntigos, semUnidade: semUnidade };
+}
+
+/* ================================================================== */
+/* Responsáveis (equipe da seção)                                      */
+/* ================================================================== */
+
+/** Índice (0-based) da coluna "Responsáveis AET" da aba Listas (cria aba/coluna se faltar). */
+function colunaResponsaveisListas_(ss) {
+  let aba = ss.getSheetByName(CONFIG.ABA_LISTAS);
+  if (!aba) { aba = ss.insertSheet(CONFIG.ABA_LISTAS); aba.getRange(1, 1).setValue('Responsáveis AET'); return 0; }
+  const cab = aba.getRange(1, 1, 1, Math.max(aba.getLastColumn(), 1)).getValues()[0];
+  const c = indice_(cab)['responsaveis aet'];
+  if (c !== undefined) return c;
+  const nova = larguraCabecalho_(cab);
+  aba.getRange(1, nova + 1).setValue('Responsáveis AET');
+  return nova;
+}
+
+/**
+ * Nome da equipe correspondente a um texto livre: "Flávia", "Sgt Flavia",
+ * "Coordenação/Flávia" → "Sgt Flávia". Compara pelo nome (última palavra),
+ * sem acento. Quem não é da equipe ("AET", "Coordenação"...) → vazio.
+ */
+function responsavelPadrao_(txt, equipe) {
+  const t = ' ' + semAcento_(txt).replace(/[^a-z0-9]+/g, ' ') + ' ';
+  if (!t.trim()) return '';
+  for (const nome of equipe) {
+    if (semAcento_(nome) === semAcento_(txt)) return nome;
+  }
+  const achados = equipe.filter(nome => {
+    const partes = semAcento_(nome).split(/\s+/);
+    return t.indexOf(' ' + partes[partes.length - 1] + ' ') >= 0;
+  });
+  return achados.length === 1 ? achados[0] : '';
+}
+
+/** Colunas Responsável de todos os blocos de etapas: [{aba, linha, n, col}] */
+function colunasResponsavel_(ss) {
+  const af = abaFormandos_(ss);
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
+  const out = [];
+  ss.getSheets().forEach(aba => {
+    if (fixas.indexOf(aba.getName()) >= 0) return;
+    const v = aba.getDataRange().getValues();
+    const cabs = [];
+    for (let i = 0; i < v.length; i++) {
+      const l = v[i].map(x => semAcento_(x));
+      if (l[0] === 'fase' && l.indexOf('etapa') >= 0 && l.indexOf('status') >= 0) cabs.push(i);
+    }
+    cabs.forEach((i, k) => {
+      const col = indice_(v[i]);
+      if (col['responsavel'] === undefined) return;
+      const fim = k + 1 < cabs.length ? cabs[k + 1] - 1 : ultimaLinhaComDados_(v);
+      let ultimo = i;
+      for (let r = i + 1; r < fim; r++) if (texto_(v[r][col['etapa']])) ultimo = r;
+      if (ultimo > i) out.push({ aba: aba, nome: aba.getName(), linha: i + 2, n: ultimo - i, col: col['responsavel'], colObs: col['observacoes'],
+        obs: col['observacoes'] === undefined ? [] : v.slice(i + 1, ultimo + 1).map(r => r[col['observacoes']]), valores: v.slice(i + 1, ultimo + 1).map(r => r[col['responsavel']]), etapas: v.slice(i + 1, ultimo + 1).map(r => texto_(r[col['etapa']])) });
+    });
+  });
+  return out;
+}
+
+/** Lista de seleção (só a equipe da aba Listas) nas colunas Responsável. */
+function validacaoResponsaveis_(ss) {
+  const colL = colunaResponsaveisListas_(ss);
+  const listas = ss.getSheetByName(CONFIG.ABA_LISTAS);
+  const intervalo = listas.getRange(2, colL + 1, 30, 1);
+  const regra = SpreadsheetApp.newDataValidation().requireValueInRange(intervalo, true).setAllowInvalid(false)
+    .setHelpText('Escolha um integrante da seção (lista na aba Listas).').build();
+  colunasResponsavel_(ss).forEach(b => b.aba.getRange(b.linha, b.col + 1, b.n, 1).setDataValidation(regra));
+}
+
+/**
+ * Padroniza a coluna Responsável das etapas para os nomes da equipe.
+ * Variações ("Flávia", "Sgt Flavia") viram o nome da lista; o que não é
+ * da equipe ("AET", "Coordenação"...) fica vazio para ser definido.
+ */
+function padronizarResponsaveis(aplicar, ano) {
+  const ss = ano && typeof ano === 'object' ? ano : planilha_(ano);
+  const equipe = lerResponsaveis_(ss);
+  if (!equipe.length) throw new Error('A aba Listas não tem a coluna "Responsáveis AET" preenchida.');
+  const trocas = {};
+  let total = 0;
+  const blocos = colunasResponsavel_(ss);
+  blocos.forEach(b => {
+    b.novos = b.valores.map((x, i) => {
+      if (!b.etapas[i]) return x;
+      const atual = texto_(x), novo = atual ? responsavelPadrao_(atual, equipe) : '';
+      if (novo !== atual) { const k = atual + ' → ' + (novo || '(vazio)'); trocas[k] = (trocas[k] || 0) + 1; total++; }
+      return novo;
+    });
+  });
+  if (aplicar) {
+    blocos.forEach(b => {
+      const rng = b.aba.getRange(b.linha, b.col + 1, b.n, 1);
+      rng.clearDataValidations();
+      rng.setValues(b.novos.map(x => [x]));
+      // Quem não é da equipe (ex.: "Coordenação/SAT") fica anotado nas observações da etapa; "AET" (a própria seção) só sai.
+      if (b.colObs === undefined) return;
+      let mudou = false;
+      const obs = b.valores.map((x, i) => {
+        const antigo = texto_(x), o = texto_(b.obs[i]);
+        if (!b.etapas[i] || !antigo || b.novos[i] || /^aet$/i.test(antigo) || o.indexOf('Responsável anterior:') >= 0) return [b.obs[i]];
+        mudou = true;
+        return [(o ? o + ' · ' : '') + 'Responsável anterior: ' + antigo];
+      });
+      if (mudou) b.aba.getRange(b.linha, b.colObs + 1, b.n, 1).setValues(obs);
+    });
+    validacaoResponsaveis_(ss);
+    if (total) historico_(ss, '', '', '', '', 'Responsáveis padronizados', Object.keys(trocas).map(k => k + ' (' + trocas[k] + ')').join('; '));
+    SpreadsheetApp.flush();
+    limparCache();
+  }
+  return { total: total, trocas: trocas, equipe: equipe };
+}
+
+function padronizarResponsaveisUi() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const r = padronizarResponsaveis(false, ss);
+  const linhas = Object.keys(r.trocas).sort().map(k => k + '  (' + r.trocas[k] + ')');
+  const ok = ui.alert('Padronizar responsáveis',
+    'Equipe (aba Listas): ' + r.equipe.join(', ') + '\n\n' +
+    (r.total ? r.total + ' etapa(s) mudam:\n' + linhas.join('\n') + '\n\n' : 'Os nomes já estão padronizados.\n\n') +
+    'A coluna Responsável passa a ter lista de seleção só com a equipe. Aplicar?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  padronizarResponsaveis(true, ss);
+  ui.alert('Padronizar responsáveis', '✓ Pronto. Para incluir alguém novo na seção, acrescente o nome na aba Listas (coluna Responsáveis AET) ou pelo painel (botão Equipe).', ui.ButtonSet.OK);
 }
 
 /* ================================================================== */

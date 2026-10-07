@@ -191,6 +191,7 @@
     S.idx = {}; S.turmaIdx = {};
     d.turmas.forEach(t => { t.sit = sitKey(t.situacao); S.turmaIdx[t.id] = t; });
     d.etapas.forEach(e => { S.idx[e.id] = e; });
+    normalizarResponsaveis();
     prepararNomes();
     recalcular();
     montarFiltros();
@@ -207,6 +208,21 @@
     render();
     if (S.drawer) abrirTurma(S.drawer);
   }
+
+  /**
+   * Responsável de cada etapa como um nome da equipe (aba Listas):
+   * "Flávia", "Sgt Flavia" → "Sgt Flávia"; o que não é da equipe → vazio.
+   */
+  function respPadrao(txt) {
+    const equipe = S.dados.responsaveis || [];
+    const t = ' ' + norm(txt).replace(/[^a-z0-9]+/g, ' ') + ' ';
+    if (!t.trim()) return '';
+    const igual = equipe.find(n => norm(n) === norm(txt));
+    if (igual) return igual;
+    const achados = equipe.filter(n => { const p = norm(n).split(/\s+/); return t.indexOf(' ' + p[p.length - 1] + ' ') >= 0; });
+    return achados.length === 1 ? achados[0] : '';
+  }
+  function normalizarResponsaveis() { S.dados.etapas.forEach(e => { e.respN = respPadrao(e.responsavel); }); }
 
   /**
    * Nomes de exibição: o painel ignora o nome da turma na planilha e mostra
@@ -258,7 +274,7 @@
     preencher('#fUnidade', unidadesLista().map(v => [v, v]), 'Todas as unidades', S.f.unidade);
     preencher('#fCurso', uniq(d.turmas.map(nomeCurso)).map(v => [v, cursoCurto(v)]), 'Todos os cursos', S.f.curso);
     preencher('#fSituacao', Object.keys(SIT).filter(k => d.turmas.some(t => t.sit === k)).map(k => [k, SIT[k].label]), 'Todas as situações', S.f.situacao);
-    preencher('#fResp', uniq(d.etapas.map(e => e.responsavel)).map(v => [v, v]), 'Todos os responsáveis', S.f.resp);
+    preencher('#fResp', (d.responsaveis || []).map(v => [v, v]).concat([['__sem', 'Sem responsável definido']]), 'Todos os responsáveis', S.f.resp);
     $('#fCanceladas').checked = S.f.canceladas;
     marcarFiltros();
   }
@@ -352,7 +368,7 @@
     turmasF(false).forEach(t => { ok[t.id] = true; });
     const b = norm(S.f.busca);
     return S.dados.etapas.filter(e => ok[e.turmaId] &&
-      (!S.f.resp || e.responsavel === S.f.resp) &&
+      (!S.f.resp || (S.f.resp === '__sem' ? !e.respN : e.respN === S.f.resp)) &&
       (!comBusca || !b || norm([e.etapa, e.turma, nomeLongo(S.turmaIdx[e.turmaId]), e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
   }
   function formandosF() {
@@ -998,7 +1014,20 @@
     S.form = tipo; S.drawer = null;
     const c = S.edit ? S.edit.campos : {};
     let html;
-    if (tipo === 'nova') {
+    if (tipo === 'equipe') {
+      const usados = {};
+      S.dados.etapas.forEach(e => { if (e.respN) usados[e.respN] = (usados[e.respN] || 0) + 1; });
+      const semResp = S.dados.etapas.filter(e => !e.respN).length;
+      html = '<h2>Equipe da seção</h2><div class="sub">Os nomes que aparecem para escolher o responsável de cada etapa, no painel e na planilha ' +
+        '(aba Listas, coluna “Responsáveis AET”, com lista de seleção na coluna Responsável).</div>' +
+        '<div class="form" style="margin-top:16px">' + c.lista.map((n, i) =>
+          '<div class="eq-linha"><i style="background:' + CORES[i % CORES.length] + '"></i><input type="text" data-equipe="' + i + '" value="' + esc(n) + '" placeholder="Posto/graduação e nome"' + (S.salvando ? ' disabled' : '') + '>' +
+          '<span class="dim mono">' + (usados[n] || 0) + ' etapa(s)</span><button class="icon-btn" data-acao="equipe-del" data-i="' + i + '" title="Remover"' + (S.salvando ? ' disabled' : '') + '>✕</button></div>').join('') +
+        '<div><button class="btn small" data-acao="equipe-add"' + (S.salvando ? ' disabled' : '') + '>＋ Incluir integrante</button></div>' +
+        '<div class="hint">' + semResp + ' etapa(s) estão sem responsável da equipe. Ao remover alguém, as etapas dele aparecem como “— definir”. ' +
+        'Para trocar variações antigas de nome na planilha (ex.: “Flávia”, “Sgt Flavia”), use o menu 📊 Painel › Padronizar responsáveis.</div>' +
+        '</div><div class="form-acoes">' + botao('salvar-equipe', 'Salvar equipe', 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
+    } else if (tipo === 'nova') {
       const cursos = cursosComAba();
       const curso = cursos.find(x => x.aba === c.aba) || cursos[0];
       const modelos = curso.turmas.slice().sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
@@ -1095,6 +1124,19 @@
     }).sort((a, b) => (!!b.r - !!a.r) || (a.ok - b.ok) || a.grupo.localeCompare(b.grupo, 'pt-BR'));
   }
 
+  function salvarEquipe() {
+    const lista = S.edit.campos.lista.map(x => String(x || '').trim()).filter(Boolean);
+    if (!lista.length) return toast('Informe ao menos um nome.', 'err');
+    if (new Set(lista.map(norm)).size !== lista.length) return toast('Há nomes repetidos.', 'err');
+    gravarNoServidor('salvarResponsaveis', { lista: lista }, () => {
+      S.dados.responsaveis = lista;
+      normalizarResponsaveis();
+      if (S.f.resp && S.f.resp !== '__sem' && lista.indexOf(S.f.resp) < 0) S.f.resp = '';
+      toast('✓ Equipe atualizada');
+      fecharDrawer(); montarFiltros(); refrescar();
+    });
+  }
+
   function criarAno() {
     const c = S.edit.campos;
     const novo = anoRef() + 1;
@@ -1141,10 +1183,10 @@
     return i < 0 ? 'var(--ink-3)' : CORES[i % CORES.length];
   }
   function seletorResp(e) {
-    const atual = e.responsavel || '';
+    const atual = e.respN || '';
     const ops = (S.dados.responsaveis || []).slice();
-    if (atual && ops.indexOf(atual) < 0) ops.push(atual);
-    return '<select class="resp-select' + (atual ? '' : ' vazio') + '" data-resp="' + e.id + '" style="--rc:' + corResp(atual) + '" title="Quem executa a etapa"' + (S.dados.podeEditar ? '' : ' disabled') + '>' +
+    const dica = 'Quem executa a etapa' + (e.responsavel && e.responsavel !== atual ? ' (na planilha: ' + e.responsavel + ')' : '');
+    return '<select class="resp-select' + (atual ? '' : ' vazio') + '" data-resp-etapa="' + e.id + '" style="--rc:' + corResp(atual) + '" title="' + esc(dica) + '"' + (S.dados.podeEditar ? '' : ' disabled') + '>' +
       '<option value="">— definir</option>' +
       ops.map(o => '<option' + (o === atual ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
   }
@@ -1209,13 +1251,13 @@
   function mudarResponsavel(id, novo, el) {
     const e = S.idx[id];
     if (!e || (e.responsavel || '') === novo) return;
-    const anterior = e.responsavel;
-    e.responsavel = novo;
+    const anterior = e.responsavel, anteriorN = e.respN;
+    e.responsavel = novo; e.respN = novo;
     el.classList.add('saving');
     gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, campos: { responsavel: novo } }, () => {
       toast('✓ ' + e.etapa + ' → ' + (novo || 'sem responsável'));
       montarFiltros(); refrescar();
-    }, () => { e.responsavel = anterior; });
+    }, () => { e.responsavel = anterior; e.respN = anteriorN; });
   }
 
   /** Chama uma função de gravação no servidor (no modo demonstração, só simula). */
@@ -1242,6 +1284,10 @@
       return abrirForm('nova');
     }
     if (nome === 'salvar-nova') return salvarNovaTurma();
+    if (nome === 'equipe') { S.edit = { tipo: 'equipe', campos: { lista: (S.dados.responsaveis || []).slice() } }; return abrirForm('equipe'); }
+    if (nome === 'equipe-add') { S.edit.campos.lista.push(''); return abrirForm('equipe'); }
+    if (nome === 'equipe-del') { S.edit.campos.lista.splice(Number(el.dataset.i), 1); return abrirForm('equipe'); }
+    if (nome === 'salvar-equipe') return salvarEquipe();
     if (nome === 'criar-ano') return criarAno();
 
     if (nome === 'editar-etapa') {
@@ -1269,7 +1315,7 @@
   function salvarEtapa() {
     const e = S.idx[S.edit.id], c = Object.assign({}, S.edit.campos);
     gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, campos: c }, () => {
-      e.responsavel = c.responsavel.trim(); e.documento = c.documento.trim();
+      e.responsavel = c.responsavel.trim(); e.respN = respPadrao(e.responsavel); e.documento = c.documento.trim();
       e.observacoes = c.observacoes.trim(); e.conclusao = c.conclusao || null;
       S.edit = null;
       toast('✓ Etapa atualizada: ' + e.etapa);
@@ -1421,7 +1467,7 @@
 
     if (el.closest('[data-toggle-todas]')) { S.critTodas = !S.critTodas; S.pg['g-prazos'] = 0; return render(); }
 
-    const resp = el.closest('[data-resp]');
+    const resp = el.closest('[data-resp]:not(select)');
     if (resp) { S.f.resp = resp.dataset.resp === '(sem responsável)' ? '' : resp.dataset.resp; montarFiltros(); S.pg = {}; return irPara('etapas'); }
 
     const turma = el.closest('[data-turma]');
@@ -1434,7 +1480,7 @@
   document.addEventListener('change', ev => {
     const el = ev.target;
     if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
-    if (el.matches('select[data-resp]')) return mudarResponsavel(el.dataset.resp, el.value, el);
+    if (el.matches('select[data-resp-etapa]')) return mudarResponsavel(el.dataset.respEtapa, el.value, el);
     if (el.matches('input[data-formando]')) return salvarFormados(el);
     if (el.id === 'selAno') {
       if (el.value === 'novo') {
@@ -1470,6 +1516,7 @@
   document.addEventListener('input', ev => {
     const el = ev.target;
     if (el.dataset && el.dataset.campo && S.edit) S.edit.campos[el.dataset.campo] = el.value;
+    if (el.dataset && el.dataset.equipe != null && S.edit && S.edit.tipo === 'equipe') S.edit.campos.lista[Number(el.dataset.equipe)] = el.value;
   });
 
   let tBusca;
