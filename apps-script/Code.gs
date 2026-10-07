@@ -1573,6 +1573,18 @@ function reorganizarPorUnidade(req) {
   }
 }
 
+/**
+ * Mesmo que o menu "Criar planilha nova", para rodar direto do editor do
+ * Apps Script (escolha criarPlanilhaNova e clique em Executar). O link da
+ * planilha nova aparece no Registro de execução.
+ */
+function criarPlanilhaNova() {
+  const r = JSON.parse(reorganizarPorUnidade({ planilha: SpreadsheetApp.getActiveSpreadsheet(), registrar: true }));
+  Logger.log('✓ Planilha nova criada: ' + r.nome + '\n' + r.url + '\n' +
+    r.abas.map(a => a.aba + ': ' + a.turmas + ' turma(s)').join(' · ') + ' · etapas: ' + r.etapasDepois);
+  return r.url;
+}
+
 function reorganizarPorUnidadeUi() {
   const ui = SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
