@@ -102,3 +102,12 @@ Prazos digitados à mão (sem fórmula) são apenas listados para correção man
   (alunos ÷ turmas). A tela Formandos compara Resolução × planilha por curso.
 - **Criar o ano seguinte**: o formulário lista as turmas por curso ao lado da Resolução do ano novo; as
   desmarcadas entram canceladas ("Não prevista na Resolução") e os matriculados já vêm estimados.
+
+## Reorganizar por unidade
+
+Menu **📊 Painel › Reorganizar por unidade (cria cópia)**: cria "… (por unidade)" com uma aba por unidade
+executora (BPMRv, BPM MAmb, BPGd quando houver turmas), turmas em ordem de data — resumo no topo e os blocos
+de etapas na mesma ordem. Antes de mover, corrige referências de etapas que apontavam para outra turma.
+Cadastro de Turmas e Painel Geral passam a apontar para as abas novas; a planilha original não é alterada.
+O painel passa a abrir a cópia para o ano (registro em Propriedades do script › ANOS). Os quadros auxiliares
+"Controle especial — diárias" que ficavam ao lado do resumo de algumas abas não são levados.

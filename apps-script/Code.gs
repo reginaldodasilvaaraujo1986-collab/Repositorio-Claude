@@ -59,6 +59,8 @@ function onOpen() {
     .addItem('Corrigir datas das etapas', 'corrigirReferenciasUi')
     .addItem('Preencher curso (SiGE) e cidade das turmas', 'preencherCursosUi')
     .addSeparator()
+    .addItem('Reorganizar por unidade (cria cópia)', 'reorganizarPorUnidadeUi')
+    .addSeparator()
     .addItem('Limpar cache', 'limparCache')
     .addToUi();
 }
@@ -858,13 +860,13 @@ function anoDaPlanilha_(ss) {
 /** Planilha do ano pedido (sem ano: a planilha onde o script está). */
 function planilha_(ano) {
   const base = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ano || (base && anoDaPlanilha_(base) === Number(ano))) {
-    if (!base) throw new Error('Script sem planilha vinculada.');
-    return base;
-  }
-  const id = anosRegistrados_()[ano];
-  if (!id) throw new Error('Não há planilha cadastrada para ' + ano + '.');
-  return SpreadsheetApp.openById(id);
+  const alvo = Number(ano) || (base ? anoDaPlanilha_(base) : null);
+  // Um ano cadastrado (ex.: a cópia reorganizada por unidade) tem prioridade sobre a planilha do script.
+  const id = alvo ? anosRegistrados_()[alvo] : null;
+  if (id && !(base && base.getId() === id)) return SpreadsheetApp.openById(id);
+  if (base && (!ano || anoDaPlanilha_(base) === Number(ano))) return base;
+  if (!base) throw new Error('Script sem planilha vinculada.');
+  throw new Error('Não há planilha cadastrada para ' + ano + '.');
 }
 
 function anosDisponiveis_() {
@@ -1472,7 +1474,7 @@ function cidadePadrao_(turma, local) {
  * sem o ano da matriz curricular). Não altera o que já foi preenchido.
  */
 function preencherCursos(aplicar, ano) {
-  const ss = planilha_(ano);
+  const ss = ano && typeof ano === 'object' ? ano : planilha_(ano); // menu: a planilha aberta
   const cad = cadastro_(ss);
   const v = cad.aba.getDataRange().getValues();
   const h = acharCabecalho_(v, ['id', 'curso', 'turma'], 6);
@@ -1501,12 +1503,239 @@ function preencherCursos(aplicar, ano) {
 
 function preencherCursosUi() {
   const ui = SpreadsheetApp.getUi();
-  const lista = preencherCursos(false);
+  const lista = preencherCursos(false, SpreadsheetApp.getActiveSpreadsheet());
   if (!lista.length) return ui.alert('Curso (SiGE) e cidade', 'Todas as turmas já estão preenchidas.', ui.ButtonSet.OK);
   const ok = ui.alert('Curso (SiGE) e cidade', lista.length + ' turma(s) receberão a sugestão (as vazias; o resto fica como está):\n\n' + lista.join('\n') + '\n\nAplicar?', ui.ButtonSet.YES_NO);
   if (ok !== ui.Button.YES) return;
-  preencherCursos(true);
+  preencherCursos(true, SpreadsheetApp.getActiveSpreadsheet());
   ui.alert('Curso (SiGE) e cidade', '✓ Preenchido. Confira as colunas no fim do Cadastro de Turmas e atualize o painel.', ui.ButtonSet.OK);
+}
+
+/* ================================================================== */
+/* Reorganização por unidade executora                                 */
+/* ================================================================== */
+
+/**
+ * Cria uma CÓPIA da planilha com uma aba por unidade executora (BPMRv,
+ * BPM MAmb, BPGd...) no lugar das abas por curso. Em cada aba: o resumo de
+ * todas as turmas da unidade em ordem de data e, abaixo, o bloco de etapas
+ * de cada turma na mesma ordem. Fórmulas, formatos e listas são levados
+ * junto; Cadastro de Turmas e Painel Geral passam a apontar para as abas
+ * novas. A planilha original não é alterada.
+ * Com req.registrar, o painel passa a ler a cópia para este ano.
+ */
+function reorganizarPorUnidade(req) {
+  req = req || {};
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const origem = req.planilha || planilha_(req.ano);
+    const ano = anoDaPlanilha_(origem);
+    const arquivo = DriveApp.getFileById(origem.getId());
+    const pastas = arquivo.getParents();
+    const nome = origem.getName().replace(/\s*\(por unidade\)\s*$/i, '') + ' (por unidade)';
+    const copia = pastas.hasNext() ? arquivo.makeCopy(nome, pastas.next()) : arquivo.makeCopy(nome);
+    const ss = SpreadsheetApp.openById(copia.getId());
+
+    corrigirReferencias(true, ss); // referências tortas viram #REF ao mover; acerta antes
+    const r = reorganizar_(ss, ano);
+
+    if (req.registrar) registrarAno_(ano, ss.getId());
+    SpreadsheetApp.flush();
+    limparCache();
+    historico_(ss, '', '', '', '', 'Planilha reorganizada por unidade', 'cópia de ' + origem.getName());
+    return JSON.stringify(Object.assign({ ok: true, url: ss.getUrl(), nome: ss.getName(), ano: ano }, r));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function reorganizarPorUnidadeUi() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ok = ui.alert('Reorganizar por unidade',
+    'Será criada uma CÓPIA desta planilha com uma aba por unidade executora (' + CONFIG.UNIDADES.join(', ') + '), ' +
+    'turmas em ordem de data, cada uma com seu checklist completo.\n\n' +
+    'Esta planilha não é alterada. O painel passa a abrir a cópia para ' + anoDaPlanilha_(ss) + '.\n\n' +
+    'Leva cerca de 1 minuto. Continuar?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  const r = JSON.parse(reorganizarPorUnidade({ planilha: ss, registrar: true }));
+  ui.alert('Reorganizar por unidade', '✓ Criada: ' + r.nome + '\n\n' +
+    r.abas.map(a => '• ' + a.aba + ': ' + a.turmas + ' turma(s)').join('\n') +
+    '\n\nEtapas: ' + r.etapasDepois + ' (antes ' + r.etapasAntes + ')' +
+    (r.semUnidade.length ? '\n\nAtenção — confira: ' + r.semUnidade.join(', ') : '') +
+    '\n\nAbra pelo link (também em Arquivo › Abrir recentes):\n' + r.url, ui.ButtonSet.OK);
+}
+
+function reorganizar_(ss, ano) {
+  const af = abaFormandos_(ss);
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
+  const etapasAntes = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
+
+  // Unidade de cada turma (Cadastro; sem cadastro: regra padrão).
+  const unidadeDe = {};
+  lerCadastro_(ss, []).forEach(t => { unidadeDe[chave_(t.turma)] = t.unidade; });
+
+  // 1) Abas por curso: resumo e blocos de etapas.
+  const fontes = {}, turmas = [], semUnidade = [];
+  ss.getSheets().forEach(aba => {
+    const nome = aba.getName();
+    if (fixas.indexOf(nome) >= 0) return;
+    const rng = aba.getDataRange(), v = rng.getValues(), f = rng.getFormulas();
+    const h = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+    if (h < 0) return;
+    const resumo = [];
+    for (let i = h + 1; i < v.length && texto_(v[i][0]); i++) resumo.push(i + 1);
+    const cabs = [];
+    for (let i = h + 1; i < v.length; i++) {
+      const l = v[i].map(x => semAcento_(x));
+      if (l[0] === 'fase' && l.indexOf('etapa') >= 0 && l.indexOf('status') >= 0) cabs.push(i + 1);
+    }
+    if (!cabs.length) return;
+    const ultima = ultimaLinhaComDados_(v);
+    const blocos = cabs.map((cab, k) => ({ ini: cab - 1, fim: k + 1 < cabs.length ? cabs[k + 1] - 2 : ultima, larg: larguraCabecalho_(v[cab - 1]) }));
+    const fonte = { aba: aba, nome: nome, v: v, f: f, h: h, resumo: resumo, blocos: blocos, larg: larguraCabecalho_(v[h]), alvo: {} };
+    fontes[nome] = fonte;
+    resumo.forEach((lin, k) => {
+      if (!blocos[k]) return;
+      const t = texto_(v[lin - 1][0]);
+      turmas.push({
+        fonte: fonte, k: k, linha: lin, nome: t, inicio: data_(v[lin - 1][1]),
+        unidade: unidadeDe[chave_(t)] || unidadePadrao_('', nome, t)
+      });
+    });
+    if (resumo.length > blocos.length) semUnidade.push(nome + ' (' + (resumo.length - blocos.length) + ' turma(s) sem bloco de etapas)');
+  });
+  if (!turmas.length) throw new Error('Nenhuma aba de curso com turmas encontrada.');
+
+  // 2) Posições novas: uma aba por unidade, turmas por data.
+  const unidades = CONFIG.UNIDADES.slice();
+  turmas.forEach(t => { if (unidades.indexOf(t.unidade) < 0) unidades.push(t.unidade); });
+  const plano = [];
+  unidades.forEach(u => {
+    const ts = turmas.filter(t => t.unidade === u).sort((a, b) => (a.inicio ? a.inicio.getTime() : 9e15) - (b.inicio ? b.inicio.getTime() : 9e15));
+    if (!ts.length) return;
+    const tab = { unidade: u, nome: ss.getSheetByName(u) ? u + ' (unidade)' : u, turmas: ts };
+    let cursor = 4 + ts.length + 3;
+    ts.forEach((t, i) => {
+      t.novaAba = tab.nome;
+      t.novoResumo = 4 + i;
+      const b = t.fonte.blocos[t.k];
+      t.novoIni = cursor;
+      t.fonte.alvo[t.linha] = { aba: tab.nome, linha: t.novoResumo };
+      for (let r = b.ini; r <= b.fim; r++) t.fonte.alvo[r] = { aba: tab.nome, linha: cursor + (r - b.ini) };
+      cursor += (b.fim - b.ini + 1) + 2;
+    });
+    plano.push(tab);
+  });
+
+  // Linha antiga → nova. Fora do mapa (ex.: título da aba): sem destino.
+  const destino = (aba, linha) => fontes[aba] ? fontes[aba].alvo[linha] || null : undefined;
+  const q = n => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) ? n : "'" + n.replace(/'/g, "''") + "'";
+
+  /** Reescreve referências de uma fórmula que estava em `abaOrigem` e vai morar em `abaDestino`. */
+  function remapear(formula, abaOrigem, abaDestino) {
+    const partes = String(formula).split('"');
+    for (let p = 0; p < partes.length; p += 2) {
+      let ultima = null;
+      partes[p] = partes[p].replace(/((?:'(?:[^']|'')+'|[A-Za-zÀ-ú0-9_]+)!)?(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])/g, (m, aba, d1, c, d2, lin, pos, str) => {
+        const antes = pos > 0 ? str[pos - 1] : '';
+        if (!aba && /[A-Za-z0-9_.$]/.test(antes)) return m;
+        const fimDeIntervalo = !aba && antes === ':';
+        const src = aba ? aba.slice(0, -1).replace(/^'|'$/g, '').replace(/''/g, "'") : fimDeIntervalo && ultima ? ultima.src : abaOrigem;
+        const d = destino(src, Number(lin));
+        let abaNova = src, linNova = lin;
+        if (d) { abaNova = d.aba; linNova = d.linha; }
+        else if (fimDeIntervalo && ultima && ultima.d) { abaNova = ultima.d.aba; linNova = Number(lin) + (ultima.d.linha - ultima.lin); }
+        ultima = { src: src, d: d || null, lin: Number(lin) };
+        const prefixo = fimDeIntervalo ? '' : abaNova === abaDestino ? '' : q(abaNova) + '!';
+        return prefixo + d1 + c + d2 + linNova;
+      });
+    }
+    return partes.join('"');
+  }
+
+  // 3) Abas novas.
+  const primeira = Math.min.apply(null, Object.keys(fontes).map(n => ss.getSheets().indexOf(fontes[n].aba)));
+  const resultado = [];
+  plano.forEach((tab, idx) => {
+    const nova = ss.insertSheet(tab.nome, primeira + idx);
+    const f0 = tab.turmas[0].fonte;
+    const larg = Math.max.apply(null, tab.turmas.map(t => t.fonte.larg));
+    const largBloco = Math.max.apply(null, tab.turmas.map(t => t.fonte.blocos[t.k].larg));
+    const largTotal = Math.max(larg, largBloco);
+    const ultimaLinha = tab.turmas[tab.turmas.length - 1];
+    const precisa = ultimaLinha.novoIni + (ultimaLinha.fonte.blocos[ultimaLinha.k].fim - ultimaLinha.fonte.blocos[ultimaLinha.k].ini) + 5;
+    if (nova.getMaxRows() < precisa) nova.insertRowsAfter(nova.getMaxRows(), precisa - nova.getMaxRows());
+    if (nova.getMaxColumns() < largTotal) nova.insertColumnsAfter(nova.getMaxColumns(), largTotal - nova.getMaxColumns());
+    for (let c = 1; c <= largTotal; c++) { try { nova.setColumnWidth(c, f0.aba.getColumnWidth(c)); } catch (e) { /* largura padrão */ } }
+
+    // título e cabeçalho do resumo
+    f0.aba.getRange(1, 1, 3, larg).copyTo(nova.getRange(1, 1, 3, larg), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    nova.getRange(1, 1).setValue('CONTROLE DE TURMAS - ' + tab.unidade + ' - AET/CPE ' + ano);
+    nova.getRange(3, 1, 1, larg).setValues([f0.v[f0.h].slice(0, larg).concat(new Array(Math.max(0, larg - f0.v[f0.h].length)).fill(''))]);
+
+    tab.turmas.forEach(t => {
+      const fo = t.fonte, b = fo.blocos[t.k];
+      // linha do resumo
+      const lr = fo.larg;
+      fo.aba.getRange(t.linha, 1, 1, lr).copyTo(nova.getRange(t.novoResumo, 1, 1, lr), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      fo.aba.getRange(t.linha, 1, 1, lr).copyTo(nova.getRange(t.novoResumo, 1, 1, lr), SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+      nova.getRange(t.novoResumo, 1, 1, lr).setValues([fo.v[t.linha - 1].slice(0, lr).map((x, j) => fo.f[t.linha - 1][j] ? remapear(fo.f[t.linha - 1][j], fo.nome, tab.nome) : x)]);
+      // bloco de etapas
+      const n = b.fim - b.ini + 1, lb = b.larg;
+      const src = fo.aba.getRange(b.ini, 1, n, lb), dst = nova.getRange(t.novoIni, 1, n, lb);
+      src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      src.copyTo(dst, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+      const vals = [];
+      for (let i = 0; i < n; i++) {
+        const r = b.ini - 1 + i;
+        vals.push(new Array(lb).fill('').map((_, j) => {
+          const fx = (fo.f[r] || [])[j], vx = (fo.v[r] || [])[j];
+          return fx ? remapear(fx, fo.nome, tab.nome) : (vx === undefined || vx === null ? '' : vx);
+        }));
+      }
+      dst.setValues(vals);
+    });
+    try { nova.setFrozenRows(0); } catch (e) { /* ok */ }
+    resultado.push({ aba: tab.nome, turmas: tab.turmas.length });
+  });
+
+  // 4) Demais abas (Cadastro, Painel Geral...): referências às abas antigas.
+  const nomesAntigos = Object.keys(fontes);
+  const contem = f => nomesAntigos.some(n => f.indexOf(n + '!') >= 0 || f.indexOf("'" + n.replace(/'/g, "''") + "'!") >= 0);
+  ss.getSheets().forEach(aba => {
+    const nome = aba.getName();
+    if (fontes[nome] || plano.some(t => t.nome === nome)) return;
+    const rng = aba.getDataRange(), f = rng.getFormulas();
+    f.forEach((linha, i) => linha.forEach((fx, j) => {
+      if (!fx || !contem(fx)) return;
+      const novo = remapear(fx, nome, nome);
+      if (novo !== fx) aba.getRange(i + 1, j + 1).setFormula(novo);
+    }));
+  });
+  // Coluna "Aba operacional" do Cadastro: link para a aba nova.
+  try {
+    const cad = cadastro_(ss);
+    if (cad.col['aba operacional'] !== undefined) {
+      const cv = cad.aba.getDataRange().getValues();
+      const hc = acharCabecalho_(cv, ['id', 'curso', 'turma'], 6);
+      for (let i = hc + 1; i < cv.length; i++) {
+        const t = turmas.find(x => chave_(x.nome) === chave_(texto_(cv[i][cad.col['turma']])));
+        if (!t) continue;
+        const aba = ss.getSheetByName(t.novaAba);
+        if (aba) cad.aba.getRange(i + 1, cad.col['aba operacional'] + 1).setFormula('=HYPERLINK("#gid=' + aba.getSheetId() + '&range=A' + t.novoResumo + '","Abrir")');
+      }
+    }
+  } catch (e) { /* sem Cadastro: segue */ }
+
+  // 5) Remove as abas antigas por curso.
+  nomesAntigos.forEach(n => ss.deleteSheet(fontes[n].aba));
+
+  SpreadsheetApp.flush();
+  const etapasDepois = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
+  return { abas: resultado, etapasAntes: etapasAntes, etapasDepois: etapasDepois, removidas: nomesAntigos, semUnidade: semUnidade };
 }
 
 /* ================================================================== */
@@ -1521,7 +1750,7 @@ function preencherCursosUi() {
  * Com aplicar=false só lista o que mudaria.
  */
 function corrigirReferencias(aplicar, ano) {
-  const ss = planilha_(ano);
+  const ss = ano && typeof ano === 'object' ? ano : planilha_(ano); // menu: a planilha aberta
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO]
     .concat(CONFIG.ABAS_IGNORADAS);
@@ -1597,12 +1826,12 @@ function corrigirReferencias(aplicar, ano) {
 
 function corrigirReferenciasUi() {
   const ui = SpreadsheetApp.getUi();
-  const r = corrigirReferencias(false);
+  const r = corrigirReferencias(false, SpreadsheetApp.getActiveSpreadsheet());
   const extra = r.manuais.length ? '\n\nCorrigir à mão:\n' + r.manuais.join('\n') : '';
   if (!r.correcoes.length) return ui.alert('Datas das etapas', 'Nenhuma referência errada encontrada.' + extra, ui.ButtonSet.OK);
   const ok = ui.alert('Datas das etapas', r.correcoes.length + ' célula(s) serão corrigidas:\n\n' + r.correcoes.join('\n') + extra + '\n\nAplicar?', ui.ButtonSet.YES_NO);
   if (ok !== ui.Button.YES) return;
-  corrigirReferencias(true);
+  corrigirReferencias(true, SpreadsheetApp.getActiveSpreadsheet());
   ui.alert('Datas das etapas', '✓ ' + r.correcoes.length + ' célula(s) corrigidas. Atualize o painel.', ui.ButtonSet.OK);
 }
 

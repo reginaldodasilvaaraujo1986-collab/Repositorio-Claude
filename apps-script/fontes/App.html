@@ -1008,11 +1008,11 @@
         'Os prazos das etapas são calculados pelas datas que você informar.</div>' +
         '<div class="form" style="margin-top:18px">' +
           '<div class="form g2" style="margin-top:0">' +
-            campoSel('Curso (aba da planilha)', 'aba', c.aba, cursos.map(x => [x.aba, x.curso + (x.curso !== x.aba ? ' · aba ' + x.aba : '')])) +
+            campoSel('Aba da planilha', 'aba', c.aba, cursos.map(x => [x.aba, x.aba])) +
             campoSel('Copiar o checklist de', 'modelo', c.modelo, modelos.map(t => [t.turma, nomeCurto(t) + ' (' + fmt(t.inicio) + ')'])) +
           '</div>' +
           campoSel('Curso (nome no SiGE)', 'cursoOficial', c.cursoOficial, [['', '—']].concat(cursosOficiais().map(n => [n, n]))) +
-          '<div class="form g2" style="margin-top:0">' + campo('Nome da turma', 'nome', c.nome, 'text', ' placeholder="Ex.: IVD - Juiz de Fora"') +
+          '<div class="form g2" style="margin-top:0">' + campo('Nome na planilha (opcional)', 'nome', c.nome, 'text', ' placeholder="automático: sigla - cidade"') +
             campo('Cidade', 'cidade', c.cidade, 'text', ' placeholder="Ex.: Juiz de Fora"') + '</div>' +
           '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
           '<div class="form g2" style="margin-top:0">' + campo('Local / unidade', 'local', c.local, 'text', ' placeholder="' + esc(mod ? mod.local : '') + '"') +
@@ -1054,11 +1054,14 @@
   function salvarNovaTurma() {
     const c = Object.assign({}, S.edit.campos);
     const curso = cursosComAba().find(x => x.aba === c.aba);
-    if (!c.nome.trim()) return toast('Informe o nome da turma.', 'err');
+    const modeloT = S.dados.turmas.find(x => x.aba === c.aba && x.turma === c.modelo);
+    // Nome interno da turma na planilha: se ficar em branco, sigla do curso + cidade.
+    if (!c.nome.trim()) c.nome = c.cursoOficial ? cursoCurto(c.cursoOficial) + ' - ' + ((c.cidade || '').trim() || fmt(c.inicio)) : '';
+    if (!c.nome.trim()) return toast('Escolha o curso (SiGE) ou informe um nome para a turma.', 'err');
     if (!c.inicio || !c.fim) return toast('Preencha início e término.', 'err');
     if (c.fim < c.inicio) return toast('O término não pode ser antes do início.', 'err');
     gravarNoServidor('criarTurma', {
-      aba: c.aba, modelo: c.modelo, nome: c.nome.trim(), curso: curso ? curso.curso : c.aba, unidade: c.unidade,
+      aba: c.aba, modelo: c.modelo, nome: c.nome.trim(), curso: (modeloT && modeloT.curso) || (curso ? curso.curso : c.aba), unidade: c.unidade,
       cursoOficial: c.cursoOficial, cidade: (c.cidade || '').trim(),
       matriculados: (String(c.vagas || '').match(/\d+/) || [estimativaPorTurma(resolucaoDoAno(anoRef()).find(r => r.grupo === c.cursoOficial)) || ''])[0],
       inicio: c.inicio, fim: c.fim, local: c.local.trim(), vagas: c.vagas.trim(), treinamento: c.treinamento.trim()
