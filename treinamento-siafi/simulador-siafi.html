@@ -340,6 +340,7 @@
   </div>
 
   <footer class="note">
+    <p><b>Valores.</b> Como no SIAFI, digite só números, sem ponto nem vírgula. Os dois últimos dígitos são os centavos: 12.000,00 se digita 1200000.</p>
     <p><b>Teclas.</b> Setas ↑ ↓ andam entre os campos, Enter avança. <b>Esc</b> volta (PF3) e <b>Ctrl+Enter</b> confirma (PF5) — use essas duas, porque F3 e F5 o navegador costuma interceptar. F2, F6, F7 e F8 funcionam direto.</p>
     <p><b>O que é fiel e o que não é.</b> Os códigos de navegação, a ordem das telas, os campos e as teclas seguem os manuais operacionais. Os contratos, credores, CNPJs e saldos são fictícios. Os percentuais de retenção e os lançamentos contábeis foram simplificados para o treino: o SIAFI real tem mais validações, e a contabilização passa por eventos que aqui aparecem resumidos. O recolhimento das retenções por DAE não faz parte deste treino.</p>
     <p><b>Retenções aplicadas:</b> IRRF 4,8% sobre serviço e 1,2% sobre material; ISS conforme a alíquota da ficha, só sobre serviço; INSS 11% apenas com cessão de mão de obra, com piso de R$ 29,00. Optante do Simples não sofre IRRF nem INSS.</p>
@@ -426,12 +427,12 @@
           ["Nat. despesa / item", "339037 / 02"],
           ["Fonte", "6020"],
           ["Tipo de empenho", "G — global"],
-          ["Valor a empenhar", "12.000,00"],
+          ["Valor a empenhar", "12.000,00 (digite 1200000)"],
           ["Ordenador", "350057"]
         ],
         nota: [
           ["Nota fiscal", "NFS-e 1.523"],
-          ["Valor da nota", "12.000,00"],
+          ["Valor da nota", "12.000,00 (digite 1200000)"],
           ["Natureza", "Serviço, cessão de mão de obra"],
           ["ISS", "5%"],
           ["Simples Nacional", "Não optante"],
@@ -472,12 +473,12 @@
           ["Nat. despesa / item", "339030 / 05"],
           ["Fonte", "6020"],
           ["Tipo de empenho", "E — estimativo"],
-          ["Valor a empenhar", "4.800,00"],
+          ["Valor a empenhar", "4.800,00 (digite 480000)"],
           ["Ordenador", "350057"]
         ],
         nota: [
           ["Nota fiscal", "NF-e 8.871 (1ª entrega)"],
-          ["Valor da nota", "2.400,00"],
+          ["Valor da nota", "2.400,00 (digite 240000)"],
           ["Natureza", "Fornecimento de material"],
           ["ISS", "Não incide"],
           ["Simples Nacional", "Não optante"],
@@ -537,13 +538,16 @@
     if (!raw) return null;
     var t = String(raw).trim();
     if (!t) return null;
-    if (/[.,]/.test(t)) {
-      t = t.replace(/\./g, "").replace(",", ".");
-      var f = parseFloat(t);
-      return isNaN(f) ? null : Math.round(f * 100);
-    }
+    // Como no SIAFI: so numeros, sem ponto nem virgula. Os dois ultimos
+    // digitos sao os centavos (1200000 = 12.000,00).
     if (!/^\d+$/.test(t)) return null;
-    return parseInt(t, 10) * 100;
+    return parseInt(t, 10);
+  }
+  function semVirgula(c) { return String(c); }
+  function erroValor(raw) {
+    say(/[.,]/.test(raw || "")
+      ? "0022-VALOR INVALIDO. NO SIAFI NAO SE DIGITA PONTO NEM VIRGULA: 12.000,00 = 1200000."
+      : "0022-VALOR INVALIDO. DIGITE SO NUMEROS; OS DOIS ULTIMOS SAO OS CENTAVOS.", "err");
   }
   function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -841,7 +845,7 @@
         out += '   <span class="k">Nr. Seq. Obra:</span> ' + f("obra", 6, "1868");
       }
       out += "\n\n" +
-        '  <span class="k">Valor ...........:</span> ' + f("valor", 12, "5000,00") + "\n" +
+        '  <span class="k">Valor ...........:</span> ' + f("valor", 12, "500000") + "\n" +
         '  <span class="k">Ord. Despesa ....:</span> ' + f("ord", 6, "350057") + "\n";
       if (r.pede.length === 0 && !r.lic) {
         out += '\n<span class="msg">Regra ' + r.n + ": nenhuma especificacao sera solicitada nesta tela.</span>";
@@ -881,14 +885,14 @@
       if (r.pede.indexOf("obra") !== -1 && !v.obra) {
         say("0139-INFORME O SEQUENCIAL DA OBRA.", "err"); return;
       }
-      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!val || val <= 0) { erroValor(v.valor); return; }
       if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
       var mk = marcado(v.nat, v.item);
       var conta = mk ? "cotaItem" : "cotaGlobal";
       if (val > S.contas[conta]) {
         say("0031-SALDO DE COTA INSUFICIENTE NA " + (mk ? "ELEMENTO/ITEM" : "GLOBAL") +
             ". VALOR LIDO: " + brl(val) + " · DISPONIVEL: " + brl(S.contas[conta]) +
-            ". DIGITE O VALOR COM VIRGULA, EX.: 12000,00", "err"); return;
+            ". LEMBRE: OS DOIS ULTIMOS DIGITOS SAO OS CENTAVOS.", "err"); return;
       }
       if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
       S.ctx.novo = { nome: v.nome.toUpperCase(), credor: digits(v.credor), nat: digits(v.nat),
@@ -1010,13 +1014,13 @@
         '<span class="k">Cota Global:</span> <span class="v">' + brl(S.contas.cotaGlobal) +
         '</span>   <span class="k">Cota Elemento/Item:</span> <span class="v">' +
         brl(S.contas.cotaItem) + "</span>\n\n" +
-        '  <span class="k">Valor do Reforco:</span> ' + f("valor", 12, "2000,00") + "\n" +
+        '  <span class="k">Valor do Reforco:</span> ' + f("valor", 12, "200000") + "\n" +
         '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
     },
     enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
     pf5: function (v) {
       var e = findEmp(S.ctx.emp), val = parseMoney(v.valor);
-      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!val || val <= 0) { erroValor(v.valor); return; }
       if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
       var ct = marcado(e.natureza, e.item) ? "cotaItem" : "cotaGlobal";
       if (val > S.contas[ct]) { say("0031-SALDO DE COTA INSUFICIENTE.", "err"); return; }
@@ -1077,14 +1081,14 @@
         '<span class="k">Credor ....:</span> ' + e.credor + "\n\n" +
         '<span class="k">Saldo a Liquidar:</span> <span class="v">' + brl(saldo) + "</span>\n\n" +
         '<span class="rule">------------- Informacoes para Liquidar Empenho da Despesa -------------</span>\n' +
-        '  <span class="k">Vl. a Liquidar .:</span> ' + f("valor", 12, brl(saldo)) + "\n" +
+        '  <span class="k">Vl. a Liquidar .:</span> ' + f("valor", 12, semVirgula(saldo)) + "\n" +
         '  <span class="k">Retencao (S/N) .:</span> ' + f("ret", 1, "S") + "\n" +
         '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
     },
     enter: function (v) {
       var e = findEmp(S.ctx.emp), saldo = e.empenhado - e.liquidado;
       var val = parseMoney(v.valor);
-      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!val || val <= 0) { erroValor(v.valor); return; }
       if (val > saldo) { say("0044-VALOR MAIOR QUE O SALDO A LIQUIDAR: " + brl(saldo), "err"); return; }
       if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
       var r = (v.ret || "").toUpperCase();
@@ -1280,7 +1284,7 @@
         '  <span class="k">Valor Liquidado (bruto):</span> ' + brl(e.liquidado - e.pagoBruto) + "\n" +
         '  <span class="k">Retencoes ...........:</span> ' + brl(e.retido) + "\n" +
         '  <span class="k">Liquido a Pagar .....:</span> <span class="v">' + brl(liq) + "</span>\n\n" +
-        '  <span class="k">Vl. a Pagar ....:</span> ' + f("valor", 12, brl(liq)) + "\n" +
+        '  <span class="k">Vl. a Pagar ....:</span> ' + f("valor", 12, semVirgula(liq)) + "\n" +
         '  <span class="k">IRRF (S/N) .....:</span> ' + f("irrf", 1, e.ir > 0 ? "S" : "N") + "\n" +
         '  <span class="k">Codigo .........:</span> ' + f("cod", 4, "6256") + "\n";
     },
@@ -1291,7 +1295,7 @@
       var brutoAberto = e.liquidado - e.pagoBruto;
       if ((v.debitar || "").toUpperCase() !== "X") { say("0033-MARQUE X EM CONTA A DEBITAR.", "err"); return; }
       var val = parseMoney(v.valor);
-      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!val || val <= 0) { erroValor(v.valor); return; }
       if (val > liq) {
         say("0052-VALOR MAIOR QUE O LIQUIDO A PAGAR: " + brl(liq) +
             ". O BRUTO MENOS AS RETENCOES.", "err"); return;
