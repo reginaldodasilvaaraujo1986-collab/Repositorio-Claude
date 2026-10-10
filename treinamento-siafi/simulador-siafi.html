@@ -670,6 +670,12 @@
           "51, OPCAO 01, ACAO 1. O SISTEMA GERA O NUMERO.", "err");
       return;
     }
+    var c2 = cenarioAtual();
+    if (c2 && !S.casos[c2.id].emp) {
+      say("0041-EMPENHO " + (d || "") + " NAO EXISTE. O EMPENHO DESTE CONTRATO AINDA NAO FOI REGISTRADO: " +
+          "VOLTE (ESC) E USE A OPCAO 01 - APROPRIACAO DO EMPENHO.", "err");
+      return;
+    }
     say("0041-EMPENHO NAO ENCONTRADO. USE UM NUMERO DA LISTA ACIMA.", "err");
   }
   function cenarioAtual() {
