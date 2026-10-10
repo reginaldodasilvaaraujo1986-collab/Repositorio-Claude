@@ -1100,26 +1100,55 @@
     pf3: function () { S.screen = "liqSel"; }
   };
 
+  // Cada tributo vai numa linha: INSS em "previdenciarios", ISS em "outras
+  // retencoes". IRRF nao tem linha: o SIAFI aplica pelo codigo 6256.
+  var EVENTOS = [
+    ["ev1", "CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS"],
+    ["ev2", "OUTRAS RETENCOES"],
+    ["ev3", "RESSARCIMENTO AO ESTADO-ORCAMENTO CORRENTE"],
+    ["ev4", "DEPOSITOS JUDICIAIS-OUTRAS DESPESAS CORRENTES"],
+    ["ev5", "FUNFIP-FUNDO FINANCEIRO PREVIDENCIARIO A RECOLHER"],
+    ["ev6", "RETENCAO DE CAUCOES E GARANTIAS DIVERSAS"],
+    ["ev7", "OUTROS IMPOSTOS A RECOLHER AO TESOURO ESTADUAL-ITCD"]
+  ];
+
   SCREENS.eventos = {
-    fields: ["qtd"],
+    fields: EVENTOS.map(function (e) { return e[0]; }),
     pf: ["PF2 Limpa", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
-    hint: "Informe quantas retenções serão lançadas e confirme com Ctrl+Enter. Note que não há linha de IRRF — ele já foi aplicado.",
+    hint: "Digite 1 na linha de cada tributo retido e deixe as outras em branco. INSS vai em Previdenciários, ISS em Outras Retenções. IRRF não tem linha: o SIAFI aplica sozinho.",
     body: function () {
-      var r = calcRet(S.ctx.liq.valor);
-      var n = (r.iss > 0 ? 1 : 0) + (r.inss > 0 ? 1 : 0);
       return head("NFCAEG14", "Liquidar Empenho da Despesa") +
-        '  <span class="k">Qtde</span>              <span class="k">Eventos de Retencao</span>\n' +
-        "   " + f("qtd", 2, String(n)) + "  CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS\n" +
-        "   __  OUTRAS RETENCOES\n" +
-        "   __  RESSARCIMENTO AO ESTADO-ORCAMENTO CORRENTE\n" +
-        "   __  DEPOSITOS JUDICIAIS-OUTRAS DESPESAS CORRENTES\n" +
-        "   __  FUNFIP-FUNDO FINANCEIRO PREVIDENCIARIO A RECOLHER\n" +
-        "   __  RETENCAO DE CAUCOES E GARANTIAS DIVERSAS\n" +
-        "   __  OUTROS IMPOSTOS A RECOLHER AO TESOURO ESTADUAL-ITCD\n\n" +
-        '<span class="dimmed">Conforme a ficha da nota, o simulador vai lancar ' + n + " retencao(oes) alem do IRRF.</span>";
+        '  <span class="k">Qtde</span>  <span class="k">Eventos de Retencao</span>\n' +
+        EVENTOS.map(function (e) { return "   " + f(e[0], 2, "__") + "  " + e[1]; }).join("\n") +
+        '\n\n<span class="dimmed">O IRRF nao aparece aqui: ele ja e aplicado pelo codigo 6256.</span>';
     },
     enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
-    pf5: function () { S.screen = "liqConf"; say("", ""); },
+    pf5: function (v) {
+      var r = calcRet(S.ctx.liq.valor);
+      var q = {};
+      for (var i = 0; i < EVENTOS.length; i++) {
+        var id = EVENTOS[i][0], t = (v[id] || "").replace(/_/g, "").trim();
+        if (t && !/^\d+$/.test(t)) { say("0018-QUANTIDADE INVALIDA NA LINHA " + EVENTOS[i][1] + ".", "err"); return; }
+        q[id] = t ? parseInt(t, 10) : 0;
+      }
+      var querPrev = r.inss > 0 ? 1 : 0, querOutras = r.iss > 0 ? 1 : 0;
+      if (q.ev1 !== querPrev) {
+        say(querPrev
+          ? "0075-HA INSS A RETER (CESSAO DE MAO DE OBRA). INFORME 1 EM CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS."
+          : "0076-NAO HA INSS NESTA NOTA. DEIXE A LINHA PREVIDENCIARIOS EM BRANCO.", "err"); return;
+      }
+      if (q.ev2 !== querOutras) {
+        say(querOutras
+          ? "0077-HA ISS A RETER. O ISSQN VAI EM OUTRAS RETENCOES: INFORME 1 NESSA LINHA."
+          : "0078-NAO HA ISS NESTA NOTA. DEIXE A LINHA OUTRAS RETENCOES EM BRANCO.", "err"); return;
+      }
+      for (var j = 2; j < EVENTOS.length; j++) {
+        if (q[EVENTOS[j][0]]) {
+          say("0079-ESTA NOTA NAO TEM " + EVENTOS[j][1] + ". DEIXE A LINHA EM BRANCO.", "err"); return;
+        }
+      }
+      S.screen = "liqConf"; say("", "");
+    },
     pf3: function () { S.screen = "liquidar"; }
   };
 
