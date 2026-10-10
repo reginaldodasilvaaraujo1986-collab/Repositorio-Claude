@@ -115,6 +115,13 @@
     color: var(--dim); background: var(--panel);
   }
   .trail .s.done { color: var(--ok); border-color: #2f5a44; background: #11241b; }
+  .trail { align-items: center; }
+  .trail .lbl { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; }
+  .trail .sep { width: 10px; }
+  .trail button.pick { cursor: pointer; font-family: var(--mono); color: var(--warn); border-color: #4a3f24; background: #231d10; }
+  .trail button.pick:hover { border-color: var(--warn); }
+  .trail button.pick.on { color: var(--void); background: var(--warn); border-color: var(--warn); font-weight: 600; }
+  .trail button.pick:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
   .trail .s.now  { color: var(--void); background: var(--crt-key); border-color: var(--crt-key); font-weight: 600; }
 
   /* ---------- painéis ---------- */
@@ -880,7 +887,8 @@
       var conta = mk ? "cotaItem" : "cotaGlobal";
       if (val > S.contas[conta]) {
         say("0031-SALDO DE COTA INSUFICIENTE NA " + (mk ? "ELEMENTO/ITEM" : "GLOBAL") +
-            ". DISPONIVEL: " + brl(S.contas[conta]), "err"); return;
+            ". VALOR LIDO: " + brl(val) + " · DISPONIVEL: " + brl(S.contas[conta]) +
+            ". DIGITE O VALOR COM VIRGULA, EX.: 12000,00", "err"); return;
       }
       if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
       S.ctx.novo = { nome: v.nome.toUpperCase(), credor: digits(v.credor), nat: digits(v.nat),
@@ -1398,14 +1406,23 @@
   var pfbar = document.getElementById("pfbar");
   var hint = document.getElementById("hint");
 
+  var telaAnterior = null;
+
   function render() {
     var sc = SCREENS[S.screen];
+    // Erro na mesma tela: o SIAFI mantem o que foi digitado, o simulador tambem.
+    var digitado = {};
+    if (telaAnterior === S.screen) {
+      fieldEls().forEach(function (el) { digitado[el.id] = el.value; });
+    }
+    telaAnterior = S.screen;
     var html = "";
     if (S.msg) {
       html += '<span class="' + (S.msgKind === "err" ? "err" : "msg") + '">' + esc(S.msg) + "</span>\n";
     }
     html += sc.body();
     crt.innerHTML = '<div class="ln">' + html + "</div>";
+    fieldEls().forEach(function (el) { if (digitado[el.id]) el.value = digitado[el.id]; });
 
     var keys = (sc.pf || []).slice();
     if (S.screen === "subsistemas") keys.push("51 Empenho/Liquidacao", "71 Pagamento", "95 Consulta saldos");
@@ -1544,8 +1561,8 @@
     if (!c) {
       brief.innerHTML = '<p style="color:var(--dim);margin:0">Escolha um dos contratos. ' +
         "O quadro com os dados aparece embaixo do terminal.</p>";
-      quadro.innerHTML = '<p class="qempty">Nenhum contrato aberto. Escolha um em ' +
-        "“Contratos recebidos” para ver os dados do empenho, da nota fiscal e do pagamento.</p>";
+      quadro.innerHTML = '<p class="qempty">Nenhum contrato aberto. Clique em um dos botões ' +
+        "amarelos “Contrato” no topo do terminal para ver os dados do empenho, da nota fiscal e do pagamento.</p>";
       return;
     }
     brief.innerHTML =
@@ -1597,12 +1614,22 @@
     var steps = [["emp", "1 Empenho"], ["liq", "2 Liquidação"], ["pago", "3 Pagamento"]];
     var next = null;
     for (var i = 0; i < steps.length; i++) if (!p[steps[i][0]]) { next = steps[i][0]; break; }
-    document.getElementById("trail").innerHTML =
-      (S.cenario ? "" : '<span class="s">Escolha um contrato</span>') +
+    var tr = document.getElementById("trail");
+    tr.innerHTML =
+      '<span class="lbl">Contrato:</span>' +
+      CENARIOS.map(function (c) {
+        return '<button type="button" class="s pick' + (S.cenario === c.id ? " on" : "") +
+               '" data-cen="' + c.id + '">' + esc(c.nome.split(" — ")[0]) + " · espec. " +
+               esc(c.conf.especSiad) + "</button>";
+      }).join("") +
+      '<span class="sep"></span>' +
       steps.map(function (s) {
         var c = p[s[0]] ? "done" : (S.cenario && s[0] === next ? "now" : "");
         return '<span class="s ' + c + '">' + (p[s[0]] ? "✓ " : "") + esc(s[1]) + "</span>";
       }).join("");
+    Array.prototype.forEach.call(tr.querySelectorAll("button.pick"), function (b) {
+      b.addEventListener("click", function () { carregaCenario(b.getAttribute("data-cen")); });
+    });
   }
 
   function renderLog() {
