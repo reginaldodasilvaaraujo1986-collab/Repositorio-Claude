@@ -527,6 +527,34 @@
 
   var S = fresh();
 
+  // O progresso fica guardado no navegador de quem usa: recarregar a pagina
+  // (ou abrir uma versao nova do simulador) nao apaga os lancamentos.
+  var CHAVE = "simulador-siafi-v1";
+  var NF_IDS = ["nf-tipo", "nf-simples", "nf-iss", "nf-mo", "nf-espec"];
+  function salva() {
+    try {
+      var nfv = {};
+      NF_IDS.forEach(function (id) { nfv[id] = document.getElementById(id).value; });
+      localStorage.setItem(CHAVE, JSON.stringify({ S: S, nf: nfv }));
+    } catch (e) { /* sem armazenamento: segue sem guardar */ }
+  }
+  function recupera() {
+    try {
+      var raw = localStorage.getItem(CHAVE);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (!d || !d.S || !d.S.contas || !d.S.casos) return false;
+      var base = fresh();
+      for (var k in base) if (!(k in d.S)) d.S[k] = base[k];
+      S = d.S;
+      S.flash = [];
+      if (d.nf) NF_IDS.forEach(function (id) {
+        if (d.nf[id] != null) document.getElementById(id).value = d.nf[id];
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+
   // ---------------------------------------------------------------- util
   function brl(c) {
     var neg = c < 0; c = Math.abs(c);
@@ -1472,6 +1500,7 @@
     renderCenarios();
     renderTrail();
     renderLog();
+    salva();
     renderRegra();
 
     // A regra e a cota se formam enquanto ele digita, antes de avancar.
@@ -1725,6 +1754,7 @@
 
   document.getElementById("reset").addEventListener("click", function () {
     S = fresh(); document.getElementById("busca-conta").value = "";
+    try { localStorage.removeItem(CHAVE); } catch (e) {}
     say("0000-SIMULACAO REINICIADA.", "msg"); render();
   });
 
@@ -1736,7 +1766,15 @@
     document.getElementById(id).addEventListener("change", render);
   });
 
-  say("0001-BEM-VINDO. ESCOLHA UM CONTRATO AO LADO E DIGITE 51 EM NAVEGACAO.", "msg");
+  var recuperou = recupera();
+  var nEmp = S.empenhos.length - 2;
+  if (recuperou && (nEmp > 0 || S.cenario)) {
+    S.screen = "subsistemas";
+    say("0002-PROGRESSO RECUPERADO" + (nEmp > 0 ? ": " + nEmp + " EMPENHO(S) SEU(S) NA LISTA" : "") +
+        ". PARA COMECAR DO ZERO, USE REINICIAR SIMULACAO.", "msg");
+  } else {
+    say("0001-BEM-VINDO. ESCOLHA UM CONTRATO NO TOPO E DIGITE 51 EM NAVEGACAO.", "msg");
+  }
   render();
 })();
 </script>
