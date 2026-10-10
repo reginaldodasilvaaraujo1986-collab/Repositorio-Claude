@@ -617,6 +617,22 @@
     return null;
   }
   function digits(x) { return String(x || "").replace(/\D/g, ""); }
+
+  // Quem digita o numero da especificacao no lugar do empenho recebe a
+  // explicacao, e nao so o "nao encontrado".
+  function naoEncontrado(num) {
+    var d = digits(num);
+    var c = CENARIOS.filter(function (x) { return x.conf.especSiad === d; })[0];
+    if (c) {
+      var p = S.casos[c.id];
+      say(p.emp
+        ? "0042-" + d + " E A ESPECIFICACAO SIAD. O EMPENHO DESTE CONTRATO E O " + p.emp + "."
+        : "0042-" + d + " E A ESPECIFICACAO SIAD, NAO O EMPENHO. REGISTRE O EMPENHO PRIMEIRO: " +
+          "51, OPCAO 01, ACAO 1. O SISTEMA GERA O NUMERO.", "err");
+      return;
+    }
+    say("0041-EMPENHO NAO ENCONTRADO. USE UM NUMERO DA LISTA ACIMA.", "err");
+  }
   function cenarioAtual() {
     return CENARIOS.filter(function (x) { return x.id === S.cenario; })[0] || null;
   }
@@ -707,7 +723,7 @@
   SCREENS.exec51 = {
     fields: ["opcao", "acao"],
     pf: ["PF3/Esc Volta", "PF9 MenuP"],
-    hint: "Opção 01 registra o empenho, 03 reforça, 04 liquida. Ação 1 = Registrar.",
+    hint: "Contrato novo: opção 01 (registrar o empenho). Depois, opção 04 para liquidar. A opção 03 só reforça um empenho que já existe. Ação 1 = Registrar.",
     body: function () {
       return head("NFCAE051", "Movimentacao da Despesa") +
         '       <span class="dimmed">Execucao da Despesa</span>\n\n' +
@@ -958,7 +974,7 @@
   SCREENS.reforcoSel = {
     fields: ["emp"],
     pf: ["PF3/Esc Volta"],
-    hint: "Reforço serve quando o empenho estimativo ficou curto. Informe o número.",
+    hint: "Reforço só aumenta um empenho que JÁ EXISTE. Para registrar o empenho de um contrato novo, volte (Esc) e use a opção 01.",
     body: function () {
       return head("NFCAE051", "Reforcar Empenho da Despesa") +
         listaEmp() + "\n" +
@@ -966,7 +982,7 @@
     },
     enter: function (v) {
       var e = findEmp(v.emp);
-      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      if (!e) { naoEncontrado(v.emp); return; }
       S.ctx.emp = e.num; S.screen = "reforco"; say("", "");
     },
     pf3: function () { S.screen = "exec51"; }
@@ -1024,7 +1040,7 @@
     },
     enter: function (v) {
       var e = findEmp(v.emp);
-      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      if (!e) { naoEncontrado(v.emp); return; }
       if (e.empenhado - e.liquidado <= 0) { say("0043-EMPENHO SEM SALDO A LIQUIDAR.", "err"); return; }
       // Empenho de um dos contratos: a ficha da nota acompanha o contrato dele.
       var c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
@@ -1227,7 +1243,7 @@
     },
     enter: function (v) {
       var e = findEmp(v.emp);
-      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      if (!e) { naoEncontrado(v.emp); return; }
       if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
       if (e.liqLiquido - e.pagoLiq <= 0) {
         say("0051-EMPENHO SEM SALDO LIQUIDADO A PAGAR. LIQUIDE PRIMEIRO.", "err"); return;
