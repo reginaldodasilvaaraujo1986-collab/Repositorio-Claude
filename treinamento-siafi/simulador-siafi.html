@@ -1,0 +1,1668 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Simulador SIAFI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Libre+Franklin:wght@400;500;600;700&display=swap">
+
+<style>
+  /* Layout: terminal à esquerda (80 colunas), razão contábil e ficha da nota à
+     direita; empilha em uma coluna no celular. Tema único escuro, deliberado:
+     a página imita o console do SIAFI. */
+  :root {
+    color-scheme: dark;
+    --void:    #0a0d11;
+    --panel:   #141a21;
+    --panel-2: #1b232c;
+    --rule:    #2b3742;
+    --ink:     #dfe6ec;
+    --dim:     #8d9aa7;
+    --crt:     #cfd8e0;
+    --crt-key: #6fd3f7;
+    --crt-val: #ffd37a;
+    --crt-hi:  #7ee2a8;
+    --accent:  #e8737c;
+    --ok:      #7ee2a8;
+    --warn:    #ffd37a;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    background: var(--void);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding-inline: 16px;
+    padding-block: 28px 56px;
+  }
+  .wrap { max-width: 1240px; margin-inline: auto; }
+
+  header.top { margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 8px;
+  }
+  h1 { font-size: clamp(24px, 4vw, 32px); margin: 0 0 8px; letter-spacing: -.02em; text-wrap: balance; }
+  .sub { color: var(--dim); margin: 0; max-width: 68ch; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; align-items: start; }
+  .cols > div { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------- terminal ---------- */
+  .term-shell { min-width: 0; }
+  .crt {
+    background: #05080b;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+  }
+  .crt pre, .crt .ln {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--crt);
+    margin: 0;
+    white-space: pre;
+  }
+  .crt .msg { color: var(--crt-hi); }
+  .crt .err { color: var(--accent); }
+  .crt .k   { color: var(--crt-key); }
+  .crt .v   { color: var(--crt-val); font-weight: 500; }
+  .crt .dimmed { color: #5c6874; }
+  .crt .rule { color: #39454f; }
+
+  input.f {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--crt-val);
+    background: #11181f;
+    border: 0;
+    border-bottom: 1px solid #3c4a56;
+    padding: 0 2px;
+    margin: 0;
+    text-transform: uppercase;
+    caret-color: var(--crt-val);
+  }
+  input.f:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; background: #16212a; }
+  input.f::placeholder { color: #44515d; }
+
+  .pfbar {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 11.5px; color: var(--dim);
+    display: flex; flex-wrap: wrap; gap: 6px 14px;
+  }
+  .pfbar b { color: var(--crt-key); font-weight: 600; }
+
+  .hintline {
+    margin-top: 10px; font-size: 13px; color: var(--dim);
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .hintline .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--warn); border: 1px solid #4a3f24;
+    background: #231d10; padding: 1px 6px; border-radius: 3px; flex: none; margin-top: 2px;
+  }
+
+  /* ---------- trilha ---------- */
+  .trail { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .trail .s {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+    padding: 4px 9px; border-radius: 3px; border: 1px solid var(--rule);
+    color: var(--dim); background: var(--panel);
+  }
+  .trail .s.done { color: var(--ok); border-color: #2f5a44; background: #11241b; }
+  .trail .s.now  { color: var(--void); background: var(--crt-key); border-color: var(--crt-key); font-weight: 600; }
+
+  /* ---------- painéis ---------- */
+  .card {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 14px 15px; margin-bottom: 14px;
+  }
+  .card h2 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); font-weight: 600; margin: 0 0 11px;
+  }
+
+  .scrollx { overflow-x: auto; }
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 300px; }
+  table.ledger th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--dim); font-weight: 600;
+    text-align: right; padding: 0 0 6px 8px; border-bottom: 1px solid var(--rule);
+  }
+  table.ledger th:first-child { text-align: left; padding-left: 0; }
+  table.ledger td { padding: 5px 0 5px 8px; border-bottom: 1px solid #222c35; vertical-align: top; }
+  table.ledger td:first-child { padding-left: 0; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger .acct { font-family: var(--mono); font-size: 10px; color: var(--dim); display: block; }
+  table.ledger .nm { color: var(--ink); font-size: 11.5px; }
+  table.ledger .amt {
+    font-family: var(--mono); text-align: right; white-space: nowrap;
+    font-variant-numeric: tabular-nums; color: var(--crt-val);
+  }
+  table.ledger .ant { color: var(--dim); }
+  table.ledger .mov { color: var(--crt-hi); }
+  table.ledger .mov.down { color: var(--accent); }
+  table.ledger tr.zero .amt { color: #4e5a66; }
+  table.ledger tr.flash td { background: #1d2a21; }
+  table.ledger tr.alert td:last-child { color: var(--accent); font-weight: 600; }
+
+  .cen { display: grid; gap: 6px; margin-bottom: 11px; }
+  .cen button {
+    font-family: var(--sans); font-size: 12.5px; text-align: left;
+    background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: 8px 10px; cursor: pointer; line-height: 1.35;
+  }
+  .cen button:hover { border-color: #44525e; }
+  .cen button:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
+  .cen button.on { border-color: var(--crt-key); background: #16242e; }
+  .cen button span { display: block; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .06em; color: var(--dim); margin-top: 3px; }
+  .cen button.on span { color: var(--crt-key); }
+  #brief p { font-size: 12.5px; line-height: 1.5; margin: 0 0 8px; }
+  #brief p:last-child { margin-bottom: 0; }
+  #brief .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--crt-key); margin-bottom: 5px; }
+  #brief code { font-family: var(--mono); color: var(--crt-val); font-size: 11.5px; }
+
+  .nf { display: grid; gap: 9px; }
+  .nf label { display: grid; gap: 3px; font-size: 12.5px; color: var(--dim); }
+  .nf select, .nf input[type="text"] {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 5px 7px; width: 100%;
+  }
+  .nf select:focus, .nf input:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; }
+
+  .log { font-family: var(--mono); font-size: 11.5px; display: grid; gap: 5px; max-height: 190px; overflow-y: auto; }
+  .log div { color: var(--dim); }
+  .log b { color: var(--crt-hi); font-weight: 500; }
+  .log .empty { color: #4e5a66; font-style: italic; }
+
+  button.reset {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em;
+    background: var(--panel-2); color: var(--dim);
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: 6px 11px; cursor: pointer; width: 100%;
+  }
+  button.reset:hover { color: var(--ink); border-color: #44525e; }
+  button.reset:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
+
+  footer.note {
+    margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--rule);
+    font-size: 13px; color: var(--dim);
+  }
+  footer.note p { margin: 0 0 8px; max-width: 76ch; }
+  footer.note p:last-child { margin-bottom: 0; }
+  footer.note b { color: var(--ink); font-weight: 600; }
+
+  input.busca {
+    font-family: var(--mono); font-size: 12.5px; width: 100%; box-sizing: border-box;
+    background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; margin: 0 0 10px;
+  }
+  input.busca:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; }
+  table.ledger tr.grp td {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--crt-key); padding-top: 10px; border-bottom: 1px solid var(--rule);
+  }
+
+  /* quadro do contrato: o documento que chega à SOFi */
+  .quadro .qempty { color: var(--dim); font-size: 13px; margin: 0; }
+  .quadro .qhead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 12px; }
+  .quadro .qhead b { font-size: 15px; color: var(--ink); }
+  .quadro .qhead span { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .quadro .qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .quadro section { background: var(--panel-2); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; }
+  .quadro section.now { border-color: var(--crt-key); }
+  .quadro section.ok { border-color: #2f5a44; }
+  .quadro h3 {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--crt-key); margin: 0 0 8px; font-weight: 600;
+  }
+  .quadro section.ok h3 { color: var(--ok); }
+  .quadro dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12.5px; }
+  .quadro dt { color: var(--dim); }
+  .quadro dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--crt-val); overflow-wrap: anywhere; }
+  .quadro .qnote { font-size: 12.5px; color: var(--dim); margin: 12px 0 0; line-height: 1.5; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  tr.flash td { transition: background .5s ease; }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">SIAFI-MG · Simulador de treinamento</p>
+    <h1>Empenho, liquidação e pagamento de dois contratos</h1>
+    <p class="sub">Escolha um dos dois contratos que chegaram à SOFi, leia o quadro e faça o empenho no terminal, como no sistema de verdade. Depois liquide a nota fiscal e pague o credor. Os saldos das contas contábeis mudam a cada lançamento e podem ser pesquisados a qualquer momento.</p>
+  </header>
+
+  <div class="trail" id="trail"></div>
+
+  <div class="cols">
+
+    <div class="term-shell">
+      <div class="crt" id="crt"></div>
+      <div class="pfbar" id="pfbar"></div>
+      <div class="hintline" id="hint"></div>
+
+      <div class="card quadro" id="quadro-card" style="margin-top:18px">
+        <h2>Quadro do contrato</h2>
+        <div id="quadro"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Contratos recebidos</h2>
+        <div id="cenarios" class="cen"></div>
+        <div id="brief"></div>
+      </div>
+
+      <div class="card">
+        <h2>Balancete de verificação</h2>
+        <input type="search" id="busca-conta" class="busca" placeholder="Pesquisar conta: 6.2.2, 8.2.1, IRRF…" autocomplete="off" aria-label="Pesquisar conta contábil">
+        <div class="scrollx">
+          <table class="ledger" id="bal"></table>
+        </div>
+        <p style="font-size:11.5px;color:var(--dim);margin:10px 0 0">
+          Saldos fictícios. “Anterior” é o saldo no início desta simulação.
+          No terminal, a consulta completa fica na navegação <b style="color:var(--crt-key)">95</b>.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Ficha da nota fiscal</h2>
+        <div class="nf">
+          <label>Natureza
+            <select id="nf-tipo">
+              <option value="servico">Prestação de serviço</option>
+              <option value="mercadoria">Fornecimento de material</option>
+            </select>
+          </label>
+          <label>Optante do Simples
+            <select id="nf-simples">
+              <option value="n">Não</option>
+              <option value="s">Sim</option>
+            </select>
+          </label>
+          <label>Alíquota do ISS (%)
+            <select id="nf-iss">
+              <option value="0">Não incide</option>
+              <option value="2">2%</option>
+              <option value="3">3%</option>
+              <option value="4">4%</option>
+              <option value="5" selected>5%</option>
+            </select>
+          </label>
+          <label>Cessão de mão de obra
+            <select id="nf-mo">
+              <option value="n">Não</option>
+              <option value="s">Sim</option>
+            </select>
+          </label>
+          <label>Elemento/item exige especificação
+            <select id="nf-espec">
+              <option value="s">Sim</option>
+              <option value="n">Não</option>
+            </select>
+          </label>
+        </div>
+        <p style="font-size:12px;color:var(--dim);margin:11px 0 0">Esta ficha não é tela do SIAFI. Reúne o que está na nota e na Tabela Elemento/Item — e é o que decide as retenções e a especificação.</p>
+      </div>
+
+      <div class="card" id="regra-card" hidden>
+        <h2>Regra da especificação</h2>
+        <div id="regra"></div>
+      </div>
+
+      <div class="card">
+        <h2>Lançamentos</h2>
+        <div class="log" id="log"></div>
+      </div>
+
+      <button class="reset" id="reset">REINICIAR SIMULAÇÃO</button>
+    </div>
+
+  </div>
+
+  <footer class="note">
+    <p><b>Teclas.</b> Setas ↑ ↓ andam entre os campos, Enter avança. <b>Esc</b> volta (PF3) e <b>Ctrl+Enter</b> confirma (PF5) — use essas duas, porque F3 e F5 o navegador costuma interceptar. F2, F6, F7 e F8 funcionam direto.</p>
+    <p><b>O que é fiel e o que não é.</b> Os códigos de navegação, a ordem das telas, os campos e as teclas seguem os manuais operacionais. Os contratos, credores, CNPJs e saldos são fictícios. Os percentuais de retenção e os lançamentos contábeis foram simplificados para o treino: o SIAFI real tem mais validações, e a contabilização passa por eventos que aqui aparecem resumidos. O recolhimento das retenções por DAE não faz parte deste treino.</p>
+    <p><b>Retenções aplicadas:</b> IRRF 4,8% sobre serviço e 1,2% sobre material; ISS conforme a alíquota da ficha, só sobre serviço; INSS 11% apenas com cessão de mão de obra, com piso de R$ 29,00. Optante do Simples não sofre IRRF nem INSS.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------- dados
+  // Elementos-itens "marcados" do Anexo XIII do PARO 2026: nao sao executados
+  // no Global, so na cota de Elemento/Item (conta 9.9.8.0.2.03.02).
+  var MARCADOS = ["30.23", "30.25", "30.26", "30.33", "30.34", "37.01", "37.02",
+    "37.04", "37.05", "39.03", "39.12", "39.13", "39.15", "39.17", "39.18",
+    "39.19", "39.20", "39.21", "39.34", "39.35", "39.43", "39.61", "39.69",
+    "39.87", "40.02", "40.03", "40.04", "40.05", "40.06", "40.07", "92.02", "93.01"];
+
+  // natureza 339030 + item 05  ->  elemento-item 30.05
+  function elemItem(nat, item) {
+    nat = String(nat || "").replace(/\D/g, "");
+    item = String(item || "").replace(/\D/g, "");
+    if (nat.length < 6 || !item) return "";
+    return nat.slice(4, 6) + "." + (item.length === 1 ? "0" + item : item.slice(0, 2));
+  }
+  function marcado(nat, item) { return MARCADOS.indexOf(elemItem(nat, item)) !== -1; }
+
+  // Plano de contas do treino. Os codigos seguem a estrutura do PCASP; o ultimo
+  // nivel e os saldos sao ficticios. "g" agrupa as contas no balancete.
+  var ACCTS = [
+    { g: "Financeiro",   id: "cota",      code: "1.1.1.1.2.02.01.01.01", nat: "D", name: "Cota Financeira a Utilizar" },
+    { g: "Patrimonial",  id: "estoque",   code: "1.1.5.6.1.01",          nat: "D", name: "Almoxarifado — Material de Consumo" },
+    { g: "Patrimonial",  id: "fornec",    code: "2.1.3.1.1.01",          nat: "C", name: "Fornecedores e Contas a Pagar" },
+    { g: "Patrimonial",  id: "irrf",      code: "2.1.8.8.1.01",          nat: "C", name: "IRRF a Recolher", alert: true },
+    { g: "Patrimonial",  id: "iss",       code: "2.1.8.8.1.88",          nat: "C", name: "Outros Valores Restituíveis (ISS)" },
+    { g: "Patrimonial",  id: "inss",      code: "2.1.8.8.1.03",          nat: "C", name: "Retenções Previdenciárias (INSS)" },
+    { g: "Patrimonial",  id: "vpd",       code: "3.3.2.3.1.01",          nat: "D", name: "VPD — Serviços de Terceiros PJ" },
+    { g: "Orçamentário", id: "credDisp",  code: "6.2.2.1.1.00",          nat: "C", name: "Crédito Disponível" },
+    { g: "Orçamentário", id: "empLiq",    code: "6.2.2.1.3.01",          nat: "C", name: "Crédito Empenhado a Liquidar" },
+    { g: "Orçamentário", id: "liqPagar",  code: "6.2.2.1.3.03",          nat: "C", name: "Crédito Empenhado Liquidado a Pagar" },
+    { g: "Orçamentário", id: "pago",      code: "6.2.2.1.3.04",          nat: "C", name: "Crédito Empenhado Pago" },
+    { g: "Controle — DDR", id: "ddr1",    code: "8.2.1.1.1.01",          nat: "C", name: "DDR — Disponível" },
+    { g: "Controle — DDR", id: "ddr2",    code: "8.2.1.1.2.01",          nat: "C", name: "DDR — Comprometida por Empenho" },
+    { g: "Controle — DDR", id: "ddr3",    code: "8.2.1.1.3.01",          nat: "C", name: "DDR — Comprometida por Liquidação" },
+    { g: "Controle — DDR", id: "ddr4",    code: "8.2.1.1.4.01",          nat: "C", name: "DDR — Utilizada" },
+    { g: "Cotas do PARO", id: "cotaGlobal", code: "9.9.8.0.2.03.01",     nat: "D", name: "Cota a Empenhar — Global (GMIFP)" },
+    { g: "Cotas do PARO", id: "cotaItem",   code: "9.9.8.0.2.03.02",     nat: "D", name: "Cota a Empenhar — Elemento/Item" }
+  ];
+
+  // Saldos de abertura, em centavos. Ja refletem dois empenhos anteriores da
+  // unidade (845 e 851), para a consulta nao comecar vazia.
+  var SALDOS_INI = {
+    cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, iss: 0, inss: 0,
+    vpd: 6122500, credDisp: 12000000, empLiq: 1530000, liqPagar: 210000,
+    pago: 4875000, ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000,
+    cotaGlobal: 3800000, cotaItem: 2500000
+  };
+
+  // Os dois contratos que chegam a SOFi. "q" e o quadro que acompanha o
+  // processo; "conf" e o que o simulador confere no empenho digitado.
+  var CENARIOS = [
+    {
+      id: "servico",
+      nome: "Contrato 9.140/2026 — Apoio administrativo",
+      tag: "serviço · item marcado · três retenções",
+      ficha: { tipo: "servico", simples: "n", iss: "5", mo: "s", espec: "s" },
+      flags: "Empenho X · CNPJ X · Adiantamento N · Ressarcimento N · Contrato SIAFI N · Contrato SIAD S · Obras N",
+      conf: { cnpj: "11222333000181", nat: "339037", item: "02", fonte: "6020",
+              prog: "061817012001", tipo: "G", valor: 1200000, nota: 1200000,
+              procSiad: "50057/412/2026", especSiad: "4812", cSiad: "S" },
+      q: {
+        contrato: [
+          ["Contrato", "9.140/2026 (fictício)"],
+          ["Objeto", "Apoio administrativo com dedicação exclusiva de mão de obra"],
+          ["Credor", "APOIO TOTAL SERVICOS LTDA"],
+          ["CNPJ", "11.222.333/0001-81"],
+          ["Vigência", "01/10/2026 a 30/09/2027"],
+          ["Processo SIAD", "50057/412/2026"],
+          ["Especificação SIAD", "4812"]
+        ],
+        empenho: [
+          ["Progr. de trabalho", "06.181.701.2001"],
+          ["Nat. despesa / item", "339037 / 02"],
+          ["Fonte", "6020"],
+          ["Tipo de empenho", "G — global"],
+          ["Valor a empenhar", "12.000,00"],
+          ["Ordenador", "350057"]
+        ],
+        nota: [
+          ["Nota fiscal", "NFS-e 1.523"],
+          ["Valor da nota", "12.000,00"],
+          ["Natureza", "Serviço, cessão de mão de obra"],
+          ["ISS", "5%"],
+          ["Simples Nacional", "Não optante"],
+          ["Ateste", "Gestor do contrato, 05/11/2026"]
+        ],
+        pagamento: [
+          ["Banco / agência", "001 / 1234-5"],
+          ["Conta corrente", "98765-0"],
+          ["Código IRRF", "6256"]
+        ]
+      },
+      texto: "O item 37.02 está na lista de marcados do Anexo XIII do PARO: o empenho sai " +
+             "da cota de Elemento/Item, não do Global. O contrato veio do SIAD, então marque " +
+             "Contrato Saída SIAD = S (regra 5). Na liquidação incidem IRRF de serviço, ISSQN " +
+             "e INSS de 11%. O credor recebe o líquido."
+    },
+    {
+      id: "material",
+      nome: "Contrato 9.155/2026 — Material de expediente",
+      tag: "material · cota Global · entrega parcelada",
+      ficha: { tipo: "mercadoria", simples: "n", iss: "0", mo: "n", espec: "s" },
+      flags: "Empenho X · CNPJ X · Adiantamento N · Ressarcimento N · Contrato SIAFI N · Contrato SIAD S · Obras N",
+      conf: { cnpj: "22333444000181", nat: "339030", item: "05", fonte: "6020",
+              prog: "061817012001", tipo: "E", valor: 480000, nota: 240000,
+              procSiad: "50057/300/2026", especSiad: "4566", cSiad: "S" },
+      q: {
+        contrato: [
+          ["Contrato", "9.155/2026 (fictício)"],
+          ["Objeto", "Fornecimento parcelado de material de expediente"],
+          ["Credor", "PAPELARIA MODELO LTDA"],
+          ["CNPJ", "22.333.444/0001-81"],
+          ["Vigência", "15/10/2026 a 31/12/2026"],
+          ["Processo SIAD", "50057/300/2026"],
+          ["Especificação SIAD", "4566"]
+        ],
+        empenho: [
+          ["Progr. de trabalho", "06.181.701.2001"],
+          ["Nat. despesa / item", "339030 / 05"],
+          ["Fonte", "6020"],
+          ["Tipo de empenho", "E — estimativo"],
+          ["Valor a empenhar", "4.800,00"],
+          ["Ordenador", "350057"]
+        ],
+        nota: [
+          ["Nota fiscal", "NF-e 8.871 (1ª entrega)"],
+          ["Valor da nota", "2.400,00"],
+          ["Natureza", "Fornecimento de material"],
+          ["ISS", "Não incide"],
+          ["Simples Nacional", "Não optante"],
+          ["Ateste", "Almoxarifado, 28/10/2026"]
+        ],
+        pagamento: [
+          ["Banco / agência", "104 / 0987-1"],
+          ["Conta corrente", "12345-6"],
+          ["Código IRRF", "6256"]
+        ]
+      },
+      texto: "O item 30.05 não é marcado, então o empenho sai da cota Global. O empenho é " +
+             "estimativo de 4.800,00, mas a primeira nota é de só 2.400,00: liquide a nota, " +
+             "não o empenho inteiro. O saldo fica a liquidar para a próxima entrega. Material " +
+             "não sofre ISS, e só há IRRF, pela alíquota de mercadoria."
+    }
+  ];
+
+  function fresh() {
+    var ini = {};
+    for (var k in SALDOS_INI) ini[k] = SALDOS_INI[k];
+    return {
+      cenario: null,
+      screen: "subsistemas",
+      msg: "",
+      msgKind: "msg",
+      empenhos: [
+        { num: "845", ano: "2026", credor: "COMERCIAL ALFA LTDA", cnpj: "33444555000181",
+          natureza: "339030", item: "17", fonte: "6020", tipo: "E",
+          empenhado: 1530000, liquidado: 0, liqLiquido: 0, pagoLiq: 0, pagoBruto: 0, retido: 0 },
+        { num: "851", ano: "2026", credor: "SERVICOS BETA LTDA", cnpj: "44555666000181",
+          natureza: "339039", item: "99", fonte: "6020", tipo: "O",
+          empenhado: 210000, liquidado: 210000, liqLiquido: 210000, pagoLiq: 0, pagoBruto: 0, retido: 0 }
+      ],
+      contas: JSON.parse(JSON.stringify(ini)),
+      contasIni: ini,
+      log: [],
+      flash: [],
+      ctx: {},
+      busca: "",
+      seqEmp: 862,
+      // progresso de cada contrato: numero do empenho, liquidado, pago
+      casos: { servico: {}, material: {} }
+    };
+  }
+
+  var S = fresh();
+
+  // ---------------------------------------------------------------- util
+  function brl(c) {
+    var neg = c < 0; c = Math.abs(c);
+    var s = (c / 100).toFixed(2).replace(".", ",");
+    s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return (neg ? "-" : "") + s;
+  }
+  function parseMoney(raw) {
+    if (!raw) return null;
+    var t = String(raw).trim();
+    if (!t) return null;
+    if (/[.,]/.test(t)) {
+      t = t.replace(/\./g, "").replace(",", ".");
+      var f = parseFloat(t);
+      return isNaN(f) ? null : Math.round(f * 100);
+    }
+    if (!/^\d+$/.test(t)) return null;
+    return parseInt(t, 10) * 100;
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s; }
+  function lpad(s, n) { s = String(s); while (s.length < n) s = " " + s; return s; }
+
+  function nf() {
+    return {
+      tipo:    document.getElementById("nf-tipo").value,
+      simples: document.getElementById("nf-simples").value === "s",
+      iss:     parseFloat(document.getElementById("nf-iss").value),
+      mo:      document.getElementById("nf-mo").value === "s",
+      espec:   document.getElementById("nf-espec").value === "s"
+    };
+  }
+
+  // As sete regras do item 6.1 do manual: os tres campos S/N da primeira tela
+  // do empenho, combinados com a exigencia do elemento/item, decidem o que o
+  // sistema vai pedir adiante.
+  function regraEspec(flags) {
+    var siafi = flags.cSiafi === "S", siad = flags.cSiad === "S", obras = flags.obras === "S";
+    var adiant = flags.adiant === "S" || flags.ressarc === "S";
+    if (adiant) {
+      return { n: "—", pede: [], lic: false,
+        txt: "Empenho de adiantamento ou ressarcimento. O manual é expresso: não serão solicitadas especificações SIAD." };
+    }
+    if (!nf().espec && !siafi && !siad && !obras) {
+      return { n: "—", pede: [], lic: true,
+        txt: "O elemento/item não exige especificação e não há contrato nem obra. O sistema vai pedir a modalidade de licitação." };
+    }
+    if (siafi && !obras) {
+      return { n: 1, pede: [], lic: false,
+        txt: "Contrato de saída do SIAFI (tipos 11 ou 12), item que não é de obras. Não será solicitado número de especificação de compra na tela." };
+    }
+    if (siafi && obras) {
+      return { n: 2, pede: ["siafi", "obra"], lic: false,
+        txt: "Contrato de obras do SIAFI cadastrado antes de 2009. Serão pedidos o número da especificação SIAFI-MG e o número da obra." };
+    }
+    if (siad && obras) {
+      return { n: 3, pede: ["siad", "obra"], lic: false,
+        txt: "Contrato do SIAD com cadastro de obras do SIAFI. Serão pedidos o número da especificação SIAD e o número da obra." };
+    }
+    if (siad) {
+      return { n: 5, pede: ["siad"], lic: false,
+        txt: "Contrato do SIAD, sem cadastro de obras. Será pedido o número da especificação SIAD." };
+    }
+    if (obras) {
+      return { n: 6, pede: ["siad", "obra"], lic: false,
+        txt: "Cadastro de obras do SIAFI, sem contrato. Será pedido o número da especificação SIAD e o sequencial da obra." };
+    }
+    return { n: 4, pede: ["siad"], lic: false,
+      txt: "Sem contrato e sem cadastro de obras, com elemento/item que exige especificação. Será pedido o número da especificação SIAD. É o caso mais comum da unidade." };
+  }
+
+  // Retenções sobre um valor bruto, segundo a ficha da nota.
+  function calcRet(bruto) {
+    var f = nf(), r = { ir: 0, iss: 0, inss: 0 };
+    if (!f.simples) r.ir = Math.round(bruto * (f.tipo === "servico" ? 0.048 : 0.012));
+    if (f.tipo === "servico" && f.iss > 0) r.iss = Math.round(bruto * (f.iss / 100));
+    if (!f.simples && f.mo) {
+      var v = Math.round(bruto * 0.11);
+      r.inss = v < 2900 ? 0 : v;
+      r.inssBarrado = v > 0 && v < 2900;
+    }
+    r.total = r.ir + r.iss + r.inss;
+    return r;
+  }
+
+  function mv(acct, delta) {
+    S.contas[acct] += delta;
+    if (S.flash.indexOf(acct) === -1) S.flash.push(acct);
+  }
+  function logit(txt) { S.log.unshift(txt); }
+  function say(m, kind) { S.msg = m; S.msgKind = kind || "msg"; }
+  function findEmp(n) {
+    for (var i = 0; i < S.empenhos.length; i++) if (S.empenhos[i].num === String(n)) return S.empenhos[i];
+    return null;
+  }
+  function digits(x) { return String(x || "").replace(/\D/g, ""); }
+  function cenarioAtual() {
+    return CENARIOS.filter(function (x) { return x.id === S.cenario; })[0] || null;
+  }
+
+  // Digito verificador do CNPJ, como o SIAFI valida na tela do empenho.
+  function cnpjValido(c) {
+    c = digits(c);
+    if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
+    function dv(base) {
+      var w = base.length === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+      var s = 0;
+      for (var i = 0; i < base.length; i++) s += parseInt(base[i], 10) * w[i];
+      var r = s % 11;
+      return r < 2 ? 0 : 11 - r;
+    }
+    var d1 = dv(c.slice(0, 12)), d2 = dv(c.slice(0, 12) + d1);
+    return c.slice(12) === String(d1) + String(d2);
+  }
+
+  // Compara o empenho digitado com o quadro do contrato escolhido. Nao bloqueia
+  // o registro (o SIAFI nao conhece o quadro), so aponta o que diverge.
+  function conferir(n) {
+    var c = cenarioAtual();
+    if (!c) return [];
+    var q = c.conf, d = [];
+    if (digits(n.credor) !== q.cnpj) d.push("CNPJ do credor");
+    if (digits(n.nat) !== q.nat) d.push("natureza da despesa");
+    if (digits(n.item).padStart(2, "0") !== q.item) d.push("item");
+    if (digits(n.fonte) !== q.fonte) d.push("fonte");
+    if (digits(n.prog) !== q.prog) d.push("programa de trabalho");
+    if (n.tipo !== q.tipo) d.push("tipo de empenho");
+    if (n.valor !== q.valor) d.push("valor");
+    if (S.ctx.flags.cSiad !== q.cSiad) d.push("campo Contrato Saida SIAD");
+    if (q.especSiad && n.especSiad && digits(n.especSiad) !== q.especSiad) d.push("especificacao SIAD");
+    if (q.procSiad && n.procSiad && digits(n.procSiad) !== digits(q.procSiad)) d.push("processo SIAD");
+    return d;
+  }
+
+  // ---------------------------------------------------------------- telas
+  function head(code, title, extra) {
+    var now = new Date();
+    var d = String(now.getDate()).padStart(2, "0") + "/" +
+            String(now.getMonth() + 1).padStart(2, "0") + "/" + now.getFullYear();
+    var h = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    return [
+      '<span class="dimmed">' + pad(code, 12) + "</span>" + pad("Estado de Minas Gerais", 44) + '<span class="dimmed">PRODEMGE</span>',
+      '<span class="dimmed">' + pad("VFCAE" + code.slice(-3), 12) + "</span>" + pad("S I A F I - M G", 44) + '<span class="dimmed">' + d + "</span>",
+      '<span class="dimmed">' + pad("M050057", 12) + "</span>" + pad(title, 44) + '<span class="dimmed">' + lpad(h, 8) + "</span>",
+      '<span class="k">ANO:</span> 2026   <span class="k">UE:</span> 50057   <span class="k">UO:</span> 1251' + (extra ? "   " + extra : ""),
+      ""
+    ].join("\n");
+  }
+
+  function f(id, size, ph) {
+    return '<input class="f" id="' + id + '" size="' + size + '" maxlength="' + size +
+           '" style="width:' + (size + 1) + 'ch" placeholder="' + (ph || "") + '" autocomplete="off" spellcheck="false">';
+  }
+
+  var SCREENS = {};
+
+  SCREENS.subsistemas = {
+    fields: ["opcao", "nav"],
+    pf: ["PF12 Fim"],
+    hint: "Navegação 51 = empenho e liquidação · 71 = ordem de pagamento · 95 = consulta de saldos contábeis.",
+    body: function () {
+      return head("NFCAE000", "Subsistemas") +
+        ["  01-Rotina Administrativa",
+         "  02-Rotina Anual",
+         "  03-Movimentacao Orcamentaria",
+         "  04-Movimentacao da Receita",
+         "  05-Movimentacao da Despesa",
+         "  06-Movimentacao Financeira Escritural",
+         "  07-Movimentacao Financeira Bancaria",
+         "  08-Movimentacao Contabil",
+         "  09-Consulta / Relatorio",
+         "  10-Tabela", "", ""].join("\n") +
+        '        <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;        <span class="k">Navegacao</span> &lt; ' + f("nav", 2) + " &gt;";
+    },
+    enter: function (v) {
+      if (v.nav === "51" || v.opcao === "05") { S.screen = "exec51"; say("", ""); return; }
+      if (v.nav === "71" || v.opcao === "07") { S.screen = "op071"; say("", ""); return; }
+      if (v.nav === "95" || v.opcao === "09") { S.screen = "consulta"; say("", ""); return; }
+      if (v.nav || v.opcao) say("0003-OPCAO INVALIDA. USE 51, 71 OU 95.", "err");
+      else say("0001-INFORME A OPCAO OU A NAVEGACAO.", "err");
+    }
+  };
+
+  SCREENS.exec51 = {
+    fields: ["opcao", "acao"],
+    pf: ["PF3/Esc Volta", "PF9 MenuP"],
+    hint: "Opção 01 registra o empenho, 03 reforça, 04 liquida. Ação 1 = Registrar.",
+    body: function () {
+      return head("NFCAE051", "Movimentacao da Despesa") +
+        '       <span class="dimmed">Execucao da Despesa</span>\n\n' +
+        ["  01-Apropriacao do Empenho                    1-Registrar",
+         "  02-Anulacao do Empenho                       2-Consultar",
+         "  03-Reforco do Empenho                        3-Imprimir",
+         "  04-Liquidacao da Despesa Empenhada",
+         "  05-Anulacao Saldo Liquidado/Retencao/Multa", "", ""].join("\n") +
+        '     <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;     <span class="k">Acao</span> &lt; ' + f("acao", 1) + " &gt;";
+    },
+    enter: function (v) {
+      if (v.acao && v.acao !== "1") { say("0007-NESTE SIMULADOR SOMENTE A ACAO 1 ESTA DISPONIVEL.", "err"); return; }
+      if (v.opcao === "01") { S.screen = "empenho"; say("", ""); return; }
+      if (v.opcao === "03") { S.screen = "reforcoSel"; say("", ""); return; }
+      if (v.opcao === "04") { S.screen = "liqSel"; say("", ""); return; }
+      if (v.opcao === "02" || v.opcao === "05") { say("0009-OPCAO NAO IMPLEMENTADA NO SIMULADOR.", "err"); return; }
+      say("0003-INFORME A OPCAO: 01, 03 OU 04.", "err");
+    },
+    pf3: function () { S.screen = "subsistemas"; }
+  };
+
+  // --- Empenho, tela 1: e aqui que se decide se havera especificacao -------
+  SCREENS.empenho = {
+    fields: ["prog", "emp", "cpf", "cnpj", "adiant", "ressarc", "cSiafi", "cSiad", "obras"],
+    pf: ["PF3/Esc Volta", "PF6 Sel"],
+    hint: "Os três últimos campos S/N decidem se o sistema vai pedir especificação adiante. Veja a regra se formando ao lado.",
+    regra: true,
+    body: function () {
+      return head("NFCAE051", "Movimentacao da Despesa") +
+        '       <span class="dimmed">Apropriacao de Empenho</span>\n' +
+        '       <span class="k">Unid. Orcamentaria:</span> 1251\n\n' +
+        '  <span class="k">Marque \'X\'</span>\n' +
+        "     " + f("prog", 1) + "    Empenho Programado\n" +
+        "     " + f("emp", 1, "X") + "    Empenho\n\n" +
+        "     " + f("cpf", 1) + "    CPF/CAPF\n" +
+        "     " + f("cnpj", 1, "X") + "    CNPJ/CAPJ\n\n" +
+        "     " + f("adiant", 1, "N") + "    Adiantamento (S/N)\n" +
+        "     " + f("ressarc", 1, "N") + "    Ressarcimento (S/N)\n\n" +
+        "     " + f("cSiafi", 1, "N") + "    Contrato/Convenio Saida SIAFI (S/N)\n" +
+        "     " + f("cSiad", 1, "N") + "    Contrato Saida SIAD (S/N)\n" +
+        "     " + f("obras", 1, "N") + "    Cadastro de Obras do SIAFI (S/N)\n";
+    },
+    enter: function (v) {
+      var up = function (x) { return (x || "").toUpperCase(); };
+      if (up(v.prog) === "X") { say("0009-EMPENHO PROGRAMADO NAO IMPLEMENTADO NO SIMULADOR.", "err"); return; }
+      if (up(v.emp) !== "X") { say("0005-MARQUE X EM EMPENHO.", "err"); return; }
+      if (up(v.cpf) === "X" && up(v.cnpj) === "X") { say("0006-MARQUE APENAS CPF/CAPF OU CNPJ/CAPJ.", "err"); return; }
+      if (up(v.cpf) !== "X" && up(v.cnpj) !== "X") { say("0005-MARQUE CPF/CAPF OU CNPJ/CAPJ.", "err"); return; }
+      var sn = ["adiant", "ressarc", "cSiafi", "cSiad", "obras"];
+      for (var i = 0; i < sn.length; i++) {
+        var val = up(v[sn[i]]);
+        if (val !== "S" && val !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) EM TODOS OS CAMPOS S/N.", "err"); return; }
+      }
+      if (up(v.ressarc) === "S" && up(v.adiant) !== "S") {
+        say("0027-RESSARCIMENTO SO PODE SER S SE ADIANTAMENTO FOR S NA TABELA ELEMENTO/ITEM.", "err"); return;
+      }
+      if (up(v.cSiafi) === "S" && up(v.cSiad) === "S") {
+        say("0028-NAO E POSSIVEL CONTRATO DE SAIDA SIAFI E CONTRATO SAIDA SIAD AO MESMO TEMPO.", "err"); return;
+      }
+      S.ctx.flags = { pessoa: up(v.cnpj) === "X" ? "J" : "F", adiant: up(v.adiant),
+                      ressarc: up(v.ressarc), cSiafi: up(v.cSiafi),
+                      cSiad: up(v.cSiad), obras: up(v.obras) };
+      S.ctx.regra = regraEspec(S.ctx.flags);
+      S.screen = "empenho2";
+      say("", "");
+    },
+    pf3: function () { S.screen = "exec51"; }
+  };
+
+  // --- Empenho, tela 2: o documento propriamente dito ----------------------
+  SCREENS.empenho2 = {
+    fields: function () {
+      var r = S.ctx.regra, f = ["prog", "nat", "item", "fonte", "credor", "nome", "tipo"];
+      if (r.pede.indexOf("siad") !== -1) f.push("procSiad", "especSiad");
+      if (r.pede.indexOf("siafi") !== -1) f.push("especSiafi");
+      if (r.pede.indexOf("obra") !== -1) f.push("obra");
+      return f.concat(["valor", "ord"]);
+    },
+    pf: ["PF2 Anula", "PF3/Esc Volta", "PF4 Manut", "PF6 Sel", "PF5/Ctrl+Enter Conf"],
+    hint: "Tipo de empenho: O ordinário, E estimativo, G global. Confirme com Ctrl+Enter.",
+    regra: true,
+    body: function () {
+      var r = S.ctx.regra, fl = S.ctx.flags;
+      var out = head("NFCAEG03", "Registrar Apropriacao de Empenho") +
+        '<span class="k">Cota Global:</span> <span class="v">' + brl(S.contas.cotaGlobal) +
+        '</span>   <span class="k">Cota Elemento/Item:</span> <span class="v">' +
+        brl(S.contas.cotaItem) + "</span>\n\n" +
+        '     <span class="k">UO    Progr.Trabalho    Nat.Despesa  Item  Fonte  Proc. IPE</span>\n' +
+        "     1251  " + f("prog", 15, "06.181.701.2001") + "  " +
+        f("nat", 6, "339039") + "  " + f("item", 2, "05") + "  " +
+        f("fonte", 4, "6020") + "   1     0\n\n" +
+        '  <span class="k">' + (fl.pessoa === "J" ? "CNPJ/CAPJ-Credor" : "CPF/CAPF-Credor ") + ':</span> ' +
+        f("credor", 18, fl.pessoa === "J" ? "00000000000000" : "00000000000") + "\n" +
+        '  <span class="k">Nome ............:</span> ' + f("nome", 28, "NOME DO CREDOR") + "\n" +
+        '  <span class="k">Tipo Empenho ....:</span> ' + f("tipo", 1, "G") + "   <span class=\"dimmed\">(O/E/G)</span>\n";
+
+      if (r.pede.indexOf("siad") !== -1) {
+        out += '  <span class="k">Nr. Processo SIAD:</span> ' + f("procSiad", 14, "00000/000/2026") +
+               '  <span class="k">Nr. Espec. SIAD:</span> ' + f("especSiad", 6, "0000") + "\n";
+      }
+      if (r.pede.indexOf("siafi") !== -1) {
+        out += '  <span class="k">Numero Espec. Siafi:</span> ' + f("especSiafi", 4, "01") + "\n";
+      }
+      out += '  <span class="k">Adiantamento ....:</span> ' + fl.adiant +
+             '    <span class="k">Ressarcimento:</span> ' + fl.ressarc + "\n" +
+             '  <span class="k">Cont/Conv Saida SIAFI:</span> ' + fl.cSiafi;
+      if (r.pede.indexOf("obra") !== -1) {
+        out += '   <span class="k">Nr. Seq. Obra:</span> ' + f("obra", 6, "1868");
+      }
+      out += "\n\n" +
+        '  <span class="k">Valor ...........:</span> ' + f("valor", 12, "5000,00") + "\n" +
+        '  <span class="k">Ord. Despesa ....:</span> ' + f("ord", 6, "350057") + "\n";
+      if (r.pede.length === 0 && !r.lic) {
+        out += '\n<span class="msg">Regra ' + r.n + ": nenhuma especificacao sera solicitada nesta tela.</span>";
+      }
+      return out;
+    },
+    live: function () {
+      // Avisa qual cota sera consumida assim que natureza e item estiverem preenchidos.
+      var v = vals(), ei = elemItem(v.nat, v.item);
+      if (!ei) return "";
+      return marcado(v.nat, v.item)
+        ? "Elemento-item " + ei + " está na lista de MARCADOS do PARO: a despesa sai " +
+          "da cota de Elemento/Item, não do Global."
+        : "Elemento-item " + ei + " não é marcado: a despesa sai da cota Global.";
+    },
+    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    pf5: function (v) {
+      var r = S.ctx.regra, fl = S.ctx.flags, val = parseMoney(v.valor);
+      if (!v.prog) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: PROGRAMA DE TRABALHO.", "err"); return; }
+      if (digits(v.nat).length !== 6) { say("0019-NATUREZA DA DESPESA INVALIDA. INFORME 6 DIGITOS.", "err"); return; }
+      if (!digits(v.item)) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: ITEM.", "err"); return; }
+      if (!digits(v.fonte)) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: FONTE.", "err"); return; }
+      if (!v.credor) { say("0021-INFORME O CREDOR.", "err"); return; }
+      if (fl.pessoa === "J" && !cnpjValido(v.credor)) { say("0020-CNPJ INVALIDO. CONFIRA OS DIGITOS VERIFICADORES.", "err"); return; }
+      if (!v.nome) { say("0021-INFORME O NOME DO CREDOR.", "err"); return; }
+      var tp = (v.tipo || "").toUpperCase();
+      if (["O", "E", "G"].indexOf(tp) === -1) { say("0025-TIPO DE EMPENHO INVALIDO. USE O, E OU G.", "err"); return; }
+      if (r.pede.indexOf("siad") !== -1 && !v.especSiad) {
+        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NR. ESPEC. SIAD.", "err"); return;
+      }
+      if (r.pede.indexOf("siad") !== -1 && !v.procSiad) {
+        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NR. PROCESSO SIAD.", "err"); return;
+      }
+      if (r.pede.indexOf("siafi") !== -1 && !v.especSiafi) {
+        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NUMERO ESPECIFICACAO SIAFI.", "err"); return;
+      }
+      if (r.pede.indexOf("obra") !== -1 && !v.obra) {
+        say("0139-INFORME O SEQUENCIAL DA OBRA.", "err"); return;
+      }
+      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
+      var mk = marcado(v.nat, v.item);
+      var conta = mk ? "cotaItem" : "cotaGlobal";
+      if (val > S.contas[conta]) {
+        say("0031-SALDO DE COTA INSUFICIENTE NA " + (mk ? "ELEMENTO/ITEM" : "GLOBAL") +
+            ". DISPONIVEL: " + brl(S.contas[conta]), "err"); return;
+      }
+      if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
+      S.ctx.novo = { nome: v.nome.toUpperCase(), credor: digits(v.credor), nat: digits(v.nat),
+                     item: digits(v.item).padStart(2, "0"), fonte: digits(v.fonte),
+                     prog: v.prog, tipo: tp, valor: val,
+                     marcado: mk, conta: conta,
+                     procSiad: v.procSiad || "", especSiad: v.especSiad || "",
+                     especSiafi: v.especSiafi || "", obra: v.obra || "" };
+      if (r.lic) { S.screen = "licitacao"; say("", ""); return; }
+      gravaEmpenho();
+    },
+    pf3: function () { S.screen = "empenho"; }
+  };
+
+  // --- Modalidade de licitacao, quando nao ha especificacao SIAD -----------
+  SCREENS.licitacao = {
+    fields: ["mod", "nrLic", "nrProc"],
+    pf: ["PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
+    hint: "Quando a unidade usa especificação SIAD, a modalidade vem sozinha pela integração. Sem ela, você informa aqui.",
+    regra: true,
+    body: function () {
+      return head("NFCAEG03", "Registrar Apropriacao de Empenho") +
+        '  <span class="k">Elemento/Item exige Licitacao</span>\n\n' +
+        '  <span class="k">Cod  Modalidade</span>\n' +
+        ["   1   CONCORRENCIA", "   2   TOMADA DE PRECOS", "   3   CONVITE",
+         "   4   CONCURSO", "   5   LEILAO", "   6   PREGAO",
+         "   7   COMPRA DIRETA", "   8   DISPENSA", "   9   INEXIGIBILIDADE",
+         "  10   REGISTRO DE PRECOS", "  11   CARTA CONVITE BIRD", ""].join("\n") +
+        '  <span class="k">Modalidade ..:</span> ' + f("mod", 2, "6") + "\n" +
+        '  <span class="k">Nr. Licitacao:</span> ' + f("nrLic", 8, "12/2026") + "\n" +
+        '  <span class="k">Nr. Processo :</span> ' + f("nrProc", 10, "50057/2026") + "\n";
+    },
+    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    pf5: function (v) {
+      var m = parseInt(v.mod, 10);
+      if (!m || m < 1 || m > 11) { say("0029-MODALIDADE INVALIDA. INFORME DE 1 A 11.", "err"); return; }
+      if (!v.nrLic) { say("0004-INFORME O NUMERO DA LICITACAO.", "err"); return; }
+      if (!v.nrProc) { say("0004-INFORME O NUMERO DO PROCESSO.", "err"); return; }
+      S.ctx.novo.mod = m;
+      gravaEmpenho();
+    },
+    pf3: function () { S.screen = "empenho2"; }
+  };
+
+  function gravaEmpenho() {
+    var n = S.ctx.novo, r = S.ctx.regra;
+    S.seqEmp += 1;
+    var e = { num: String(S.seqEmp), ano: "2026", credor: n.nome,
+              cnpj: n.credor, natureza: n.nat, item: n.item, fonte: n.fonte,
+              tipo: n.tipo, empenhado: n.valor, liquidado: 0,
+              liqLiquido: 0, pagoLiq: 0, pagoBruto: 0, retido: 0, ir: 0,
+              caso: S.cenario };
+    S.empenhos.push(e);
+    // Empenho: sai da cota e do credito disponivel, compromete a DDR.
+    mv(n.conta, -n.valor);
+    mv("credDisp", -n.valor); mv("empLiq", n.valor);
+    mv("ddr1", -n.valor); mv("ddr2", n.valor);
+    var diverg = conferir(n);
+    if (S.cenario) S.casos[S.cenario].emp = e.num;
+    logit("<b>Empenho " + e.num + "</b> · " + brl(n.valor) + " · " + esc(e.credor) +
+          " · cota " + (n.marcado ? "Elemento/Item" : "Global"));
+    S.ctx.ultimo = e.num;
+    var ei = elemItem(n.nat, n.item);
+    var linhas = [
+      "Nr. Empenho ....: " + e.num + " / 2026",
+      "Credor .........: " + e.credor,
+      "Elemento-Item ..: " + (ei || "—") + (n.marcado ? "  (MARCADO)" : ""),
+      "Cota consumida .: " + (n.marcado ? "Elemento/Item (9.9.8.0.2.03.02)"
+                                        : "Global — GMIFP (9.9.8.0.2.03.01)"),
+      "Tipo de Empenho : " + n.tipo,
+      "Valor Empenhado : " + brl(n.valor)
+    ];
+    if (n.especSiad)  linhas.push("Espec. SIAD ....: " + n.especSiad);
+    if (n.especSiafi) linhas.push("Espec. SIAFI ...: " + n.especSiafi);
+    if (n.obra)       linhas.push("Seq. da Obra ...: " + n.obra);
+    if (n.mod)        linhas.push("Modalidade .....: " + n.mod);
+    linhas.push("", "Regra de especificacao aplicada: " + r.n,
+                "A cota caiu e o valor entrou em Credito Empenhado a Liquidar.");
+    var conf = null;
+    if (S.cenario) {
+      conf = diverg.length
+        ? { ok: false, txt: "CONFERENCIA COM O QUADRO: diverge em " + diverg.join(", ") + "." }
+        : { ok: true, txt: "CONFERENCIA COM O QUADRO: todos os dados conferem." };
+      if (diverg.length) logit("Conferência do empenho " + e.num + ": diverge em " + esc(diverg.join(", ")));
+    }
+    S.screen = "feito";
+    S.ctx.feito = { titulo: "Empenho registrado", linhas: linhas, volta: "exec51", conf: conf };
+    say("", "");
+  }
+
+  SCREENS.reforcoSel = {
+    fields: ["emp"],
+    pf: ["PF3/Esc Volta"],
+    hint: "Reforço serve quando o empenho estimativo ficou curto. Informe o número.",
+    body: function () {
+      return head("NFCAE051", "Reforcar Empenho da Despesa") +
+        listaEmp() + "\n" +
+        '  <span class="k">Nr. Empenho:</span> ' + f("emp", 6, S.ctx.ultimo || "000");
+    },
+    enter: function (v) {
+      var e = findEmp(v.emp);
+      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      S.ctx.emp = e.num; S.screen = "reforco"; say("", "");
+    },
+    pf3: function () { S.screen = "exec51"; }
+  };
+
+  SCREENS.reforco = {
+    fields: ["valor", "ord"],
+    pf: ["PF2 Anula", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
+    hint: "O reforço soma ao empenho existente e consome mais crédito disponível.",
+    body: function () {
+      var e = findEmp(S.ctx.emp);
+      return head("NFCAEG09", "Reforcar Empenho da Despesa") +
+        '<span class="k">Nr. Empenho:</span> <span class="v">' + e.num + "</span> / 2026\n" +
+        '<span class="k">Credor ....:</span> ' + e.credor + "\n\n" +
+        '<span class="k">Total Empenhado:</span> <span class="v">' + lpad(brl(e.empenhado), 14) + "</span>" +
+        '    <span class="k">Saldo Empenho:</span> <span class="v">' + brl(e.empenhado - e.liquidado) + "</span>\n" +
+        '<span class="k">Cota Global:</span> <span class="v">' + brl(S.contas.cotaGlobal) +
+        '</span>   <span class="k">Cota Elemento/Item:</span> <span class="v">' +
+        brl(S.contas.cotaItem) + "</span>\n\n" +
+        '  <span class="k">Valor do Reforco:</span> ' + f("valor", 12, "2000,00") + "\n" +
+        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
+    },
+    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    pf5: function (v) {
+      var e = findEmp(S.ctx.emp), val = parseMoney(v.valor);
+      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
+      var ct = marcado(e.natureza, e.item) ? "cotaItem" : "cotaGlobal";
+      if (val > S.contas[ct]) { say("0031-SALDO DE COTA INSUFICIENTE.", "err"); return; }
+      if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
+      e.empenhado += val;
+      mv(ct, -val);
+      mv("credDisp", -val); mv("empLiq", val);
+      mv("ddr1", -val); mv("ddr2", val);
+      logit("<b>Reforço</b> no empenho " + e.num + " · " + brl(val));
+      S.screen = "feito";
+      S.ctx.feito = { titulo: "Reforco registrado", linhas: [
+        "Nr. Empenho ....: " + e.num,
+        "Valor do Reforco: " + brl(val),
+        "Total Empenhado : " + brl(e.empenhado)
+      ], volta: "exec51" };
+      say("", "");
+    },
+    pf3: function () { S.screen = "reforcoSel"; }
+  };
+
+  SCREENS.liqSel = {
+    fields: ["emp"],
+    pf: ["PF3/Esc Volta"],
+    hint: "Liquide o empenho do contrato que você acabou de registrar. A nota fiscal está no quadro, abaixo do terminal.",
+    body: function () {
+      return head("NFCAE051", "Liquidar Empenho da Despesa") +
+        listaEmp() + "\n" +
+        '  <span class="k">Nr. Empenho:</span> ' + f("emp", 6, S.ctx.ultimo || "000");
+    },
+    enter: function (v) {
+      var e = findEmp(v.emp);
+      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      if (e.empenhado - e.liquidado <= 0) { say("0043-EMPENHO SEM SALDO A LIQUIDAR.", "err"); return; }
+      // Empenho de um dos contratos: a ficha da nota acompanha o contrato dele.
+      var c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
+      if (c) {
+        document.getElementById("nf-tipo").value = c.ficha.tipo;
+        document.getElementById("nf-simples").value = c.ficha.simples;
+        document.getElementById("nf-iss").value = c.ficha.iss;
+        document.getElementById("nf-mo").value = c.ficha.mo;
+        document.getElementById("nf-espec").value = c.ficha.espec;
+      }
+      S.ctx.emp = e.num; S.screen = "liquidar"; say("", "");
+    },
+    pf3: function () { S.screen = "exec51"; }
+  };
+
+  SCREENS.liquidar = {
+    fields: ["valor", "ret", "ord"],
+    pf: ["PF2 Anula", "PF3/Esc Volta"],
+    hint: "Liquide o valor da NOTA FISCAL, que pode ser menor que o saldo do empenho. Retenção S abre a tela de eventos para ISS e INSS; o IRRF o SIAFI aplica sozinho.",
+    body: function () {
+      var e = findEmp(S.ctx.emp), saldo = e.empenhado - e.liquidado;
+      return head("NFCAEG14", "Liquidar Empenho da Despesa") +
+        '<span class="k">Nr. Empenho:</span> <span class="v">' + e.num + "</span> / 2026    " +
+        '<span class="k">Nat. Despesa:</span> ' + e.natureza + "    " +
+        '<span class="k">Fonte:</span> ' + e.fonte + "\n" +
+        '<span class="k">Credor ....:</span> ' + e.credor + "\n\n" +
+        '<span class="k">Saldo a Liquidar:</span> <span class="v">' + brl(saldo) + "</span>\n\n" +
+        '<span class="rule">------------- Informacoes para Liquidar Empenho da Despesa -------------</span>\n' +
+        '  <span class="k">Vl. a Liquidar .:</span> ' + f("valor", 12, brl(saldo)) + "\n" +
+        '  <span class="k">Retencao (S/N) .:</span> ' + f("ret", 1, "S") + "\n" +
+        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
+    },
+    enter: function (v) {
+      var e = findEmp(S.ctx.emp), saldo = e.empenhado - e.liquidado;
+      var val = parseMoney(v.valor);
+      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (val > saldo) { say("0044-VALOR MAIOR QUE O SALDO A LIQUIDAR: " + brl(saldo), "err"); return; }
+      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
+      var r = (v.ret || "").toUpperCase();
+      if (r !== "S" && r !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) NO CAMPO RETENCAO.", "err"); return; }
+      S.ctx.liq = { valor: val, ret: r };
+      if (r === "S") { S.screen = "eventos"; say("", ""); }
+      else { S.screen = "liqConf"; say("", ""); }
+    },
+    pf3: function () { S.screen = "liqSel"; }
+  };
+
+  SCREENS.eventos = {
+    fields: ["qtd"],
+    pf: ["PF2 Limpa", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
+    hint: "Informe quantas retenções serão lançadas e confirme com Ctrl+Enter. Note que não há linha de IRRF — ele já foi aplicado.",
+    body: function () {
+      var r = calcRet(S.ctx.liq.valor);
+      var n = (r.iss > 0 ? 1 : 0) + (r.inss > 0 ? 1 : 0);
+      return head("NFCAEG14", "Liquidar Empenho da Despesa") +
+        '  <span class="k">Qtde</span>              <span class="k">Eventos de Retencao</span>\n' +
+        "   " + f("qtd", 2, String(n)) + "  CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS\n" +
+        "   __  OUTRAS RETENCOES\n" +
+        "   __  RESSARCIMENTO AO ESTADO-ORCAMENTO CORRENTE\n" +
+        "   __  DEPOSITOS JUDICIAIS-OUTRAS DESPESAS CORRENTES\n" +
+        "   __  FUNFIP-FUNDO FINANCEIRO PREVIDENCIARIO A RECOLHER\n" +
+        "   __  RETENCAO DE CAUCOES E GARANTIAS DIVERSAS\n" +
+        "   __  OUTROS IMPOSTOS A RECOLHER AO TESOURO ESTADUAL-ITCD\n\n" +
+        '<span class="dimmed">Conforme a ficha da nota, o simulador vai lancar ' + n + " retencao(oes) alem do IRRF.</span>";
+    },
+    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    pf5: function () { S.screen = "liqConf"; say("", ""); },
+    pf3: function () { S.screen = "liquidar"; }
+  };
+
+  SCREENS.liqConf = {
+    fields: [],
+    pf: ["PF2 Anula", "PF5/Ctrl+Enter Conf"],
+    hint: "Confira o líquido antes de confirmar. É este valor que o fornecedor recebe.",
+    body: function () {
+      var e = findEmp(S.ctx.emp), L = S.ctx.liq;
+      var r = L.ret === "S" ? calcRet(L.valor) : (function () {
+        var x = calcRet(L.valor); return { ir: x.ir, iss: 0, inss: 0, total: x.ir, inssBarrado: false };
+      })();
+      S.ctx.ret = r;
+      var f2 = nf();
+      var linhas = [
+        '<span class="rule">------------------- Detalhamento da Liquidacao -------------------</span>',
+        '<span class="k">Tipo  CPF/CNPJ                                        Valor</span>',
+        "  P   " + pad(e.cnpj, 44) + lpad(brl(L.valor), 14),
+      ];
+      if (r.ir > 0)   linhas.push('  R   <span class="dimmed">IRRF cod. 6256</span>' + pad("", 30) + lpad(brl(r.ir), 14));
+      if (r.iss > 0)  linhas.push('  R   <span class="dimmed">ISSQN ' + f2.iss + "%</span>" + pad("", 32) + lpad(brl(r.iss), 14));
+      if (r.inss > 0) linhas.push('  R   <span class="dimmed">INSS 11%</span>' + pad("", 36) + lpad(brl(r.inss), 14));
+      linhas.push('<span class="rule">' + "-".repeat(68) + "</span>");
+      linhas.push('<span class="k">Valor Bruto ..:</span> ' + lpad(brl(L.valor), 14));
+      linhas.push('<span class="k">Vl. Retencoes :</span> ' + lpad(brl(r.total), 14));
+      linhas.push('<span class="k">Valor Liquido :</span> <span class="v">' + lpad(brl(L.valor - r.total), 14) + "</span>");
+      var av = "";
+      if (f2.simples) av = '\n\n<span class="msg">Optante do Simples: sem IRRF e sem INSS.</span>';
+      if (r.inssBarrado) av += '\n<span class="msg">INSS calculado abaixo de R$ 29,00 — nao retido.</span>';
+      if (f2.tipo === "mercadoria" && f2.iss > 0) av += '\n<span class="msg">Material nao sofre ISS, ainda que a ficha traga aliquota.</span>';
+      return head("NFCAEG1A", "Liquidar Empenho da Despesa") + linhas.join("\n") + av;
+    },
+    pf5: function () {
+      var e = findEmp(S.ctx.emp), L = S.ctx.liq, r = S.ctx.ret;
+      var liquido = L.valor - r.total;
+      e.liquidado += L.valor;
+      e.liqLiquido += liquido;
+      e.retido += r.total;
+      e.ir += r.ir;
+      // Orcamentario: a liquidar -> liquidado a pagar. DDR: empenho -> liquidacao.
+      mv("empLiq", -L.valor); mv("liqPagar", L.valor);
+      mv("ddr2", -L.valor); mv("ddr3", L.valor);
+      // Patrimonial: material entra no almoxarifado; servico vira VPD.
+      mv(nf().tipo === "mercadoria" ? "estoque" : "vpd", L.valor);
+      mv("fornec", liquido);
+      if (r.ir > 0) mv("irrf", r.ir);
+      if (r.iss > 0) mv("iss", r.iss);
+      if (r.inss > 0) mv("inss", r.inss);
+      logit("<b>Liquidação</b> emp. " + e.num + " · bruto " + brl(L.valor) +
+            " · retenções " + brl(r.total) + " · líquido " + brl(liquido));
+      var conf = null, c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
+      if (c) {
+        S.casos[c.id].liq = true;
+        conf = L.valor === c.conf.nota
+          ? { ok: true, txt: "CONFERENCIA: valor liquidado igual ao da nota fiscal." }
+          : { ok: false, txt: "CONFERENCIA: a nota fiscal e de " + brl(c.conf.nota) +
+                              ", mas foram liquidados " + brl(L.valor) + "." };
+      }
+      S.ctx.ultimo = e.num;
+      S.screen = "feito";
+      S.ctx.feito = { titulo: "Liquidacao registrada", linhas: [
+        "Nr. Empenho ....: " + e.num,
+        "Valor Bruto ....: " + brl(L.valor),
+        "Retencoes ......: " + brl(r.total),
+        "Valor Liquido ..: " + brl(liquido),
+        "Saldo a liquidar: " + brl(e.empenhado - e.liquidado),
+        "",
+        "Proximo passo: pagar o liquido ao credor (navegacao 71).",
+        "As retencoes ficam na unidade, para recolher por DAE."
+      ], volta: "exec51", conf: conf };
+      say("", "");
+    },
+    pf3: function () { S.screen = "liquidar"; }
+  };
+
+  SCREENS.op071 = {
+    fields: ["opcao", "acao"],
+    pf: ["PF3/Esc Volta", "PF9 MenuP"],
+    hint: "Opção 01, Ação 1. Esse menu também cancela (2), consulta (3) e imprime (4).",
+    body: function () {
+      return head("NFCAE071", "Movimentacao Financeira Bancaria") +
+        '       <span class="dimmed">Ordem de Pagamento</span>\n\n' +
+        ["  01-Ordem de Pagamento Bancaria              1-Registrar",
+         "  02-Ordem de Pagamento Cheque - Unid.Tes.    2-Cancelar",
+         "  03-Ordem de Pagamento Cheque - CMU          3-Consultar",
+         "  04-Ordem de Pagamento Pessoal Bancaria      4-Imprimir",
+         "  07-Alteracao das Informacoes IRRF", "", ""].join("\n") +
+        '     <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;     <span class="k">Acao</span> &lt; ' + f("acao", 1) + " &gt;";
+    },
+    enter: function (v) {
+      if (v.opcao === "01" && (v.acao === "1" || !v.acao)) { S.screen = "opTipo"; say("", ""); return; }
+      if (v.opcao === "01") { say("0007-NESTE SIMULADOR SOMENTE A ACAO 1 ESTA DISPONIVEL.", "err"); return; }
+      say("0003-INFORME A OPCAO 01 E A ACAO 1.", "err");
+    },
+    pf3: function () { S.screen = "subsistemas"; }
+  };
+
+  SCREENS.opTipo = {
+    fields: ["x"],
+    pf: ["PF3/Esc Volta"],
+    hint: "Digite X na linha Por Credor — é o pagamento normal a fornecedor.",
+    body: function () {
+      return head("NFCAE071", "Ordem de Pagamento Bancaria") +
+        '  <span class="k">Marque</span>\n' +
+        "   'X'\n" +
+        "   __   Credores Diversos\n" +
+        "   " + f("x", 1) + "   Por Credor\n" +
+        "   __   Com Desconto\n" +
+        "   __   Por Codigo de Barras\n" +
+        "   __   Recolhimento de Retencao por Credor\n" +
+        "   __   Guia Previdenciaria de Retencao s/ Cod. Barras\n" +
+        "   __   Depositos Diversas Origens\n" +
+        "   __   Suprimento de Caixa\n" +
+        "   __   Sentenca Judicial\n";
+    },
+    enter: function (v) {
+      if ((v.x || "").toUpperCase() !== "X") { say("0005-MARQUE X NA OPCAO POR CREDOR.", "err"); return; }
+      S.screen = "opSel"; say("", "");
+    },
+    pf3: function () { S.screen = "op071"; }
+  };
+
+  SCREENS.opSel = {
+    fields: ["emp", "ord"],
+    pf: ["PF3/Esc Volta"],
+    hint: "Só é possível pagar o que está liquidado. A lista mostra o LÍQUIDO a pagar de cada empenho.",
+    body: function () {
+      return head("NFCAEK03", "Registrar Ordem de Pagamento Bancaria") +
+        '       <span class="dimmed">Pagamento por Credor</span>\n' +
+        listaEmp(true) + "\n" +
+        '  <span class="k">Nr. Empenho ....:</span> ' + f("emp", 6, S.ctx.ultimo || "000") + "\n" +
+        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
+    },
+    enter: function (v) {
+      var e = findEmp(v.emp);
+      if (!e) { say("0041-EMPENHO NAO ENCONTRADO.", "err"); return; }
+      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
+      if (e.liqLiquido - e.pagoLiq <= 0) {
+        say("0051-EMPENHO SEM SALDO LIQUIDADO A PAGAR. LIQUIDE PRIMEIRO.", "err"); return;
+      }
+      S.ctx.emp = e.num; S.screen = "opReg"; say("", "");
+    },
+    pf3: function () { S.screen = "opTipo"; }
+  };
+
+  SCREENS.opReg = {
+    fields: ["debitar", "valor", "irrf", "cod"],
+    pf: ["PF2 Anula", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
+    hint: "O valor a pagar é o LÍQUIDO da liquidação. As retenções ficam na unidade, para recolher depois por DAE.",
+    body: function () {
+      var e = findEmp(S.ctx.emp);
+      var liq = e.liqLiquido - e.pagoLiq;
+      var c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
+      var banco = c ? c.q.pagamento : [["Banco / agência", "001 / 0001-9"], ["Conta corrente", "00001-0"]];
+      return head("NFCAEK03", "Registrar Ordem de Pagamento Bancaria") +
+        '       <span class="dimmed">Pagamento por Credor</span>\n' +
+        '<span class="k">CNPJ-Credor:</span> ' + esc(e.cnpj) + "  -  " + esc(e.credor) + "\n\n" +
+        '  <span class="k">Conta Debitar ..:</span> ' + f("debitar", 1, "X") + '  Conta Unica\n' +
+        '  <span class="k">Conta Creditar .:</span> <span class="dimmed">Banco ' + esc(banco[0][1]) +
+        "  C/C " + esc(banco[1][1]) + "</span>\n" +
+        '  <span class="dimmed">                   (preenchida pelo cadastro do credor)</span>\n\n' +
+        '  <span class="k">Valor Liquidado (bruto):</span> ' + brl(e.liquidado - e.pagoBruto) + "\n" +
+        '  <span class="k">Retencoes ...........:</span> ' + brl(e.retido) + "\n" +
+        '  <span class="k">Liquido a Pagar .....:</span> <span class="v">' + brl(liq) + "</span>\n\n" +
+        '  <span class="k">Vl. a Pagar ....:</span> ' + f("valor", 12, brl(liq)) + "\n" +
+        '  <span class="k">IRRF (S/N) .....:</span> ' + f("irrf", 1, e.ir > 0 ? "S" : "N") + "\n" +
+        '  <span class="k">Codigo .........:</span> ' + f("cod", 4, "6256") + "\n";
+    },
+    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    pf5: function (v) {
+      var e = findEmp(S.ctx.emp);
+      var liq = e.liqLiquido - e.pagoLiq;
+      var brutoAberto = e.liquidado - e.pagoBruto;
+      if ((v.debitar || "").toUpperCase() !== "X") { say("0033-MARQUE X EM CONTA A DEBITAR.", "err"); return; }
+      var val = parseMoney(v.valor);
+      if (!val || val <= 0) { say("0022-VALOR INVALIDO.", "err"); return; }
+      if (val > liq) {
+        say("0052-VALOR MAIOR QUE O LIQUIDO A PAGAR: " + brl(liq) +
+            ". O BRUTO MENOS AS RETENCOES.", "err"); return;
+      }
+      if (val > S.contas.cota) { say("0061-RECURSO FINANCEIRO INSUFICIENTE NA COTA.", "err"); return; }
+      var ir = (v.irrf || "").toUpperCase();
+      if (ir !== "S" && ir !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) NO CAMPO IRRF.", "err"); return; }
+      if (e.ir > 0 && ir !== "S") { say("0070-HOUVE RETENCAO DE IRRF NA LIQUIDACAO. INFORME S.", "err"); return; }
+      if (ir === "S" && (v.cod || "").trim() !== "6256") {
+        say("0071-CODIGO DE IRRF INCORRETO PARA PESSOA JURIDICA. USE 6256.", "err"); return;
+      }
+      // O bruto baixado e proporcional ao liquido pago (todo, se pagou tudo).
+      var bruto = val === liq ? brutoAberto : Math.round(brutoAberto * val / liq);
+      e.pagoLiq += val;
+      e.pagoBruto += bruto;
+      mv("liqPagar", -bruto); mv("pago", bruto);
+      mv("ddr3", -bruto); mv("ddr4", bruto);
+      mv("fornec", -val);
+      mv("cota", -val);
+      logit("<b>Pagamento</b> emp. " + e.num + " · " + brl(val) + " ao credor");
+      var conf = null, c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
+      if (c) {
+        S.casos[c.id].pago = true;
+        conf = e.liqLiquido - e.pagoLiq === 0
+          ? { ok: true, txt: "CONFERENCIA: liquido pago integralmente. Ciclo do contrato concluido." }
+          : { ok: false, txt: "CONFERENCIA: ainda restam " + brl(e.liqLiquido - e.pagoLiq) + " liquidos a pagar." };
+      }
+      var pend = S.contas.irrf + S.contas.iss + S.contas.inss;
+      S.screen = "feito";
+      S.ctx.feito = { titulo: "Registro efetuado", linhas: [
+        "Nr. Ordem de Pagamento: " + (700 + S.log.length),
+        "Nr. Empenho ..........: " + e.num,
+        "Valor Pago ...........: " + brl(val),
+        "Saldo a liquidar .....: " + brl(e.empenhado - e.liquidado),
+        "",
+        "Retencoes na unidade, a recolher por DAE: " + brl(pend),
+        "Confira os saldos na navegacao 95."
+      ], volta: "subsistemas", conf: conf };
+      say("", "");
+    },
+    pf3: function () { S.screen = "opSel"; }
+  };
+
+  function filtraContas(q) {
+    q = String(q || "").trim().toLowerCase();
+    if (!q) return ACCTS.slice();
+    var qd = q.replace(/[^\d]/g, "");
+    return ACCTS.filter(function (a) {
+      var cd = a.code.replace(/\./g, "");
+      return a.code.indexOf(q) === 0 || (qd && qd === q.replace(/\./g, "") && cd.indexOf(qd) === 0) ||
+             a.name.toLowerCase().indexOf(q) !== -1 || a.g.toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  SCREENS.consulta = {
+    fields: ["conta"],
+    pf: ["PF3/Esc Volta", "Enter Pesquisa"],
+    hint: "Digite o início do código (ex.: 6.2.2 ou 82111) ou parte do nome (ex.: IRRF) e tecle Enter. Em branco lista todas.",
+    body: function () {
+      var lista = filtraContas(S.ctx.consulta);
+      var l = [head("NFCAE095", "Consulta Saldos Contabeis")];
+      l.push('  <span class="k">Conta Contabil:</span> ' + f("conta", 22, S.ctx.consulta || "todas") + "\n");
+      l.push('<span class="k">' + pad("Conta", 24) + pad("Descricao", 38) + pad("D/C", 4) + lpad("Saldo", 14) + "</span>");
+      l.push('<span class="rule">' + "-".repeat(80) + "</span>");
+      if (!lista.length) l.push('<span class="err">0090-NENHUMA CONTA ENCONTRADA PARA "' + esc(S.ctx.consulta) + '".</span>');
+      var g = null;
+      lista.forEach(function (a) {
+        if (a.g !== g) { g = a.g; l.push('<span class="dimmed">' + esc(g.toUpperCase()) + "</span>"); }
+        var v = S.contas[a.id];
+        var line = pad(a.code, 24) + pad(a.name.slice(0, 36), 38) + pad(a.nat, 4) + lpad(brl(v), 14);
+        l.push(v === 0 ? '<span class="dimmed">' + esc(line) + "</span>"
+                       : (a.alert && v > 0 ? '<span class="err">' + esc(line) + "</span>" : esc(line)));
+      });
+      var pend = S.contas.irrf + S.contas.iss + S.contas.inss;
+      l.push("");
+      if (pend > 0) l.push('<span class="err">ATENCAO: ' + brl(pend) + " em retencoes pendentes de recolhimento por DAE.</span>");
+      return l.join("\n");
+    },
+    enter: function (v) { S.ctx.consulta = v.conta; say("", ""); },
+    pf3: function () { S.ctx.consulta = ""; S.screen = "subsistemas"; }
+  };
+
+  SCREENS.feito = {
+    fields: [],
+    pf: ["Enter Continua"],
+    hint: "Tecle Enter para voltar ao menu.",
+    body: function () {
+      var F = S.ctx.feito;
+      var out = head("NFCAEG09", F.titulo) +
+        '<span class="msg">0011-REGISTRO EFETUADO.</span>\n\n' +
+        F.linhas.map(function (x) { return "  " + esc(x); }).join("\n");
+      if (F.conf) {
+        out += "\n\n  " + '<span class="' + (F.conf.ok ? "msg" : "err") + '">' + esc(F.conf.txt) + "</span>";
+      }
+      return out;
+    },
+    enter: function () { S.screen = S.ctx.feito.volta; say("", ""); }
+  };
+
+  function listaEmp(soLiq) {
+    var l = ['<span class="k">  Nr.Emp   Credor                      ' +
+             (soLiq ? "Liquido a Pagar" : "Saldo a Liquidar") + "</span>"];
+    S.empenhos.forEach(function (e) {
+      var v = soLiq ? (e.liqLiquido - e.pagoLiq) : (e.empenhado - e.liquidado);
+      l.push("  " + pad(e.num, 9) + pad(esc(e.credor.slice(0, 26)), 28) + lpad(brl(v), 16));
+    });
+    return l.join("\n") + "\n";
+  }
+
+  // ---------------------------------------------------------------- render
+  var crt = document.getElementById("crt");
+  var pfbar = document.getElementById("pfbar");
+  var hint = document.getElementById("hint");
+
+  function render() {
+    var sc = SCREENS[S.screen];
+    var html = "";
+    if (S.msg) {
+      html += '<span class="' + (S.msgKind === "err" ? "err" : "msg") + '">' + esc(S.msg) + "</span>\n";
+    }
+    html += sc.body();
+    crt.innerHTML = '<div class="ln">' + html + "</div>";
+
+    var keys = (sc.pf || []).slice();
+    if (S.screen === "subsistemas") keys.push("51 Empenho/Liquidacao", "71 Pagamento", "95 Consulta saldos");
+    pfbar.innerHTML = keys.map(function (k) {
+      var p = k.split(" ");
+      return "<span><b>" + esc(p.shift()) + "</b> " + esc(p.join(" ")) + "</span>";
+    }).join("");
+
+    var dica = sc.hint || "";
+    if (sc.live) { var L = sc.live(); if (L) dica = L; }
+    hint.innerHTML = dica ? '<span class="tag">dica</span><span>' + esc(dica) + "</span>" : "";
+
+    renderLedger();
+    renderCenarios();
+    renderTrail();
+    renderLog();
+    renderRegra();
+
+    // A regra e a cota se formam enquanto ele digita, antes de avancar.
+    if (S.screen === "empenho") {
+      fieldEls().forEach(function (el) { el.addEventListener("input", renderRegra); });
+    }
+    if (SCREENS[S.screen].live) {
+      fieldEls().forEach(function (el) {
+        el.addEventListener("input", function () {
+          var L = SCREENS[S.screen].live();
+          hint.innerHTML = L ? '<span class="tag">dica</span><span>' + esc(L) + "</span>"
+                             : '<span class="tag">dica</span><span>' + esc(SCREENS[S.screen].hint || "") + "</span>";
+        });
+      });
+    }
+
+    var first = crt.querySelector("input.f");
+    if (first) first.focus();
+  }
+
+  function fieldsOf(sc) {
+    return typeof sc.fields === "function" ? sc.fields() : (sc.fields || []);
+  }
+
+  function vals() {
+    var sc = SCREENS[S.screen], o = {};
+    fieldsOf(sc).forEach(function (id) {
+      var el = document.getElementById(id);
+      o[id] = el ? el.value.trim() : "";
+    });
+    return o;
+  }
+
+  function renderRegra() {
+    var sc = SCREENS[S.screen];
+    var card = document.getElementById("regra-card");
+    if (!sc.regra) { card.hidden = true; return; }
+    card.hidden = false;
+    var box = document.getElementById("regra");
+    var r;
+    if (S.screen === "empenho") {
+      var v = vals(), up = function (x) { return (x || "").toUpperCase(); };
+      var faltam = ["adiant", "ressarc", "cSiafi", "cSiad", "obras"].filter(function (k) {
+        return up(v[k]) !== "S" && up(v[k]) !== "N";
+      });
+      if (faltam.length) {
+        box.innerHTML = '<p style="font-size:12.5px;color:var(--dim);margin:0">' +
+          "Preencha os cinco campos S/N e a regra aparece aqui, antes de você avançar.</p>";
+        return;
+      }
+      r = regraEspec({ adiant: up(v.adiant), ressarc: up(v.ressarc),
+                       cSiafi: up(v.cSiafi), cSiad: up(v.cSiad), obras: up(v.obras) });
+    } else {
+      r = S.ctx.regra;
+    }
+    if (!r) { card.hidden = true; return; }
+    var pede = r.pede.length
+      ? r.pede.map(function (p) {
+          return p === "siad" ? "especificação SIAD"
+               : p === "siafi" ? "especificação SIAFI-MG" : "sequencial da obra";
+        }).join(" + ")
+      : (r.lic ? "modalidade de licitação" : "nada");
+    box.innerHTML =
+      '<p style="margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--crt-key)">REGRA ' + esc(r.n) + "</p>" +
+      '<p style="margin:0 0 10px;font-size:12.5px;line-height:1.5">' + esc(r.txt) + "</p>" +
+      '<p style="margin:0;font-size:12.5px"><span style="color:var(--dim)">O sistema vai pedir:</span> ' +
+      '<b style="color:var(--crt-val)">' + esc(pede) + "</b></p>";
+  }
+
+  function renderLedger() {
+    var tb = document.getElementById("bal");
+    var lista = filtraContas(S.busca);
+    var g = null, linhas = "";
+    lista.forEach(function (a) {
+      if (a.g !== g) { g = a.g; linhas += '<tr class="grp"><td colspan="4">' + esc(g) + "</td></tr>"; }
+      var v = S.contas[a.id], ini = S.contasIni[a.id], mov = v - ini;
+      var cls = [];
+      if (v === 0 && mov === 0) cls.push("zero");
+      if (S.flash.indexOf(a.id) !== -1) cls.push("flash");
+      if (a.alert && v > 0) cls.push("alert");
+      var movTxt = mov === 0
+        ? '<span class="ant">—</span>'
+        : '<span class="mov' + (mov < 0 ? " down" : "") + '">' +
+          (mov > 0 ? "+" : "") + brl(mov) + "</span>";
+      linhas += '<tr class="' + cls.join(" ") + '">' +
+        '<td><span class="nm">' + esc(a.name) + '</span><span class="acct">' +
+          esc(a.code) + " · " + (a.nat || "D") + "</span></td>" +
+        '<td class="amt ant">' + brl(ini) + "</td>" +
+        '<td class="amt">' + movTxt + "</td>" +
+        '<td class="amt">' + brl(v) + "</td></tr>";
+    });
+    if (!lista.length) {
+      linhas = '<tr><td colspan="4" style="color:var(--dim);padding-top:8px">Nenhuma conta encontrada.</td></tr>';
+    }
+    tb.innerHTML = "<thead><tr><th>Conta</th><th>Anterior</th><th>Movimento</th>" +
+                   "<th>Atual</th></tr></thead><tbody>" + linhas + "</tbody>";
+    if (S.flash.length) setTimeout(function () {
+      S.flash = [];
+      Array.prototype.forEach.call(tb.querySelectorAll("tr.flash"), function (tr) {
+        tr.classList.remove("flash");
+      });
+    }, 900);
+  }
+
+  function renderCenarios() {
+    var box = document.getElementById("cenarios");
+    box.innerHTML = CENARIOS.map(function (c) {
+      var p = S.casos[c.id], st = p.pago ? " · ✓ pago" : p.liq ? " · ✓ liquidado" : p.emp ? " · ✓ empenhado" : "";
+      return '<button type="button" data-cen="' + c.id + '"' +
+             (S.cenario === c.id ? ' class="on"' : "") + ">" +
+             esc(c.nome) + "<span>" + esc(c.tag + st) + "</span></button>";
+    }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { carregaCenario(b.getAttribute("data-cen")); });
+    });
+
+    var brief = document.getElementById("brief");
+    var quadro = document.getElementById("quadro");
+    var c = cenarioAtual();
+    if (!c) {
+      brief.innerHTML = '<p style="color:var(--dim);margin:0">Escolha um dos contratos. ' +
+        "O quadro com os dados aparece embaixo do terminal.</p>";
+      quadro.innerHTML = '<p class="qempty">Nenhum contrato aberto. Escolha um em ' +
+        "“Contratos recebidos” para ver os dados do empenho, da nota fiscal e do pagamento.</p>";
+      return;
+    }
+    brief.innerHTML =
+      '<p>' + esc(c.texto) + "</p>" +
+      '<p class="lbl">Primeira tela do empenho</p>' +
+      '<p><code>' + esc(c.flags) + "</code></p>";
+
+    var p = S.casos[c.id];
+    var etapa = !p.emp ? "empenho" : !p.liq ? "nota" : !p.pago ? "pagamento" : "";
+    function sec(id, titulo, dados, feito) {
+      return '<section class="' + (feito ? "ok" : etapa === id ? "now" : "") + '"><h3>' +
+        (feito ? "✓ " : "") + esc(titulo) + "</h3><dl>" +
+        dados.map(function (d) { return "<dt>" + esc(d[0]) + "</dt><dd>" + esc(d[1]) + "</dd>"; }).join("") +
+        "</dl></section>";
+    }
+    var empInfo = p.emp ? [["Empenho registrado", "Nº " + p.emp + " / 2026"]] : [];
+    quadro.innerHTML =
+      '<div class="qhead"><b>' + esc(c.nome) + "</b><span>" +
+        esc(c.q.contrato[2][1]) + " · CNPJ " + esc(c.q.contrato[3][1]) + "</span></div>" +
+      '<div class="qgrid">' +
+        sec("contrato", "Contrato", c.q.contrato, false) +
+        sec("empenho", "1 · Dados para o empenho", c.q.empenho.concat(empInfo), !!p.emp) +
+        sec("nota", "2 · Nota fiscal (liquidação)", c.q.nota, !!p.liq) +
+        sec("pagamento", "3 · Dados para o pagamento", c.q.pagamento, !!p.pago) +
+      "</div>" +
+      '<p class="qnote">' + (
+        !p.emp ? "Próximo passo: navegação 51, opção 01, ação 1. Na primeira tela marque " + esc(c.flags) + "."
+        : !p.liq ? "Próximo passo: navegação 51, opção 04, ação 1, empenho " + esc(p.emp) + ". Liquide o valor da nota fiscal."
+        : !p.pago ? "Próximo passo: navegação 71, opção 01, ação 1, Por Credor, empenho " + esc(p.emp) + ". Pague o líquido."
+        : "Ciclo concluído. Confira os saldos na navegação 95 ou no balancete ao lado.") + "</p>";
+  }
+
+  function carregaCenario(id) {
+    var c = CENARIOS.filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    S.cenario = id;
+    document.getElementById("nf-tipo").value = c.ficha.tipo;
+    document.getElementById("nf-simples").value = c.ficha.simples;
+    document.getElementById("nf-iss").value = c.ficha.iss;
+    document.getElementById("nf-mo").value = c.ficha.mo;
+    document.getElementById("nf-espec").value = c.ficha.espec;
+    S.screen = "subsistemas";
+    say("0001-CONTRATO CARREGADO. LEIA O QUADRO ABAIXO E DIGITE 51 EM NAVEGACAO.", "msg");
+    render();
+  }
+
+  function renderTrail() {
+    var p = S.cenario ? S.casos[S.cenario] : {};
+    var steps = [["emp", "1 Empenho"], ["liq", "2 Liquidação"], ["pago", "3 Pagamento"]];
+    var next = null;
+    for (var i = 0; i < steps.length; i++) if (!p[steps[i][0]]) { next = steps[i][0]; break; }
+    document.getElementById("trail").innerHTML =
+      (S.cenario ? "" : '<span class="s">Escolha um contrato</span>') +
+      steps.map(function (s) {
+        var c = p[s[0]] ? "done" : (S.cenario && s[0] === next ? "now" : "");
+        return '<span class="s ' + c + '">' + (p[s[0]] ? "✓ " : "") + esc(s[1]) + "</span>";
+      }).join("");
+  }
+
+  function renderLog() {
+    var el = document.getElementById("log");
+    el.innerHTML = S.log.length
+      ? S.log.map(function (x) { return "<div>" + x + "</div>"; }).join("")
+      : '<div class="empty">nenhum lançamento ainda</div>';
+  }
+
+  // ---------------------------------------------------------------- teclado
+  function fieldEls() { return Array.prototype.slice.call(crt.querySelectorAll("input.f")); }
+
+  function move(dir) {
+    var els = fieldEls();
+    if (!els.length) return;
+    var i = els.indexOf(document.activeElement);
+    if (i === -1) { els[0].focus(); return; }
+    var j = (i + dir + els.length) % els.length;
+    els[j].focus();
+    els[j].setSelectionRange(els[j].value.length, els[j].value.length);
+  }
+
+  document.addEventListener("keydown", function (ev) {
+    var sc = SCREENS[S.screen];
+    // Campos fora do terminal (ficha da nota, pesquisa de conta) usam o teclado normal.
+    var t = ev.target;
+    var fora = t && t.closest && (t.closest(".nf") || t.id === "busca-conta");
+    if (fora && ev.key !== "Escape") return;
+
+    // PF5 — confirma
+    if ((ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) || ev.key === "F5") {
+      ev.preventDefault();
+      if (sc.pf5) sc.pf5(vals()); else say("0017-NADA A CONFIRMAR NESTA TELA.", "err");
+      render(); return;
+    }
+    // PF3 — volta
+    if (ev.key === "Escape" || ev.key === "F3") {
+      ev.preventDefault();
+      if (sc.pf3) { sc.pf3(); say("", ""); } else say("0015-TELA INICIAL.", "err");
+      render(); return;
+    }
+    // PF2 — anula / limpa
+    if (ev.key === "F2") {
+      ev.preventDefault();
+      fieldEls().forEach(function (el) { el.value = ""; });
+      say("0012-CAMPOS LIMPOS.", "msg"); render(); return;
+    }
+    // PF9 — menu principal
+    if (ev.key === "F9") {
+      ev.preventDefault(); S.screen = "subsistemas"; say("", ""); render(); return;
+    }
+    if (ev.key === "ArrowDown") { ev.preventDefault(); move(1); return; }
+    if (ev.key === "ArrowUp")   { ev.preventDefault(); move(-1); return; }
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      if (sc.enter) sc.enter(vals());
+      render(); return;
+    }
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    S = fresh(); document.getElementById("busca-conta").value = "";
+    say("0000-SIMULACAO REINICIADA.", "msg"); render();
+  });
+
+  document.getElementById("busca-conta").addEventListener("input", function (ev) {
+    S.busca = ev.target.value; renderLedger();
+  });
+
+  ["nf-tipo", "nf-simples", "nf-iss", "nf-mo", "nf-espec"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", render);
+  });
+
+  say("0001-BEM-VINDO. ESCOLHA UM CONTRATO AO LADO E DIGITE 51 EM NAVEGACAO.", "msg");
+  render();
+})();
+</script>
+
+</body></html>
