@@ -58,7 +58,7 @@
 
   // ===================================================== tabelas do treino
   // Todos os codigos e nomes abaixo sao ficticios, para treinamento.
-  var USUARIO = "M000001", SENHA = "TREINO";
+  var SENHA = "TREINO";
   var UES = { "1250057": "UNIDADE DE TREINAMENTO PMMG - OPERACIONAL" };
   var UOS = { "1251": "POLICIA MILITAR DO ESTADO DE MINAS GERAIS" };
   var ORDS = { "350057": "ORDENADOR DE DESPESA - TREINAMENTO" };
@@ -297,15 +297,17 @@
         "",
         "                    " + L("Senha .......: ") + f("pwd", 8, { pw: true }),
         "", "", "",
-        '<span class="d">' + esc(center("Usuario de treinamento: M000001   Senha: TREINO", W)) + "</span>",
+        '<span class="d">' + esc(center("Use seu codigo de usuario. Senha de treinamento: TREINO", W)) + "</span>",
         '<span class="d">' + esc(center("PF11 reinicia os dados do treinamento", W)) + "</span>"
       ];
     },
     enter: function (v) {
       if (!v.usr || !v.pwd) return erro("0001-INFORME USUARIO E SENHA.");
-      if (v.usr.toUpperCase() !== USUARIO || v.pwd.toUpperCase() !== SENHA)
-        return erro("0002-USUARIO OU SENHA INVALIDOS. USE O USUARIO DE TREINAMENTO.");
-      S.user = USUARIO; go("ueSel");
+      // Qualquer codigo de usuario serve; a senha e sempre a de treino,
+      // para ninguem digitar aqui a senha de um sistema real.
+      if (!/^[A-Z0-9]{4,7}$/i.test(v.usr)) return erro("0002-CODIGO DE USUARIO INVALIDO.");
+      if (v.pwd.toUpperCase() !== SENHA) return erro("0002-SENHA INVALIDA. NO TREINAMENTO A SENHA E SEMPRE: TREINO");
+      S.user = v.usr.toUpperCase(); go("ueSel");
     },
     pf11: function () { S = novoEstado(); try { localStorage.removeItem(CHAVE); } catch (e) {} say("0000-DADOS DO TREINAMENTO REINICIADOS."); },
     pf12: function () { say("0000-SESSAO ENCERRADA."); }
