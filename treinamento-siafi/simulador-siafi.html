@@ -67,16 +67,22 @@
     "22333444000181": { nome: "PAPELARIA MODELO LTDA", banco: "104", ag: "0987-1", cc: "12345-6" },
     "33444555000181": { nome: "COMERCIAL ALFA LTDA", banco: "237", ag: "0001-2", cc: "55555-5" },
     "44555666000181": { nome: "SERVICOS BETA LTDA", banco: "341", ag: "3380-0", cc: "77777-7" },
+    "55666777000181": { nome: "AUTO MECANICA EXEMPLO LTDA", banco: "033", ag: "4455-0", cc: "10203-4" },
+    "66777888000181": { nome: "INFOTEC SUPRIMENTOS LTDA", banco: "001", ag: "2020-1", cc: "30405-6" },
+    "77888999000181": { nome: "LIMPA BEM SERVICOS LTDA", banco: "104", ag: "1111-2", cc: "60708-9" },
     "29979036000140": { nome: "INSTITUTO NACIONAL DO SEGURO SOCIAL" },
     "18715383000140": { nome: "MUNICIPIO DE BELO HORIZONTE" }
   };
   // Especificacoes SIAD que a "integracao" devolve ao SIAFI.
   var ESPECS = {
     "4812": { proc: "1250057412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
-    "4566": { proc: "1250057300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" }
+    "4566": { proc: "1250057300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" },
+    "5101": { proc: "1250057615" + "2026", contrato: null, modalidade: "REGISTRO DE PRECOS" },
+    "5102": { proc: "1250057620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
+    "5103": { proc: "1250057630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" }
   };
   // Tabela Elemento/Item: exige especificacao SIAD?
-  var EXIGE_ESPEC = ["30.05", "30.17", "37.02", "39.99"];
+  var EXIGE_ESPEC = ["30.05", "30.17", "37.01", "37.02", "39.16", "39.99"];
   // Anexo XIII do PARO: itens executados so na cota de Elemento/Item.
   var MARCADOS = ["30.23", "30.25", "30.26", "30.33", "30.34", "37.01", "37.02",
     "37.04", "37.05", "39.03", "39.12", "39.13", "39.15", "39.17", "39.18",
@@ -542,6 +548,7 @@
         var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000" + digits(v.pSeq)).slice(-3) + digits(v.pAno);
         if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
         if (esp.contrato && c.cSiad !== "S") return erro("0143-ESPECIFICACAO COM CONTRATO NO SIAD. INFORME 'S' EM CONTRATO SAIDA SIAD (PF3).");
+        if (!esp.contrato && c.cSiad === "S") return erro("0144-ESPECIFICACAO SEM CONTRATO NO SIAD. INFORME 'N' EM CONTRATO SAIDA SIAD (PF3).");
       }
       if (p.obra && !digits(v.obra)) return erro("0139-INFORME SEQUENCIAL OBRA.");
       var val = valor(v.valor);
@@ -1248,7 +1255,9 @@
   var ELEM = {
     "30.05": { d: "MATERIAL DE EXPEDIENTE", espec: "S", adiant: "N", lic: "S", nit: "N" },
     "30.17": { d: "MATERIAL DE PROCESSAMENTO DE DADOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "37.01": { d: "LOCACAO DE MAO DE OBRA - LIMPEZA E CONSERVACAO", espec: "S", adiant: "N", lic: "S", nit: "N" },
     "37.02": { d: "LOCACAO DE MAO DE OBRA - APOIO ADMINISTRATIVO", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "39.16": { d: "MANUTENCAO E CONSERVACAO DE VEICULOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
     "39.99": { d: "OUTROS SERVICOS DE TERCEIROS - PESSOA JURIDICA", espec: "S", adiant: "N", lic: "S", nit: "N" },
     "15.01": { d: "DIARIAS - MILITAR", espec: "N", adiant: "S", lic: "N", nit: "S" }
   };
