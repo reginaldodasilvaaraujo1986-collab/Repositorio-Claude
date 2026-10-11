@@ -351,7 +351,8 @@
   function navegar(n) {
     if (n === "51") return go("m51"), true;
     if (n === "71") return go("m71"), true;
-    if (n === "91" || n === "92" || n === "95") return go("m91"), true;
+    if (n === "91") return go("m91"), true;
+    if (n === "92") return go("mSaldo"), true;
     if (n === "05" || n === "50") return go("m05"), true;
     if (n === "07" || n === "70") return go("m07"), true;
     if (n === "09" || n === "90") return go("m09"), true;
@@ -1236,13 +1237,133 @@
     enter: function (v) {
       if (navegar(digits(v.nav))) return;
       var o = digits(v.opcao);
-      if (o === "02" || o === "2") return go("m91");
+      if (o === "01" || o === "1") return go("m91");
+      if (o === "02" || o === "2") return go("mSaldo");
       if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
       erro("0001-INFORME A OPCAO.");
     },
     pf3: function () { go("subs"); }
   };
+  // ---- 09 Consulta/Relatorio > 01 Tabela (citado nas notas dos manuais)
+  var ELEM = {
+    "30.05": { d: "MATERIAL DE EXPEDIENTE", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "30.17": { d: "MATERIAL DE PROCESSAMENTO DE DADOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "37.02": { d: "LOCACAO DE MAO DE OBRA - APOIO ADMINISTRATIVO", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "39.99": { d: "OUTROS SERVICOS DE TERCEIROS - PESSOA JURIDICA", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "15.01": { d: "DIARIAS - MILITAR", espec: "N", adiant: "S", lic: "N", nit: "S" }
+  };
   SC.m91 = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE091", "VFCAE091", "Consulta / Relatorio", "Tabela",
+        ["01-Administracao Interna", "04-Operacional"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = ("0" + digits(v.opcao)).slice(-2);
+      if (o === "01") return go("tbAdm");
+      if (o === "04") return go("tbOper");
+      if (digits(v.opcao)) return erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("m09"); }
+  };
+  SC.tbAdm = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE091", "VFCAE911", "Consulta / Relatorio", "Administracao Interna",
+        ["07-Elemento/Item de Despesa", "11-Modalidade de Licitacao", "12-Dispensa de Licitacao"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = ("0" + digits(v.opcao)).slice(-2);
+      if (o === "07") return go("tbElem");
+      if (o === "11") { S.ctx.lista = "mod"; return go("tbLista"); }
+      if (o === "12") { S.ctx.lista = "disp"; return go("tbLista"); }
+      if (digits(v.opcao)) return erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("m91"); }
+  };
+  SC.tbOper = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE091", "VFCAE914", "Consulta / Relatorio", "Operacional", ["01-Credor/Devedor"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = ("0" + digits(v.opcao)).slice(-2);
+      if (o === "01") return go("tbCred");
+      if (digits(v.opcao)) return erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("m91"); }
+  };
+  SC.tbElem = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var l = head("NFCAE091", "VFCAE917", "Consulta Elemento/Item de Despesa", "Tabela");
+      l.push("", "  " + L("Elemento: ") + f("el", 2) + "   " + L("Item: ") + f("it", 2), "");
+      var k = S.ctx.elem, e = k && ELEM[k];
+      if (k && !e) l.push(esc("  0090-ELEMENTO/ITEM NAO CADASTRADO."));
+      if (e) {
+        l.push("  " + L("Elemento/Item ..........: ") + esc(k + " - " + e.d),
+          "  " + L("Exige Especificacao ....: ") + e.espec,
+          "  " + L("Adiantamento ...........: ") + e.adiant,
+          "  " + L("Exige Licitacao ........: ") + e.lic,
+          "  " + L("NIT/PIS/PASEP ..........: ") + e.nit);
+      }
+      return l;
+    },
+    enter: function (v) {
+      var el = digits(v.el), it = digits(v.it);
+      if (!el || !it) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      S.ctx.elem = ("0" + el).slice(-2) + "." + ("0" + it).slice(-2); say("");
+    },
+    pf3: function () { S.ctx = {}; go("tbAdm"); }
+  };
+  SC.tbLista = {
+    pf: { 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var mod = S.ctx.lista === "mod";
+      var l = head("NFCAE091", "VFCAE91" + (mod ? "B" : "C"), mod ? "Modalidade de Licitacao" : "Dispensa de Licitacao", "Tabela");
+      l.push("", L("  Cod.   Descricao"));
+      (mod ? ["CONCORRENCIA", "TOMADA DE PRECOS", "CONVITE", "CONCURSO", "LEILAO", "PREGAO", "COMPRA DIRETA",
+        "DISPENSA", "INEXIGIBILIDADE", "REGISTRO DE PRECOS", "CARTA CONVITE BIRD"]
+        : ["OBRAS E SERVICOS ENGENHARIA ATE R$ 15.000,00", "COMPRAS E SERVICOS(EXCETO ENGENHARIA) ATE R$ 8.000",
+          "CASOS DE GUERRA/GRAVE PERTUBACAO DA ORDEM", "CASOS DE EMERGENCIA/CALAMIDADE PUBLICA",
+          "AUSENCIA DE INTERESSADOS A LICITACAO ANTERIOR", "CASOS DE INTERVENCAO DA UNIAO NA ECONOMIA",
+          "SUPERVALORIZACAO P/PARTE DOS PARTICIPANTES LICITAC", "NEGOCIOS ENTRE ORGAOS OU ENTIDADES PUBLICAS",
+          "RISCO DE COMPROMETIMENTO DA SEGURANCA NACIONAL"]).forEach(function (t, i) {
+        l.push(esc("  " + lpad(i + 1, 4) + "   " + t));
+      });
+      return l;
+    },
+    pf3: function () { go("tbAdm"); }
+  };
+  SC.tbCred = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var l = head("NFCAE091", "VFCAE941", "Consulta Credor/Devedor", "Tabela");
+      l.push("", "  " + L("CPF/CNPJ: ") + f("doc", 14), "");
+      var k = S.ctx.cred, c = k && CREDORES[k];
+      if (k && !c) l.push(esc("  0021-CREDOR NAO CADASTRADO NA TABELA CREDOR/DEVEDOR."));
+      if (c) {
+        l.push("  " + L("CNPJ ....: ") + esc(fmtCnpj(k)), "  " + L("Nome ....: ") + esc(c.nome));
+        if (c.banco) l.push("", "  " + L("Domicilio Bancario"), "  " + L("Banco: ") + c.banco + "   " + L("Agencia: ") + c.ag + "   " + L("Conta: ") + c.cc);
+      }
+      return l;
+    },
+    enter: function (v) {
+      var d = digits(v.doc);
+      if (!d) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (d.length === 14 && !cnpjValido(d)) return erro("0020-CNPJ INVALIDO.");
+      S.ctx.cred = d; say("");
+    },
+    pf3: function () { S.ctx = {}; go("tbOper"); }
+  };
+
+  SC.mSaldo = {
     pf: { 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 12: "Fim" },
     draw: function () {
       var q = (S.ctx.busca || "").toUpperCase(), qd = digits(q);
@@ -1250,7 +1371,7 @@
         if (!q) return true;
         return a[1].indexOf(q) === 0 || (qd && qd === q.replace(/\./g, "") && a[1].replace(/\./g, "").indexOf(qd) === 0) || a[3].indexOf(q) >= 0;
       });
-      var l = head("NFCAE091", "VFCAE091", "Consulta / Relatorio", "Saldo Contabil");
+      var l = head("NFCAE092", "VFCAE092", "Consulta / Relatorio", "Saldo Contabil");
       l.push("", "  " + L("Conta Contabil (ou parte do nome): ") + f("busca", 24), "",
         L(pad("  Conta", 25) + pad("Descricao", 36) + "D/C" + lpad("Saldo", 16)));
       if (!lista.length) l.push(esc("  0090-NENHUMA CONTA ENCONTRADA."));
