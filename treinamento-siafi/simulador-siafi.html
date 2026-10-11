@@ -1,1788 +1,1343 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulador SIAFI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Libre+Franklin:wght@400;500;600;700&display=swap">
-
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-  /* Layout: terminal à esquerda (80 colunas), razão contábil e ficha da nota à
-     direita; empilha em uma coluna no celular. Tema único escuro, deliberado:
-     a página imita o console do SIAFI. */
+  /* Só o terminal: 80 colunas x 26 linhas, centralizado, nada em volta.
+     Tema único escuro, deliberado: imita o emulador 3270 do SIAFI. */
   :root {
     color-scheme: dark;
-    --void:    #0a0d11;
-    --panel:   #141a21;
-    --panel-2: #1b232c;
-    --rule:    #2b3742;
-    --ink:     #dfe6ec;
-    --dim:     #8d9aa7;
-    --crt:     #cfd8e0;
-    --crt-key: #6fd3f7;
-    --crt-val: #ffd37a;
-    --crt-hi:  #7ee2a8;
-    --accent:  #e8737c;
-    --ok:      #7ee2a8;
-    --warn:    #ffd37a;
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --sans: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --bg: #000;
+    --txt: #46e36a;      /* campos protegidos */
+    --lbl: #5fd7ff;      /* rotulos */
+    --inp: #f4f4f4;      /* campos de digitacao */
+    --msg: #ffe066;      /* linha de mensagem */
+    --err: #ff6b6b;
+    --dim: #2f8f45;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   }
-
-  body {
-    background: var(--void);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: 15px;
-    line-height: 1.55;
-    padding-inline: 16px;
-    padding-block: 28px 56px;
-  }
-  .wrap { max-width: 1240px; margin-inline: auto; }
-
-  header.top { margin-bottom: 22px; }
-  .eyebrow {
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: .16em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 8px;
-  }
-  h1 { font-size: clamp(24px, 4vw, 32px); margin: 0 0 8px; letter-spacing: -.02em; text-wrap: balance; }
-  .sub { color: var(--dim); margin: 0; max-width: 68ch; }
-
-  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; align-items: start; }
-  .cols > div { min-width: 0; }
-  @media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-
-  /* ---------- terminal ---------- */
-  .term-shell { min-width: 0; }
-  .crt {
-    background: #05080b;
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 14px 16px;
-    overflow-x: auto;
-  }
-  .crt pre, .crt .ln {
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body { display: grid; place-items: center; padding: 12px; box-sizing: border-box; }
+  #t {
     font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--crt);
-    margin: 0;
+    font-size: min(17px, calc((100vw - 24px) / 49));
+    line-height: 1.32;
+    color: var(--txt);
     white-space: pre;
+    width: 80ch;
+    min-height: 26lh;
   }
-  .crt .msg { color: var(--crt-hi); }
-  .crt .err { color: var(--accent); }
-  .crt .k   { color: var(--crt-key); }
-  .crt .v   { color: var(--crt-val); font-weight: 500; }
-  .crt .dimmed { color: #5c6874; }
-  .crt .rule { color: #39454f; }
-
-  input.f {
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--crt-val);
-    background: #11181f;
-    border: 0;
-    border-bottom: 1px solid #3c4a56;
-    padding: 0 2px;
-    margin: 0;
-    text-transform: uppercase;
-    caret-color: var(--crt-val);
+  #t .l { color: var(--lbl); }
+  #t .m { color: var(--msg); }
+  #t .e { color: var(--err); }
+  #t .d { color: var(--dim); }
+  #t .b { color: #fff; font-weight: 600; }
+  #t .pf { cursor: pointer; }
+  #t .pf:hover { color: #fff; }
+  #t input {
+    font: inherit; line-height: inherit; color: var(--inp); background: transparent;
+    border: 0; padding: 0; margin: 0; text-transform: uppercase; caret-color: var(--inp);
+    background-image: linear-gradient(var(--dim), var(--dim));
+    background-size: 100% 1px; background-repeat: no-repeat; background-position: 0 92%;
   }
-  input.f:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; background: #16212a; }
-  input.f::placeholder { color: #44515d; }
-
-  .pfbar {
-    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule);
-    font-family: var(--mono); font-size: 11.5px; color: var(--dim);
-    display: flex; flex-wrap: wrap; gap: 6px 14px;
-  }
-  .pfbar b { color: var(--crt-key); font-weight: 600; }
-
-  .hintline {
-    margin-top: 10px; font-size: 13px; color: var(--dim);
-    display: flex; gap: 8px; align-items: flex-start;
-  }
-  .hintline .tag {
-    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--warn); border: 1px solid #4a3f24;
-    background: #231d10; padding: 1px 6px; border-radius: 3px; flex: none; margin-top: 2px;
-  }
-
-  /* ---------- trilha ---------- */
-  .trail { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .trail .s {
-    font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
-    padding: 4px 9px; border-radius: 3px; border: 1px solid var(--rule);
-    color: var(--dim); background: var(--panel);
-  }
-  .trail .s.done { color: var(--ok); border-color: #2f5a44; background: #11241b; }
-  .trail { align-items: center; }
-  .trail .lbl { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; }
-  .trail .sep { width: 10px; }
-  .trail button.pick { cursor: pointer; font-family: var(--mono); color: var(--warn); border-color: #4a3f24; background: #231d10; }
-  .trail button.pick:hover { border-color: var(--warn); }
-  .trail button.pick.on { color: var(--void); background: var(--warn); border-color: var(--warn); font-weight: 600; }
-  .trail button.pick:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
-  .trail .s.now  { color: var(--void); background: var(--crt-key); border-color: var(--crt-key); font-weight: 600; }
-
-  /* ---------- painéis ---------- */
-  .card {
-    background: var(--panel); border: 1px solid var(--rule);
-    border-radius: 6px; padding: 14px 15px; margin-bottom: 14px;
-  }
-  .card h2 {
-    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--dim); font-weight: 600; margin: 0 0 11px;
-  }
-
-  .scrollx { overflow-x: auto; }
-  table.ledger { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 300px; }
-  table.ledger th {
-    font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
-    text-transform: uppercase; color: var(--dim); font-weight: 600;
-    text-align: right; padding: 0 0 6px 8px; border-bottom: 1px solid var(--rule);
-  }
-  table.ledger th:first-child { text-align: left; padding-left: 0; }
-  table.ledger td { padding: 5px 0 5px 8px; border-bottom: 1px solid #222c35; vertical-align: top; }
-  table.ledger td:first-child { padding-left: 0; }
-  table.ledger tr:last-child td { border-bottom: 0; }
-  table.ledger .acct { font-family: var(--mono); font-size: 10px; color: var(--dim); display: block; }
-  table.ledger .nm { color: var(--ink); font-size: 11.5px; }
-  table.ledger .amt {
-    font-family: var(--mono); text-align: right; white-space: nowrap;
-    font-variant-numeric: tabular-nums; color: var(--crt-val);
-  }
-  table.ledger .ant { color: var(--dim); }
-  table.ledger .mov { color: var(--crt-hi); }
-  table.ledger .mov.down { color: var(--accent); }
-  table.ledger tr.zero .amt { color: #4e5a66; }
-  table.ledger tr.flash td { background: #1d2a21; }
-  table.ledger tr.alert td:last-child { color: var(--accent); font-weight: 600; }
-
-  .cen { display: grid; gap: 6px; margin-bottom: 11px; }
-  .cen button {
-    font-family: var(--sans); font-size: 12.5px; text-align: left;
-    background: var(--panel-2); color: var(--ink);
-    border: 1px solid var(--rule); border-radius: 4px;
-    padding: 8px 10px; cursor: pointer; line-height: 1.35;
-  }
-  .cen button:hover { border-color: #44525e; }
-  .cen button:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
-  .cen button.on { border-color: var(--crt-key); background: #16242e; }
-  .cen button span { display: block; font-family: var(--mono); font-size: 10px;
-    letter-spacing: .06em; color: var(--dim); margin-top: 3px; }
-  .cen button.on span { color: var(--crt-key); }
-  #brief p { font-size: 12.5px; line-height: 1.5; margin: 0 0 8px; }
-  #brief p:last-child { margin-bottom: 0; }
-  #brief .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--crt-key); margin-bottom: 5px; }
-  #brief code { font-family: var(--mono); color: var(--crt-val); font-size: 11.5px; }
-
-  .nf { display: grid; gap: 9px; }
-  .nf label { display: grid; gap: 3px; font-size: 12.5px; color: var(--dim); }
-  .nf select, .nf input[type="text"] {
-    font-family: var(--mono); font-size: 13px;
-    background: var(--panel-2); color: var(--ink);
-    border: 1px solid var(--rule); border-radius: 4px; padding: 5px 7px; width: 100%;
-  }
-  .nf select:focus, .nf input:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; }
-
-  .log { font-family: var(--mono); font-size: 11.5px; display: grid; gap: 5px; max-height: 190px; overflow-y: auto; }
-  .log div { color: var(--dim); }
-  .log b { color: var(--crt-hi); font-weight: 500; }
-  .log .empty { color: #4e5a66; font-style: italic; }
-
-  button.reset {
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em;
-    background: var(--panel-2); color: var(--dim);
-    border: 1px solid var(--rule); border-radius: 4px;
-    padding: 6px 11px; cursor: pointer; width: 100%;
-  }
-  button.reset:hover { color: var(--ink); border-color: #44525e; }
-  button.reset:focus-visible { outline: 2px solid var(--crt-key); outline-offset: 2px; }
-
-  footer.note {
-    margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--rule);
-    font-size: 13px; color: var(--dim);
-  }
-  footer.note p { margin: 0 0 8px; max-width: 76ch; }
-  footer.note p:last-child { margin-bottom: 0; }
-  footer.note b { color: var(--ink); font-weight: 600; }
-
-  input.busca {
-    font-family: var(--mono); font-size: 12.5px; width: 100%; box-sizing: border-box;
-    background: var(--panel-2); color: var(--ink);
-    border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; margin: 0 0 10px;
-  }
-  input.busca:focus { outline: 2px solid var(--crt-key); outline-offset: 1px; }
-  table.ledger tr.grp td {
-    font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--crt-key); padding-top: 10px; border-bottom: 1px solid var(--rule);
-  }
-
-  /* quadro do contrato: o documento que chega à SOFi */
-  .quadro .qempty { color: var(--dim); font-size: 13px; margin: 0; }
-  .quadro .qhead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 12px; }
-  .quadro .qhead b { font-size: 15px; color: var(--ink); }
-  .quadro .qhead span { font-family: var(--mono); font-size: 11px; color: var(--dim); }
-  .quadro .qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-  .quadro section { background: var(--panel-2); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; }
-  .quadro section.now { border-color: var(--crt-key); }
-  .quadro section.ok { border-color: #2f5a44; }
-  .quadro h3 {
-    font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--crt-key); margin: 0 0 8px; font-weight: 600;
-  }
-  .quadro section.ok h3 { color: var(--ok); }
-  .quadro dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12.5px; }
-  .quadro dt { color: var(--dim); }
-  .quadro dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--crt-val); overflow-wrap: anywhere; }
-  .quadro .qnote { font-size: 12.5px; color: var(--dim); margin: 12px 0 0; line-height: 1.5; }
-
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-  tr.flash td { transition: background .5s ease; }
+  #t input:focus { outline: none; background-color: #0f2a17; }
+  #t input.lc { text-transform: none; }
+  #t input::placeholder { color: transparent; }
 </style>
-
-<div class="wrap">
-
-  <header class="top">
-    <p class="eyebrow">SIAFI-MG · Simulador de treinamento</p>
-    <h1>Empenho, liquidação e pagamento de dois contratos</h1>
-    <p class="sub">Escolha um dos dois contratos que chegaram à SOFi, leia o quadro e faça o empenho no terminal, como no sistema de verdade. Depois liquide a nota fiscal e pague o credor. Os saldos das contas contábeis mudam a cada lançamento e podem ser pesquisados a qualquer momento.</p>
-  </header>
-
-  <div class="trail" id="trail"></div>
-
-  <div class="cols">
-
-    <div class="term-shell">
-      <div class="crt" id="crt"></div>
-      <div class="pfbar" id="pfbar"></div>
-      <div class="hintline" id="hint"></div>
-
-      <div class="card quadro" id="quadro-card" style="margin-top:18px">
-        <h2>Quadro do contrato</h2>
-        <div id="quadro"></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <h2>Contratos recebidos</h2>
-        <div id="cenarios" class="cen"></div>
-        <div id="brief"></div>
-      </div>
-
-      <div class="card">
-        <h2>Balancete de verificação</h2>
-        <input type="search" id="busca-conta" class="busca" placeholder="Pesquisar conta: 6.2.2, 8.2.1, IRRF…" autocomplete="off" aria-label="Pesquisar conta contábil">
-        <div class="scrollx">
-          <table class="ledger" id="bal"></table>
-        </div>
-        <p style="font-size:11.5px;color:var(--dim);margin:10px 0 0">
-          Saldos fictícios. “Anterior” é o saldo no início desta simulação.
-          No terminal, a consulta completa fica na navegação <b style="color:var(--crt-key)">95</b>.
-        </p>
-      </div>
-
-      <div class="card">
-        <h2>Ficha da nota fiscal</h2>
-        <div class="nf">
-          <label>Natureza
-            <select id="nf-tipo">
-              <option value="servico">Prestação de serviço</option>
-              <option value="mercadoria">Fornecimento de material</option>
-            </select>
-          </label>
-          <label>Optante do Simples
-            <select id="nf-simples">
-              <option value="n">Não</option>
-              <option value="s">Sim</option>
-            </select>
-          </label>
-          <label>Alíquota do ISS (%)
-            <select id="nf-iss">
-              <option value="0">Não incide</option>
-              <option value="2">2%</option>
-              <option value="3">3%</option>
-              <option value="4">4%</option>
-              <option value="5" selected>5%</option>
-            </select>
-          </label>
-          <label>Cessão de mão de obra
-            <select id="nf-mo">
-              <option value="n">Não</option>
-              <option value="s">Sim</option>
-            </select>
-          </label>
-          <label>Elemento/item exige especificação
-            <select id="nf-espec">
-              <option value="s">Sim</option>
-              <option value="n">Não</option>
-            </select>
-          </label>
-        </div>
-        <p style="font-size:12px;color:var(--dim);margin:11px 0 0">Esta ficha não é tela do SIAFI. Reúne o que está na nota e na Tabela Elemento/Item — e é o que decide as retenções e a especificação.</p>
-      </div>
-
-      <div class="card" id="regra-card" hidden>
-        <h2>Regra da especificação</h2>
-        <div id="regra"></div>
-      </div>
-
-      <div class="card">
-        <h2>Lançamentos</h2>
-        <div class="log" id="log"></div>
-      </div>
-
-      <button class="reset" id="reset">REINICIAR SIMULAÇÃO</button>
-    </div>
-
-  </div>
-
-  <footer class="note">
-    <p><b>Valores.</b> Como no SIAFI, digite só números, sem ponto nem vírgula. Os dois últimos dígitos são os centavos: 12.000,00 se digita 1200000.</p>
-    <p><b>Teclas.</b> Setas ↑ ↓ andam entre os campos, Enter avança. <b>Esc</b> volta (PF3) e <b>Ctrl+Enter</b> confirma (PF5) — use essas duas, porque F3 e F5 o navegador costuma interceptar. F2, F6, F7 e F8 funcionam direto.</p>
-    <p><b>O que é fiel e o que não é.</b> Os códigos de navegação, a ordem das telas, os campos e as teclas seguem os manuais operacionais. Os contratos, credores, CNPJs e saldos são fictícios. Os percentuais de retenção e os lançamentos contábeis foram simplificados para o treino: o SIAFI real tem mais validações, e a contabilização passa por eventos que aqui aparecem resumidos. O recolhimento das retenções por DAE não faz parte deste treino.</p>
-    <p><b>Retenções aplicadas:</b> IRRF 4,8% sobre serviço e 1,2% sobre material; ISS conforme a alíquota da ficha, só sobre serviço; INSS 11% apenas com cessão de mão de obra, com piso de R$ 29,00. Optante do Simples não sofre IRRF nem INSS.</p>
-  </footer>
-
-</div>
-
+</head>
+<body>
+<div id="t" role="application" aria-label="Terminal SIAFI-MG de treinamento"></div>
 <script>
 (function () {
   "use strict";
 
-  // ---------------------------------------------------------------- dados
-  // Elementos-itens "marcados" do Anexo XIII do PARO 2026: nao sao executados
-  // no Global, so na cota de Elemento/Item (conta 9.9.8.0.2.03.02).
+  // ===================================================== tabelas do treino
+  // Todos os codigos e nomes abaixo sao ficticios, para treinamento.
+  var USUARIO = "M000001", SENHA = "TREINO";
+  var UES = { "1250057": "UNIDADE DE TREINAMENTO PMMG - OPERACIONAL" };
+  var UOS = { "1251": "POLICIA MILITAR DO ESTADO DE MINAS GERAIS" };
+  var ORDS = { "350057": "ORDENADOR DE DESPESA - TREINAMENTO" };
+  var CREDORES = {
+    "11222333000181": { nome: "APOIO TOTAL SERVICOS LTDA", banco: "001", ag: "1234-5", cc: "98765-0" },
+    "22333444000181": { nome: "PAPELARIA MODELO LTDA", banco: "104", ag: "0987-1", cc: "12345-6" },
+    "33444555000181": { nome: "COMERCIAL ALFA LTDA", banco: "237", ag: "0001-2", cc: "55555-5" },
+    "44555666000181": { nome: "SERVICOS BETA LTDA", banco: "341", ag: "3380-0", cc: "77777-7" },
+    "29979036000140": { nome: "INSTITUTO NACIONAL DO SEGURO SOCIAL" },
+    "18715383000140": { nome: "MUNICIPIO DE BELO HORIZONTE" }
+  };
+  // Especificacoes SIAD que a "integracao" devolve ao SIAFI.
+  var ESPECS = {
+    "4812": { proc: "1250057412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
+    "4566": { proc: "1250057300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" }
+  };
+  // Tabela Elemento/Item: exige especificacao SIAD?
+  var EXIGE_ESPEC = ["30.05", "30.17", "37.02", "39.99"];
+  // Anexo XIII do PARO: itens executados so na cota de Elemento/Item.
   var MARCADOS = ["30.23", "30.25", "30.26", "30.33", "30.34", "37.01", "37.02",
     "37.04", "37.05", "39.03", "39.12", "39.13", "39.15", "39.17", "39.18",
     "39.19", "39.20", "39.21", "39.34", "39.35", "39.43", "39.61", "39.69",
     "39.87", "40.02", "40.03", "40.04", "40.05", "40.06", "40.07", "92.02", "93.01"];
 
-  // natureza 339030 + item 05  ->  elemento-item 30.05
-  function elemItem(nat, item) {
-    nat = String(nat || "").replace(/\D/g, "");
-    item = String(item || "").replace(/\D/g, "");
-    if (nat.length < 6 || !item) return "";
-    return nat.slice(4, 6) + "." + (item.length === 1 ? "0" + item : item.slice(0, 2));
-  }
-  function marcado(nat, item) { return MARCADOS.indexOf(elemItem(nat, item)) !== -1; }
+  var EVENTOS = [
+    "CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS",
+    "OUTRAS RETENCOES",
+    "RESSARCIMENTO AO ESTADO-ORCAMENTO CORRENTE-RECURSOS TESOURO",
+    "DEPOSITOS JUDICIAIS-OUTRAS DESPESAS CORRENTES",
+    "FUNFIP-FUNDO FINANCEIRO PREVIDENCIARIO A RECOLHER",
+    "RETENCAO DE CAUCOES E GARANTIAS DIVERSAS",
+    "OUTROS IMPOSTOS A RECOLHER AO TESOURO ESTADUAL-ITCD"
+  ];
+  var HIST_EMP = ["PESSOAL E ENCARGOS SOCIAIS", "JUROS E ENCARGOS DA DIVIDA",
+    "OUTRAS DESPESAS CORRENTES", "INVESTIMENTOS", "INVERSOES FINANCEIRAS", "AMORTIZACAO DA DIVIDA"];
+  var TIPOS_OP = ["Credores Diversos", "Por Credor", "Com Desconto", "Por Codigo de Barras",
+    "Recolhimento de Retencao por Credor", "Guia Previdenciaria de Retencao s/ Codigo de Barras",
+    "Guia Previdenciaria por Empenho s/ Codigo de Barras", "Depositos Diversas Origens",
+    "Credores Entidades e Agentes", "Suprimento de Caixa", "Compra de Moeda Estrangeira",
+    "Sentenca Judicial", "Programas Sociais"];
 
-  // Plano de contas do treino. Os codigos seguem a estrutura do PCASP; o ultimo
-  // nivel e os saldos sao ficticios. "g" agrupa as contas no balancete.
+  // Plano de contas do treino (estrutura do PCASP; ultimo nivel e saldos ficticios).
   var ACCTS = [
-    { g: "Financeiro",   id: "cota",      code: "1.1.1.1.2.02.01.01.01", nat: "D", name: "Cota Financeira a Utilizar" },
-    { g: "Patrimonial",  id: "estoque",   code: "1.1.5.6.1.01",          nat: "D", name: "Almoxarifado — Material de Consumo" },
-    { g: "Patrimonial",  id: "fornec",    code: "2.1.3.1.1.01",          nat: "C", name: "Fornecedores e Contas a Pagar" },
-    { g: "Patrimonial",  id: "irrf",      code: "2.1.8.8.1.01",          nat: "C", name: "IRRF a Recolher", alert: true },
-    { g: "Patrimonial",  id: "iss",       code: "2.1.8.8.1.88",          nat: "C", name: "Outros Valores Restituíveis (ISS)" },
-    { g: "Patrimonial",  id: "inss",      code: "2.1.8.8.1.03",          nat: "C", name: "Retenções Previdenciárias (INSS)" },
-    { g: "Patrimonial",  id: "vpd",       code: "3.3.2.3.1.01",          nat: "D", name: "VPD — Serviços de Terceiros PJ" },
-    { g: "Orçamentário", id: "credDisp",  code: "6.2.2.1.1.00",          nat: "C", name: "Crédito Disponível" },
-    { g: "Orçamentário", id: "empLiq",    code: "6.2.2.1.3.01",          nat: "C", name: "Crédito Empenhado a Liquidar" },
-    { g: "Orçamentário", id: "liqPagar",  code: "6.2.2.1.3.03",          nat: "C", name: "Crédito Empenhado Liquidado a Pagar" },
-    { g: "Orçamentário", id: "pago",      code: "6.2.2.1.3.04",          nat: "C", name: "Crédito Empenhado Pago" },
-    { g: "Controle — DDR", id: "ddr1",    code: "8.2.1.1.1.01",          nat: "C", name: "DDR — Disponível" },
-    { g: "Controle — DDR", id: "ddr2",    code: "8.2.1.1.2.01",          nat: "C", name: "DDR — Comprometida por Empenho" },
-    { g: "Controle — DDR", id: "ddr3",    code: "8.2.1.1.3.01",          nat: "C", name: "DDR — Comprometida por Liquidação" },
-    { g: "Controle — DDR", id: "ddr4",    code: "8.2.1.1.4.01",          nat: "C", name: "DDR — Utilizada" },
-    { g: "Cotas do PARO", id: "cotaGlobal", code: "9.9.8.0.2.03.01",     nat: "D", name: "Cota a Empenhar — Global (GMIFP)" },
-    { g: "Cotas do PARO", id: "cotaItem",   code: "9.9.8.0.2.03.02",     nat: "D", name: "Cota a Empenhar — Elemento/Item" }
+    ["cota",     "1.1.1.1.2.02.01.01.01", "D", "COTA FINANCEIRA A UTILIZAR"],
+    ["estoque",  "1.1.5.6.1.01",          "D", "ALMOXARIFADO - MATERIAL DE CONSUMO"],
+    ["fornec",   "2.1.3.1.1.01",          "C", "FORNECEDORES E CONTAS A PAGAR"],
+    ["irrf",     "2.1.8.8.1.01",          "C", "IRRF A RECOLHER"],
+    ["inss",     "2.1.8.8.1.03",          "C", "RETENCOES PREVIDENCIARIAS"],
+    ["outras",   "2.1.8.8.1.88",          "C", "OUTRAS RETENCOES"],
+    ["vpd",      "3.3.2.3.1.01",          "D", "VPD - SERVICOS DE TERCEIROS PJ"],
+    ["credDisp", "6.2.2.1.1.00",          "C", "CREDITO DISPONIVEL"],
+    ["empLiq",   "6.2.2.1.3.01",          "C", "CRED. EMPENHADO A LIQUIDAR"],
+    ["liqPagar", "6.2.2.1.3.03",          "C", "CRED. EMPENHADO LIQUIDADO A PAGAR"],
+    ["pago",     "6.2.2.1.3.04",          "C", "CRED. EMPENHADO PAGO"],
+    ["ddr1",     "8.2.1.1.1.01",          "C", "DDR - DISPONIVEL"],
+    ["ddr2",     "8.2.1.1.2.01",          "C", "DDR - COMPROMETIDA POR EMPENHO"],
+    ["ddr3",     "8.2.1.1.3.01",          "C", "DDR - COMPROMETIDA POR LIQUIDACAO"],
+    ["ddr4",     "8.2.1.1.4.01",          "C", "DDR - UTILIZADA"],
+    ["cotaGlobal", "9.9.8.0.2.03.01",     "D", "COTA A EMPENHAR - GLOBAL (GMIFP)"],
+    ["cotaItem",   "9.9.8.0.2.03.02",     "D", "COTA A EMPENHAR - ELEMENTO/ITEM"]
   ];
+  var SALDOS = { cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, inss: 0, outras: 0,
+    vpd: 6122500, credDisp: 12000000, empLiq: 1530000, liqPagar: 210000, pago: 4875000,
+    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 2500000 };
 
-  // Saldos de abertura, em centavos. Ja refletem dois empenhos anteriores da
-  // unidade (845 e 851), para a consulta nao comecar vazia.
-  var SALDOS_INI = {
-    cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, iss: 0, inss: 0,
-    vpd: 6122500, credDisp: 12000000, empLiq: 1530000, liqPagar: 210000,
-    pago: 4875000, ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000,
-    cotaGlobal: 3800000, cotaItem: 2500000
-  };
-
-  // Os dois contratos que chegam a SOFi. "q" e o quadro que acompanha o
-  // processo; "conf" e o que o simulador confere no empenho digitado.
-  var CENARIOS = [
-    {
-      id: "servico",
-      nome: "Contrato 9.140/2026 — Apoio administrativo",
-      tag: "serviço · item marcado · três retenções",
-      ficha: { tipo: "servico", simples: "n", iss: "5", mo: "s", espec: "s" },
-      flags: "Empenho X · CNPJ X · Adiantamento N · Ressarcimento N · Contrato SIAFI N · Contrato SIAD S · Obras N",
-      conf: { cnpj: "11222333000181", nat: "339037", item: "02", fonte: "6020",
-              prog: "061817012001", tipo: "G", valor: 1200000, nota: 1200000,
-              procSiad: "50057/412/2026", especSiad: "4812", cSiad: "S" },
-      q: {
-        contrato: [
-          ["Contrato", "9.140/2026 (fictício)"],
-          ["Objeto", "Apoio administrativo com dedicação exclusiva de mão de obra"],
-          ["Credor", "APOIO TOTAL SERVICOS LTDA"],
-          ["CNPJ", "11.222.333/0001-81"],
-          ["Vigência", "01/10/2026 a 30/09/2027"],
-          ["Processo SIAD", "50057/412/2026"],
-          ["Especificação SIAD", "4812"]
-        ],
-        empenho: [
-          ["Progr. de trabalho", "06.181.701.2001"],
-          ["Nat. despesa / item", "339037 / 02"],
-          ["Fonte", "6020"],
-          ["Tipo de empenho", "G — global"],
-          ["Valor a empenhar", "12.000,00 (digite 1200000)"],
-          ["Ordenador", "350057"]
-        ],
-        nota: [
-          ["Nota fiscal", "NFS-e 1.523"],
-          ["Valor da nota", "12.000,00 (digite 1200000)"],
-          ["Natureza", "Serviço, cessão de mão de obra"],
-          ["ISS", "5%"],
-          ["Simples Nacional", "Não optante"],
-          ["Ateste", "Gestor do contrato, 05/11/2026"]
-        ],
-        pagamento: [
-          ["Banco / agência", "001 / 1234-5"],
-          ["Conta corrente", "98765-0"],
-          ["Código IRRF", "6256"]
-        ]
-      },
-      texto: "O item 37.02 está na lista de marcados do Anexo XIII do PARO: o empenho sai " +
-             "da cota de Elemento/Item, não do Global. O contrato veio do SIAD, então marque " +
-             "Contrato Saída SIAD = S (regra 5). Na liquidação incidem IRRF de serviço, ISSQN " +
-             "e INSS de 11%. O credor recebe o líquido."
-    },
-    {
-      id: "material",
-      nome: "Contrato 9.155/2026 — Material de expediente",
-      tag: "material · cota Global · entrega parcelada",
-      ficha: { tipo: "mercadoria", simples: "n", iss: "0", mo: "n", espec: "s" },
-      flags: "Empenho X · CNPJ X · Adiantamento N · Ressarcimento N · Contrato SIAFI N · Contrato SIAD S · Obras N",
-      conf: { cnpj: "22333444000181", nat: "339030", item: "05", fonte: "6020",
-              prog: "061817012001", tipo: "E", valor: 480000, nota: 240000,
-              procSiad: "50057/300/2026", especSiad: "4566", cSiad: "S" },
-      q: {
-        contrato: [
-          ["Contrato", "9.155/2026 (fictício)"],
-          ["Objeto", "Fornecimento parcelado de material de expediente"],
-          ["Credor", "PAPELARIA MODELO LTDA"],
-          ["CNPJ", "22.333.444/0001-81"],
-          ["Vigência", "15/10/2026 a 31/12/2026"],
-          ["Processo SIAD", "50057/300/2026"],
-          ["Especificação SIAD", "4566"]
-        ],
-        empenho: [
-          ["Progr. de trabalho", "06.181.701.2001"],
-          ["Nat. despesa / item", "339030 / 05"],
-          ["Fonte", "6020"],
-          ["Tipo de empenho", "E — estimativo"],
-          ["Valor a empenhar", "4.800,00 (digite 480000)"],
-          ["Ordenador", "350057"]
-        ],
-        nota: [
-          ["Nota fiscal", "NF-e 8.871 (1ª entrega)"],
-          ["Valor da nota", "2.400,00 (digite 240000)"],
-          ["Natureza", "Fornecimento de material"],
-          ["ISS", "Não incide"],
-          ["Simples Nacional", "Não optante"],
-          ["Ateste", "Almoxarifado, 28/10/2026"]
-        ],
-        pagamento: [
-          ["Banco / agência", "104 / 0987-1"],
-          ["Conta corrente", "12345-6"],
-          ["Código IRRF", "6256"]
-        ]
-      },
-      texto: "O item 30.05 não é marcado, então o empenho sai da cota Global. O empenho é " +
-             "estimativo de 4.800,00, mas a primeira nota é de só 2.400,00: liquide a nota, " +
-             "não o empenho inteiro. O saldo fica a liquidar para a próxima entrega. Material " +
-             "não sofre ISS, e só há IRRF, pela alíquota de mercadoria."
-    }
-  ];
-
-  function fresh() {
-    var ini = {};
-    for (var k in SALDOS_INI) ini[k] = SALDOS_INI[k];
+  function novoEstado() {
     return {
-      cenario: null,
-      screen: "subsistemas",
-      msg: "",
-      msgKind: "msg",
-      empenhos: [
-        { num: "845", ano: "2026", credor: "COMERCIAL ALFA LTDA", cnpj: "33444555000181",
-          natureza: "339030", item: "17", fonte: "6020", tipo: "E",
-          empenhado: 1530000, liquidado: 0, liqLiquido: 0, pagoLiq: 0, pagoBruto: 0, retido: 0 },
-        { num: "851", ano: "2026", credor: "SERVICOS BETA LTDA", cnpj: "44555666000181",
-          natureza: "339039", item: "99", fonte: "6020", tipo: "O",
-          empenhado: 210000, liquidado: 210000, liqLiquido: 210000, pagoLiq: 0, pagoBruto: 0, retido: 0 }
-      ],
-      contas: JSON.parse(JSON.stringify(ini)),
-      contasIni: ini,
-      log: [],
-      flash: [],
-      ctx: {},
-      busca: "",
-      seqEmp: 862,
-      // progresso de cada contrato: numero do empenho, liquidado, pago
-      casos: { servico: {}, material: {} }
+      screen: "login", msg: "", msgErr: false, user: "", ue: "", ctx: {},
+      contas: JSON.parse(JSON.stringify(SALDOS)),
+      seqEmp: 862, seqOPg: 26, seqOPd: 29,
+      emps: [
+        empBase("845", "33444555000181", "339030", "17", "E", 1530000),
+        (function () {
+          var e = empBase("851", "44555666000181", "339039", "99", "O", 210000);
+          e.liqs.push({ sq: 1, bruto: 210000, ret: [], liquido: 210000 });
+          return e;
+        })()
+      ]
     };
   }
+  function empBase(num, cnpj, nat, item, tipo, valor) {
+    return { num: num, uo: "1251", prog: "06181701200100" + "01", nat: nat, item: item,
+      fonte: "6020", proc: "1", ipe: "0", cnpj: cnpj, tipo: tipo, empenhado: valor,
+      reforcos: [], liqs: [], pagoNet: 0, pagoBruto: 0, espec: "", procSiad: "" };
+  }
 
-  var S = fresh();
-
-  // O progresso fica guardado no navegador de quem usa: recarregar a pagina
-  // (ou abrir uma versao nova do simulador) nao apaga os lancamentos.
-  var CHAVE = "simulador-siafi-v1";
-  var NF_IDS = ["nf-tipo", "nf-simples", "nf-iss", "nf-mo", "nf-espec"];
+  var S = novoEstado();
+  var CHAVE = "siafi-treino-v2";
   function salva() {
     try {
-      var nfv = {};
-      NF_IDS.forEach(function (id) { nfv[id] = document.getElementById(id).value; });
-      localStorage.setItem(CHAVE, JSON.stringify({ S: S, nf: nfv }));
-    } catch (e) { /* sem armazenamento: segue sem guardar */ }
+      var c = JSON.parse(JSON.stringify(S));
+      c.msg = ""; // a senha nunca e guardada; so o estado do treino
+      localStorage.setItem(CHAVE, JSON.stringify(c));
+    } catch (e) {}
   }
   function recupera() {
     try {
-      var raw = localStorage.getItem(CHAVE);
-      if (!raw) return false;
-      var d = JSON.parse(raw);
-      if (!d || !d.S || !d.S.contas || !d.S.casos) return false;
-      var base = fresh();
-      for (var k in base) if (!(k in d.S)) d.S[k] = base[k];
-      S = d.S;
-      S.flash = [];
-      if (d.nf) NF_IDS.forEach(function (id) {
-        if (d.nf[id] != null) document.getElementById(id).value = d.nf[id];
-      });
-      return true;
-    } catch (e) { return false; }
+      var d = JSON.parse(localStorage.getItem(CHAVE) || "null");
+      if (d && d.contas && d.emps) { S = d; S.screen = "login"; S.ctx = {}; S.user = ""; return true; }
+    } catch (e) {}
+    return false;
   }
 
-  // ---------------------------------------------------------------- util
+  // ===================================================== utilitarios
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s.slice(0, n); }
+  function lpad(s, n) { s = String(s); while (s.length < n) s = " " + s; return s; }
+  function center(s, n) { s = String(s); var l = Math.max(0, Math.floor((n - s.length) / 2)); return pad(" ".repeat(l) + s, n); }
+  function digits(x) { return String(x || "").replace(/\D/g, ""); }
   function brl(c) {
-    var neg = c < 0; c = Math.abs(c);
-    var s = (c / 100).toFixed(2).replace(".", ",");
-    s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    var neg = c < 0; c = Math.abs(Math.round(c));
+    var s = (c / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     return (neg ? "-" : "") + s;
   }
-  function parseMoney(raw) {
-    if (!raw) return null;
-    var t = String(raw).trim();
-    if (!t) return null;
-    // Como no SIAFI: so numeros, sem ponto nem virgula. Os dois ultimos
-    // digitos sao os centavos (1200000 = 12.000,00).
-    if (!/^\d+$/.test(t)) return null;
-    return parseInt(t, 10);
-  }
-  function semVirgula(c) { return String(c); }
-  function erroValor(raw) {
-    say(/[.,]/.test(raw || "")
-      ? "0022-VALOR INVALIDO. NO SIAFI NAO SE DIGITA PONTO NEM VIRGULA: 12.000,00 = 1200000."
-      : "0022-VALOR INVALIDO. DIGITE SO NUMEROS; OS DOIS ULTIMOS SAO OS CENTAVOS.", "err");
-  }
-  function esc(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-  function pad(s, n) { s = String(s); while (s.length < n) s += " "; return s; }
-  function lpad(s, n) { s = String(s); while (s.length < n) s = " " + s; return s; }
-
-  function nf() {
-    return {
-      tipo:    document.getElementById("nf-tipo").value,
-      simples: document.getElementById("nf-simples").value === "s",
-      iss:     parseFloat(document.getElementById("nf-iss").value),
-      mo:      document.getElementById("nf-mo").value === "s",
-      espec:   document.getElementById("nf-espec").value === "s"
-    };
-  }
-
-  // As sete regras do item 6.1 do manual: os tres campos S/N da primeira tela
-  // do empenho, combinados com a exigencia do elemento/item, decidem o que o
-  // sistema vai pedir adiante.
-  function regraEspec(flags) {
-    var siafi = flags.cSiafi === "S", siad = flags.cSiad === "S", obras = flags.obras === "S";
-    var adiant = flags.adiant === "S" || flags.ressarc === "S";
-    if (adiant) {
-      return { n: "—", pede: [], lic: false,
-        txt: "Empenho de adiantamento ou ressarcimento. O manual é expresso: não serão solicitadas especificações SIAD." };
-    }
-    if (!nf().espec && !siafi && !siad && !obras) {
-      return { n: "—", pede: [], lic: true,
-        txt: "O elemento/item não exige especificação e não há contrato nem obra. O sistema vai pedir a modalidade de licitação." };
-    }
-    if (siafi && !obras) {
-      return { n: 1, pede: [], lic: false,
-        txt: "Contrato de saída do SIAFI (tipos 11 ou 12), item que não é de obras. Não será solicitado número de especificação de compra na tela." };
-    }
-    if (siafi && obras) {
-      return { n: 2, pede: ["siafi", "obra"], lic: false,
-        txt: "Contrato de obras do SIAFI cadastrado antes de 2009. Serão pedidos o número da especificação SIAFI-MG e o número da obra." };
-    }
-    if (siad && obras) {
-      return { n: 3, pede: ["siad", "obra"], lic: false,
-        txt: "Contrato do SIAD com cadastro de obras do SIAFI. Serão pedidos o número da especificação SIAD e o número da obra." };
-    }
-    if (siad) {
-      return { n: 5, pede: ["siad"], lic: false,
-        txt: "Contrato do SIAD, sem cadastro de obras. Será pedido o número da especificação SIAD." };
-    }
-    if (obras) {
-      return { n: 6, pede: ["siad", "obra"], lic: false,
-        txt: "Cadastro de obras do SIAFI, sem contrato. Será pedido o número da especificação SIAD e o sequencial da obra." };
-    }
-    return { n: 4, pede: ["siad"], lic: false,
-      txt: "Sem contrato e sem cadastro de obras, com elemento/item que exige especificação. Será pedido o número da especificação SIAD. É o caso mais comum da unidade." };
-  }
-
-  // Retenções sobre um valor bruto, segundo a ficha da nota.
-  function calcRet(bruto) {
-    var f = nf(), r = { ir: 0, iss: 0, inss: 0 };
-    if (!f.simples) r.ir = Math.round(bruto * (f.tipo === "servico" ? 0.048 : 0.012));
-    if (f.tipo === "servico" && f.iss > 0) r.iss = Math.round(bruto * (f.iss / 100));
-    if (!f.simples && f.mo) {
-      var v = Math.round(bruto * 0.11);
-      r.inss = v < 2900 ? 0 : v;
-      r.inssBarrado = v > 0 && v < 2900;
-    }
-    r.total = r.ir + r.iss + r.inss;
-    return r;
-  }
-
-  function mv(acct, delta) {
-    S.contas[acct] += delta;
-    if (S.flash.indexOf(acct) === -1) S.flash.push(acct);
-  }
-  function logit(txt) { S.log.unshift(txt); }
-  function say(m, kind) { S.msg = m; S.msgKind = kind || "msg"; }
-  function findEmp(n) {
-    for (var i = 0; i < S.empenhos.length; i++) if (S.empenhos[i].num === String(n)) return S.empenhos[i];
-    return null;
-  }
-  function digits(x) { return String(x || "").replace(/\D/g, ""); }
-
-  // Quem digita o numero da especificacao no lugar do empenho recebe a
-  // explicacao, e nao so o "nao encontrado".
-  function naoEncontrado(num) {
-    var d = digits(num);
-    var c = CENARIOS.filter(function (x) { return x.conf.especSiad === d; })[0];
-    if (c) {
-      var p = S.casos[c.id];
-      say(p.emp
-        ? "0042-" + d + " E A ESPECIFICACAO SIAD. O EMPENHO DESTE CONTRATO E O " + p.emp + "."
-        : "0042-" + d + " E A ESPECIFICACAO SIAD, NAO O EMPENHO. REGISTRE O EMPENHO PRIMEIRO: " +
-          "51, OPCAO 01, ACAO 1. O SISTEMA GERA O NUMERO.", "err");
-      return;
-    }
-    var c2 = cenarioAtual();
-    if (c2 && !S.casos[c2.id].emp) {
-      say("0041-EMPENHO " + (d || "") + " NAO EXISTE. O EMPENHO DESTE CONTRATO AINDA NAO FOI REGISTRADO: " +
-          "VOLTE (ESC) E USE A OPCAO 01 - APROPRIACAO DO EMPENHO.", "err");
-      return;
-    }
-    say("0041-EMPENHO NAO ENCONTRADO. USE UM NUMERO DA LISTA ACIMA.", "err");
-  }
-  function cenarioAtual() {
-    return CENARIOS.filter(function (x) { return x.id === S.cenario; })[0] || null;
-  }
-
-  // Digito verificador do CNPJ, como o SIAFI valida na tela do empenho.
+  // Como no SIAFI: so numeros; os dois ultimos digitos sao os centavos.
+  function valor(raw) { var t = String(raw || "").trim(); return /^\d+$/.test(t) ? parseInt(t, 10) : null; }
+  function fmtCnpj(c) { c = digits(c); return c.length === 14 ? c.slice(0, 8) + "/" + c.slice(8, 12) + "-" + c.slice(12) : c; }
+  function fmtProg(p) { p = digits(p); return [p.slice(0, 2), p.slice(2, 5), p.slice(5, 8), p.slice(8, 12), p.slice(12, 16)].join(" "); }
+  function fmtProc(p) { p = digits(p); return p.slice(0, 7) + " " + p.slice(7, 10) + " " + p.slice(10); }
   function cnpjValido(c) {
     c = digits(c);
     if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
-    function dv(base) {
-      var w = base.length === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
-      var s = 0;
-      for (var i = 0; i < base.length; i++) s += parseInt(base[i], 10) * w[i];
-      var r = s % 11;
-      return r < 2 ? 0 : 11 - r;
+    function dv(b) {
+      var w = b.length === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2], s = 0;
+      for (var i = 0; i < b.length; i++) s += +b[i] * w[i];
+      return s % 11 < 2 ? 0 : 11 - s % 11;
     }
     var d1 = dv(c.slice(0, 12)), d2 = dv(c.slice(0, 12) + d1);
-    return c.slice(12) === String(d1) + String(d2);
+    return c.slice(12) === "" + d1 + d2;
   }
+  function elemItem(nat, item) { nat = digits(nat); item = digits(item); return nat.slice(4, 6) + "." + ("0" + item).slice(-2); }
+  function hoje() { var d = new Date(); return [("0" + d.getDate()).slice(-2), ("0" + (d.getMonth() + 1)).slice(-2), d.getFullYear()]; }
+  function hojeStr() { return hoje().join("/"); }
+  function hora() { var d = new Date(); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  function say(m, err) { S.msg = m; S.msgErr = !!err; }
+  function erro(m) { say(m, true); }
+  function go(sc, msg) { S.screen = sc; say(msg || ""); }
+  function findEmp(n) { n = String(parseInt(digits(n), 10)); return S.emps.filter(function (e) { return e.num === n; })[0] || null; }
+  function liquidado(e) { return e.liqs.reduce(function (a, l) { return a + l.bruto; }, 0); }
+  function liqNet(e) { return e.liqs.reduce(function (a, l) { return a + l.liquido; }, 0); }
+  function totalEmp(e) { return e.empenhado + e.reforcos.reduce(function (a, r) { return a + r.valor; }, 0); }
+  function saldoLiq(e) { return totalEmp(e) - liquidado(e); }
+  function saldoPagar(e) { return liqNet(e) - e.pagoNet; }
+  function mv(id, d) { S.contas[id] += d; }
 
-  // Compara o empenho digitado com o quadro do contrato escolhido. Nao bloqueia
-  // o registro (o SIAFI nao conhece o quadro), so aponta o que diverge.
-  function conferir(n) {
-    var c = cenarioAtual();
-    if (!c) return [];
-    var q = c.conf, d = [];
-    if (digits(n.credor) !== q.cnpj) d.push("CNPJ do credor");
-    if (digits(n.nat) !== q.nat) d.push("natureza da despesa");
-    if (digits(n.item).padStart(2, "0") !== q.item) d.push("item");
-    if (digits(n.fonte) !== q.fonte) d.push("fonte");
-    if (digits(n.prog) !== q.prog) d.push("programa de trabalho");
-    if (n.tipo !== q.tipo) d.push("tipo de empenho");
-    if (n.valor !== q.valor) d.push("valor");
-    if (S.ctx.flags.cSiad !== q.cSiad) d.push("campo Contrato Saida SIAD");
-    if (q.especSiad && n.especSiad && digits(n.especSiad) !== q.especSiad) d.push("especificacao SIAD");
-    if (q.procSiad && n.procSiad && digits(n.procSiad) !== digits(q.procSiad)) d.push("processo SIAD");
-    return d;
+  // ===================================================== montagem da tela
+  var W = 80;
+  // f(): campo de digitacao com largura fixa em colunas.
+  function f(id, len, o) {
+    o = o || {};
+    return '<input id="' + id + '" maxlength="' + len + '" size="' + len + '" style="width:' + len + 'ch"' +
+      (o.pw ? ' type="password" class="lc"' : "") + ' autocomplete="off" spellcheck="false" data-def="' +
+      esc(o.def == null ? "" : o.def) + '">';
   }
-
-  // ---------------------------------------------------------------- telas
-  function head(code, title, extra) {
-    var now = new Date();
-    var d = String(now.getDate()).padStart(2, "0") + "/" +
-            String(now.getMonth() + 1).padStart(2, "0") + "/" + now.getFullYear();
-    var h = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  function L(s) { return '<span class="l">' + esc(s) + "</span>"; }
+  function B(s) { return '<span class="b">' + esc(s) + "</span>"; }
+  function row(left, mid, right) { return pad(left, 12) + center(mid, 50) + lpad(right, 18); }
+  function head(code, vcode, title, sub) {
+    var u = S.user || "M000000";
     return [
-      '<span class="dimmed">' + pad(code, 12) + "</span>" + pad("Estado de Minas Gerais", 44) + '<span class="dimmed">PRODEMGE</span>',
-      '<span class="dimmed">' + pad("VFCAE" + code.slice(-3), 12) + "</span>" + pad("S I A F I - M G", 44) + '<span class="dimmed">' + d + "</span>",
-      '<span class="dimmed">' + pad("M050057", 12) + "</span>" + pad(title, 44) + '<span class="dimmed">' + lpad(h, 8) + "</span>",
-      '<span class="k">ANO:</span> 2026   <span class="k">UE:</span> 50057   <span class="k">UO:</span> 1251' + (extra ? "   " + extra : ""),
-      ""
-    ].join("\n");
+      esc(row(code, "Estado de Minas Gerais", "PRODEMGE")),
+      esc(row(vcode, "S I A F I - MG", hojeStr())),
+      esc(row(u, title, hora())),
+      esc(row("ANO: " + 2026, sub || "", "2G37")),
+      esc("UE: " + S.ue)
+    ];
   }
-
-  function f(id, size, ph) {
-    return '<input class="f" id="' + id + '" size="' + size + '" maxlength="' + size +
-           '" style="width:' + (size + 1) + 'ch" placeholder="' + (ph || "") + '" autocomplete="off" spellcheck="false">';
-  }
-
-  var SCREENS = {};
-
-  SCREENS.subsistemas = {
-    fields: ["opcao", "nav"],
-    pf: ["PF12 Fim"],
-    hint: "Navegação 51 = empenho e liquidação · 71 = ordem de pagamento · 95 = consulta de saldos contábeis.",
-    body: function () {
-      return head("NFCAE000", "Subsistemas") +
-        ["  01-Rotina Administrativa",
-         "  02-Rotina Anual",
-         "  03-Movimentacao Orcamentaria",
-         "  04-Movimentacao da Receita",
-         "  05-Movimentacao da Despesa",
-         "  06-Movimentacao Financeira Escritural",
-         "  07-Movimentacao Financeira Bancaria",
-         "  08-Movimentacao Contabil",
-         "  09-Consulta / Relatorio",
-         "  10-Tabela", "", ""].join("\n") +
-        '        <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;        <span class="k">Navegacao</span> &lt; ' + f("nav", 2) + " &gt;";
-    },
-    enter: function (v) {
-      if (v.nav === "51" || v.opcao === "05") { S.screen = "exec51"; say("", ""); return; }
-      if (v.nav === "71" || v.opcao === "07") { S.screen = "op071"; say("", ""); return; }
-      if (v.nav === "95" || v.opcao === "09") { S.screen = "consulta"; say("", ""); return; }
-      if (v.nav || v.opcao) say("0003-OPCAO INVALIDA. USE 51, 71 OU 95.", "err");
-      else say("0001-INFORME A OPCAO OU A NAVEGACAO.", "err");
+  // Caixa desenhada por cima da tela, como as janelas do SIAFI.
+  function box(base, col, top, width, inner) {
+    // A tela de baixo fica congelada: campos viram texto.
+    var out = base.map(function (h) { return esc(strip(h)); });
+    var lines = ["+" + "-".repeat(width - 2) + "+"].map(esc)
+      .concat(inner.map(function (h) { return "|" + h + "|"; }))
+      .concat([esc("+" + "-".repeat(width - 2) + "+")]);
+    for (var i = 0; i < lines.length; i++) {
+      var r = top + i;
+      while (out.length <= r) out.push("");
+      var plain = strip(out[r]);
+      out[r] = esc(pad(plain, col).slice(0, col)) + lines[i];
     }
-  };
+    return out;
+  }
+  // Linha interna de caixa: texto + campos, com largura visivel exata.
+  function bl(width, parts) {
+    var vis = 0, h = "";
+    parts.forEach(function (p) {
+      if (typeof p === "string") { h += esc(p); vis += p.length; }
+      else { h += p.h; vis += p.w; }
+    });
+    return h + esc(" ".repeat(Math.max(0, width - 2 - vis)));
+  }
+  function F(id, len, o) { return { h: f(id, len, o), w: len }; }
+  function H(html, w) { return { h: html, w: w }; }
+  function strip(h) {
+    var d = document.createElement("div"); d.innerHTML = h;
+    Array.prototype.forEach.call(d.querySelectorAll("input"), function (el) {
+      var n = +el.getAttribute("maxlength"), v = el.getAttribute("data-def") || "";
+      el.replaceWith(document.createTextNode(v ? pad(v, n) : "_".repeat(n)));
+    });
+    return d.textContent;
+  }
 
-  SCREENS.exec51 = {
-    fields: ["opcao", "acao"],
-    pf: ["PF3/Esc Volta", "PF9 MenuP"],
-    hint: "Contrato novo: opção 01 (registrar o empenho). Depois, opção 04 para liquidar. A opção 03 só reforça um empenho que já existe. Ação 1 = Registrar.",
-    body: function () {
-      return head("NFCAE051", "Movimentacao da Despesa") +
-        '       <span class="dimmed">Execucao da Despesa</span>\n\n' +
-        ["  01-Apropriacao do Empenho                    1-Registrar",
-         "  02-Anulacao do Empenho                       2-Consultar",
-         "  03-Reforco do Empenho                        3-Imprimir",
-         "  04-Liquidacao da Despesa Empenhada",
-         "  05-Anulacao Saldo Liquidado/Retencao/Multa", "", ""].join("\n") +
-        '     <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;     <span class="k">Acao</span> &lt; ' + f("acao", 1) + " &gt;";
+  var PFRULER = "Enter-PF1---PF2---PF3---PF4---PF5---PF6---PF7---PF8---PF9---PF10--PF11--PF12--";
+  function ruler(labels) {
+    var r1 = PFRULER.replace(/PF(\d+)/g, function (m, n) {
+      return '<span class="pf" data-pf="' + n + '">' + m + "</span>";
+    });
+    var r2 = " ".repeat(W).split("");
+    Object.keys(labels || {}).forEach(function (k) {
+      var i = PFRULER.indexOf("PF" + k + "-"); if (i < 0) return;
+      var t = labels[k]; for (var j = 0; j < t.length; j++) r2[i + j] = t[j];
+    });
+    var s2 = esc(r2.join("").replace(/\s+$/, ""));
+    Object.keys(labels || {}).forEach(function (k) {
+      s2 = s2.replace(labels[k], '<span class="pf" data-pf="' + k + '">' + esc(labels[k]) + "</span>");
+    });
+    return [r1, s2];
+  }
+
+  // ===================================================== telas
+  var SC = {};
+
+  // ---- login (modelo de treino: so aceita o usuario de treinamento)
+  SC.login = {
+    pf: { 11: "Rein", 12: "Fim" },
+    draw: function () {
+      return [
+        "", "",
+        esc(center("S I A F I - M G", W)),
+        esc(center("SISTEMA INTEGRADO DE ADMINISTRACAO FINANCEIRA", W)),
+        esc(center("ESTADO DE MINAS GERAIS", W)),
+        "",
+        '<span class="m">' + esc(center("AMBIENTE DE TREINAMENTO - DADOS FICTICIOS", W)) + "</span>",
+        "", "",
+        "                    " + L("Usuario .....: ") + f("usr", 7),
+        "",
+        "                    " + L("Senha .......: ") + f("pwd", 8, { pw: true }),
+        "", "", "",
+        '<span class="d">' + esc(center("Usuario de treinamento: M000001   Senha: TREINO", W)) + "</span>",
+        '<span class="d">' + esc(center("PF11 reinicia os dados do treinamento", W)) + "</span>"
+      ];
     },
     enter: function (v) {
-      if (v.acao && v.acao !== "1") { say("0007-NESTE SIMULADOR SOMENTE A ACAO 1 ESTA DISPONIVEL.", "err"); return; }
-      if (v.opcao === "01") { S.screen = "empenho"; say("", ""); return; }
-      if (v.opcao === "03") { S.screen = "reforcoSel"; say("", ""); return; }
-      if (v.opcao === "04") { S.screen = "liqSel"; say("", ""); return; }
-      if (v.opcao === "02" || v.opcao === "05") { say("0009-OPCAO NAO IMPLEMENTADA NO SIMULADOR.", "err"); return; }
-      say("0003-INFORME A OPCAO: 01, 03 OU 04.", "err");
+      if (!v.usr || !v.pwd) return erro("0001-INFORME USUARIO E SENHA.");
+      if (v.usr.toUpperCase() !== USUARIO || v.pwd.toUpperCase() !== SENHA)
+        return erro("0002-USUARIO OU SENHA INVALIDOS. USE O USUARIO DE TREINAMENTO.");
+      S.user = USUARIO; go("ueSel");
     },
-    pf3: function () { S.screen = "subsistemas"; }
+    pf11: function () { S = novoEstado(); try { localStorage.removeItem(CHAVE); } catch (e) {} say("0000-DADOS DO TREINAMENTO REINICIADOS."); },
+    pf12: function () { say("0000-SESSAO ENCERRADA."); }
   };
 
-  // --- Empenho, tela 1: e aqui que se decide se havera especificacao -------
-  SCREENS.empenho = {
-    fields: ["prog", "emp", "cpf", "cnpj", "adiant", "ressarc", "cSiafi", "cSiad", "obras"],
-    pf: ["PF3/Esc Volta", "PF6 Sel"],
-    hint: "Os três últimos campos S/N decidem se o sistema vai pedir especificação adiante. Veja a regra se formando ao lado.",
-    regra: true,
-    body: function () {
-      return head("NFCAE051", "Movimentacao da Despesa") +
-        '       <span class="dimmed">Apropriacao de Empenho</span>\n' +
-        '       <span class="k">Unid. Orcamentaria:</span> 1251\n\n' +
-        '  <span class="k">Marque \'X\'</span>\n' +
-        "     " + f("prog", 1) + "    Empenho Programado\n" +
-        "     " + f("emp", 1, "X") + "    Empenho\n\n" +
-        "     " + f("cpf", 1) + "    CPF/CAPF\n" +
-        "     " + f("cnpj", 1, "X") + "    CNPJ/CAPJ\n\n" +
-        "     " + f("adiant", 1, "N") + "    Adiantamento (S/N)\n" +
-        "     " + f("ressarc", 1, "N") + "    Ressarcimento (S/N)\n\n" +
-        "     " + f("cSiafi", 1, "N") + "    Contrato/Convenio Saida SIAFI (S/N)\n" +
-        "     " + f("cSiad", 1, "N") + "    Contrato Saida SIAD (S/N)\n" +
-        "     " + f("obras", 1, "N") + "    Cadastro de Obras do SIAFI (S/N)\n";
+  SC.ueSel = {
+    pf: { 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return [
+        esc(row("NFCAE00A", "Estado de Minas Gerais", "PRODEMGE")),
+        esc(row("VFCAE00A", "S I A F I - MG", hojeStr())),
+        esc(row(S.user, "Selecao de Unidade", hora())), "", "", "", "",
+        "            " + L("Ano Exercicio ......: ") + "2026",
+        "",
+        "            " + L("Unid. Executora ....: ") + f("ue", 7),
+        "", "", "",
+        '<span class="d">' + esc("            Informe a Unidade Executora em que vai trabalhar.") + "</span>"
+      ];
+    },
+    enter: function (v) {
+      var ue = digits(v.ue);
+      if (!ue) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!UES[ue]) return erro("0016-UNIDADE EXECUTORA NAO CADASTRADA OU SEM PERMISSAO PARA O USUARIO.");
+      S.ue = ue; go("subs");
+    },
+    pf3: function () { S.user = ""; go("login"); }
+  };
+
+  function menu(code, vcode, title, sub, items, o) {
+    o = o || {};
+    var l = head(code, vcode, title, sub);
+    l.push("", "");
+    items.forEach(function (it) { l.push(esc("  " + it)); });
+    while (l.length < 19) l.push("");
+    l.push("        " + L("Opcao") + " < " + f("opcao", 2) + " >" +
+      (o.acao ? "        " + L("Acao") + " < " + f("acao", 1) + " >      " : "                           ") +
+      "  " + L("Navegacao") + " < " + f("nav", 2) + " >");
+    return l;
+  }
+  // Navegacao direta: 51 = Execucao da Despesa, 71 = Ordem de Pagamento, 91 = Consulta.
+  function navegar(n) {
+    if (n === "51") return go("m51"), true;
+    if (n === "71") return go("m71"), true;
+    if (n === "91") return go("m91"), true;
+    if (n === "05" || n === "50") return go("m05"), true;
+    if (n === "07" || n === "70") return go("m07"), true;
+    if (n === "09" || n === "90") return go("m09"), true;
+    if (n) { erro("0003-NAVEGACAO INVALIDA."); return true; }
+    return false;
+  }
+
+  SC.subs = {
+    pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE000", "VFCAE000", "Subsistemas", "", ["01-Rotina Administrativa", "02-Rotina Anual",
+        "03-Movimentacao Orcamentaria", "04-Movimentacao da Receita", "05-Movimentacao da Despesa",
+        "06-Movimentacao Financeira Escritural", "07-Movimentacao Financeira Bancaria",
+        "08-Movimentacao Contabil", "09-Consulta / Relatorio", "10-Tabela"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = digits(v.opcao);
+      if (o === "05" || o === "5") return go("m05");
+      if (o === "07" || o === "7") return go("m07");
+      if (o === "09" || o === "9") return go("m09");
+      if (o) return erro("0009-SUBSISTEMA NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO OU A NAVEGACAO.");
+    },
+    pf3: function () { go("ueSel"); }
+  };
+
+  SC.m05 = {
+    pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE005", "VFCAE005", "Movimentacao da Despesa", "", ["01-Execucao da Despesa",
+        "02-Execucao de Restos a Pagar/Servico da Divida", "03-Anulacao da Despesa",
+        "04-Apropriacao Contabil da Despesa", "05-Folha de Pessoal"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = digits(v.opcao);
+      if (o === "01" || o === "1") return go("m51");
+      if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("subs"); }
+  };
+
+  var M51 = ["01-Apropriacao do Empenho                                 1-Registrar",
+    "02-Anulacao do Empenho                                    2-Consultar",
+    "03-Reforco do Empenho                                     3-Imprimir",
+    "04-Liquidacao da Despesa Empenhada",
+    "05-Anulacao Saldo Liquidado/Retencao/Multa Contratual"];
+  function m51base() { return menu("NFCAE051", "VFCAE051", "Movimentacao da Despesa", "Execucao da Despesa", M51, { acao: true }); }
+
+  SC.m51 = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: m51base,
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = ("0" + digits(v.opcao)).slice(-2), a = digits(v.acao);
+      if (!digits(v.opcao)) return erro("0001-INFORME A OPCAO.");
+      if (!a) return erro("0004-INFORME A ACAO.");
+      if (a === "3") return erro("0008-VERIFIQUE A IMPRESSORA.");
+      if (o === "01" && a === "1") { S.ctx = {}; return go("popAprop"); }
+      if ((o === "01" || o === "03" || o === "04") && (a === "1" || a === "2")) {
+        S.ctx = { op: o, acao: a }; return go("popEmp");
+      }
+      if (o === "02" || o === "05") return erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0003-OPCAO/ACAO INVALIDA.");
+    },
+    pf3: function () { go("m05"); }
+  };
+
+  // ---- Apropriacao: janela inicial (UO + marcacoes)
+  SC.popAprop = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var W2 = 51;
+      return box(m51base(), 27, 3, W2, [
+        bl(W2, ["       Apropriacao de Empenho"]),
+        bl(W2, ["      Unid. Orcamentaria: ", F("uo", 4)]),
+        bl(W2, [""]),
+        bl(W2, [" Marque 'X'"]),
+        bl(W2, ["      ", F("prog", 1), "       Empenho Programado"]),
+        bl(W2, ["      ", F("emp", 1), "       Empenho"]),
+        bl(W2, [""]),
+        bl(W2, ["      ", F("cpf", 1), "       CPF/CAPF"]),
+        bl(W2, ["      ", F("cnpj", 1), "       CNPJ/CAPJ"]),
+        bl(W2, [""]),
+        bl(W2, ["      ", F("adiant", 1), "       Adiantamento (S/N)"]),
+        bl(W2, ["      ", F("ressarc", 1), "       Ressarcimento(S/N)"]),
+        bl(W2, [""]),
+        bl(W2, ["      ", F("cSiafi", 1), "       Contrato/Convenio Saida SIAFI (S/N)"]),
+        bl(W2, ["      ", F("cSiad", 1), "       Contrato Saida SIAD (S/N)"]),
+        bl(W2, ["      ", F("obras", 1), "       Cadastro de Obras do SIAFI (S/N)"]),
+        bl(W2, [" -----------------PF3------PF6------------------"]),
+        bl(W2, ["                  Volta     Sel"])
+      ]);
     },
     enter: function (v) {
       var up = function (x) { return (x || "").toUpperCase(); };
-      if (up(v.prog) === "X") { say("0009-EMPENHO PROGRAMADO NAO IMPLEMENTADO NO SIMULADOR.", "err"); return; }
-      if (up(v.emp) !== "X") { say("0005-MARQUE X EM EMPENHO.", "err"); return; }
-      if (up(v.cpf) === "X" && up(v.cnpj) === "X") { say("0006-MARQUE APENAS CPF/CAPF OU CNPJ/CAPJ.", "err"); return; }
-      if (up(v.cpf) !== "X" && up(v.cnpj) !== "X") { say("0005-MARQUE CPF/CAPF OU CNPJ/CAPJ.", "err"); return; }
+      var uo = digits(v.uo);
+      if (!uo) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!UOS[uo]) return erro("0016-UNIDADE ORCAMENTARIA NAO CADASTRADA. TECLE PF6 PARA SELECIONAR.");
+      if (up(v.prog) === "X") return erro("0009-EMPENHO PROGRAMADO NAO DISPONIVEL NO TREINAMENTO.");
+      if (up(v.emp) !== "X") return erro("0005-MARQUE 'X' EM EMPENHO PROGRAMADO OU EMPENHO.");
+      if ((up(v.cpf) === "X") === (up(v.cnpj) === "X")) return erro("0005-MARQUE 'X' EM CPF/CAPF OU CNPJ/CAPJ.");
       var sn = ["adiant", "ressarc", "cSiafi", "cSiad", "obras"];
-      for (var i = 0; i < sn.length; i++) {
-        var val = up(v[sn[i]]);
-        if (val !== "S" && val !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) EM TODOS OS CAMPOS S/N.", "err"); return; }
-      }
-      if (up(v.ressarc) === "S" && up(v.adiant) !== "S") {
-        say("0027-RESSARCIMENTO SO PODE SER S SE ADIANTAMENTO FOR S NA TABELA ELEMENTO/ITEM.", "err"); return;
-      }
-      if (up(v.cSiafi) === "S" && up(v.cSiad) === "S") {
-        say("0028-NAO E POSSIVEL CONTRATO DE SAIDA SIAFI E CONTRATO SAIDA SIAD AO MESMO TEMPO.", "err"); return;
-      }
-      S.ctx.flags = { pessoa: up(v.cnpj) === "X" ? "J" : "F", adiant: up(v.adiant),
-                      ressarc: up(v.ressarc), cSiafi: up(v.cSiafi),
-                      cSiad: up(v.cSiad), obras: up(v.obras) };
-      S.ctx.regra = regraEspec(S.ctx.flags);
-      S.screen = "empenho2";
-      say("", "");
+      for (var i = 0; i < sn.length; i++) if (["S", "N"].indexOf(up(v[sn[i]])) < 0) return erro("0018-DIGITE S(SIM) OU N(NAO).");
+      if (up(v.ressarc) === "S" && up(v.adiant) !== "S") return erro("0027-RESSARCIMENTO SO PODE SER 'S' COM ADIANTAMENTO 'S'.");
+      if (up(v.cSiafi) === "S" && up(v.cSiad) === "S") return erro("0028-INFORME CONTRATO SAIDA SIAFI OU CONTRATO SAIDA SIAD, NAO AMBOS.");
+      S.ctx = { uo: uo, pessoa: up(v.cnpj) === "X" ? "J" : "F", adiant: up(v.adiant), ressarc: up(v.ressarc),
+        cSiafi: up(v.cSiafi), cSiad: up(v.cSiad), obras: up(v.obras) };
+      go("empG03");
     },
-    pf3: function () { S.screen = "exec51"; }
+    pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
+    pf3: function () { go("m51"); }
   };
 
-  // --- Empenho, tela 2: o documento propriamente dito ----------------------
-  SCREENS.empenho2 = {
-    fields: function () {
-      var r = S.ctx.regra, f = ["prog", "nat", "item", "fonte", "credor", "nome", "tipo"];
-      if (r.pede.indexOf("siad") !== -1) f.push("procSiad", "especSiad");
-      if (r.pede.indexOf("siafi") !== -1) f.push("especSiafi");
-      if (r.pede.indexOf("obra") !== -1) f.push("obra");
-      return f.concat(["valor", "ord"]);
-    },
-    pf: ["PF2 Anula", "PF3/Esc Volta", "PF4 Manut", "PF6 Sel", "PF5/Ctrl+Enter Conf"],
-    hint: "Tipo de empenho: O ordinário, E estimativo, G global. Confirme com Ctrl+Enter.",
-    regra: true,
-    body: function () {
-      var r = S.ctx.regra, fl = S.ctx.flags;
-      var out = head("NFCAEG03", "Registrar Apropriacao de Empenho") +
-        '<span class="k">Cota Global:</span> <span class="v">' + brl(S.contas.cotaGlobal) +
-        '</span>   <span class="k">Cota Elemento/Item:</span> <span class="v">' +
-        brl(S.contas.cotaItem) + "</span>\n\n" +
-        '     <span class="k">UO    Progr.Trabalho    Nat.Despesa  Item  Fonte  Proc. IPE</span>\n' +
-        "     1251  " + f("prog", 15, "06.181.701.2001") + "  " +
-        f("nat", 6, "339039") + "  " + f("item", 2, "05") + "  " +
-        f("fonte", 4, "6020") + "   1     0\n\n" +
-        '  <span class="k">' + (fl.pessoa === "J" ? "CNPJ/CAPJ-Credor" : "CPF/CAPF-Credor ") + ':</span> ' +
-        f("credor", 18, fl.pessoa === "J" ? "00000000000000" : "00000000000") + "\n" +
-        '  <span class="k">Nome ............:</span> ' + f("nome", 28, "NOME DO CREDOR") + "\n" +
-        '  <span class="k">Tipo Empenho ....:</span> ' + f("tipo", 1, "G") + "   <span class=\"dimmed\">(O/E/G)</span>\n";
+  // Regras do item 6.1 do manual: o que a tela do empenho vai pedir.
+  function pedeEspec(c, nat, item) {
+    if (c.adiant === "S" || c.ressarc === "S") return { siad: false, siafi: false, obra: false, lic: false };
+    var exige = EXIGE_ESPEC.indexOf(elemItem(nat, item)) >= 0;
+    if (!exige) return { siad: false, siafi: false, obra: c.obras === "S", lic: c.cSiafi !== "S" && c.cSiad !== "S" };
+    if (c.cSiafi === "S" && c.obras !== "S") return { siad: false, siafi: false, obra: false, lic: false };
+    if (c.cSiafi === "S" && c.obras === "S") return { siad: false, siafi: true, obra: true, lic: false };
+    return { siad: true, siafi: false, obra: c.obras === "S", lic: false };
+  }
 
-      if (r.pede.indexOf("siad") !== -1) {
-        out += '  <span class="k">Nr. Processo SIAD:</span> ' + f("procSiad", 14, "00000/000/2026") +
-               '  <span class="k">Nr. Espec. SIAD:</span> ' + f("especSiad", 6, "0000") + "\n";
-      }
-      if (r.pede.indexOf("siafi") !== -1) {
-        out += '  <span class="k">Numero Espec. Siafi:</span> ' + f("especSiafi", 4, "01") + "\n";
-      }
-      out += '  <span class="k">Adiantamento ....:</span> ' + fl.adiant +
-             '    <span class="k">Ressarcimento:</span> ' + fl.ressarc + "\n" +
-             '  <span class="k">Cont/Conv Saida SIAFI:</span> ' + fl.cSiafi;
-      if (r.pede.indexOf("obra") !== -1) {
-        out += '   <span class="k">Nr. Seq. Obra:</span> ' + f("obra", 6, "1868");
-      }
-      out += "\n\n" +
-        '  <span class="k">Valor ...........:</span> ' + f("valor", 12, "500000") + "\n" +
-        '  <span class="k">Ord. Despesa ....:</span> ' + f("ord", 6, "350057") + "\n";
-      if (r.pede.length === 0 && !r.lic) {
-        out += '\n<span class="msg">Regra ' + r.n + ": nenhuma especificacao sera solicitada nesta tela.</span>";
-      }
-      return out;
+  function linhaClass(e) {
+    return "     " + pad(e.uo, 6) + pad(fmtProg(e.prog), 23) + pad(e.nat, 13) + pad(("0" + e.item).slice(-2), 6) +
+      pad(e.fonte, 7) + pad(e.proc, 5) + e.ipe;
+  }
+  function cabUnid() {
+    return [esc("Unid. Executora: " + S.ue + " - " + UES[S.ue]), esc("Unid. Orcamentaria: 1251 - " + UOS["1251"])];
+  }
+
+  SC.empG03 = {
+    pf: { 2: "Anula", 3: "Volta", 4: "Manut", 6: "Sel", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var c = S.ctx, p = c.pede || { siad: false, siafi: false, obra: c.obras === "S" };
+      var l = [
+        esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")),
+        esc(row("VFCAEG03", "S I A F I - MG", hojeStr())),
+        esc(row(S.user, "Registrar Apropriacao de Empenho", hora())),
+        esc(pad("", 62) + lpad("2G37", 18)),
+        L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento:") + "                " + L("Evento:")
+      ].concat(cabUnid()).concat([
+        "       " + L("UO      Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"),
+        "      " + c.uo + "  " + f("prog", 20) + "   " + f("nat", 6) + "      " + f("item", 2) + "   " +
+          f("fonte", 4) + "  " + f("proc", 1) + "    " + f("ipe", 1),
+        L("Unid. Programacao Gasto: ") + f("upg", 3),
+        L(c.pessoa === "J" ? "CNPJ/CAPJ-Credor: " : "CPF/CAPF-Credor:  ") + f("credor", c.pessoa === "J" ? 14 : 11),
+        L("Nome: ") + esc(c.nome || ""),
+        L("Tipo Empenho: ") + f("tipo", 1)
+      ]);
+      if (p.siad) l.push(L("Nr. Processo SIAD (Un/Seq/Ano): ") + f("pUn", 7) + " " + f("pSeq", 3) + " " + f("pAno", 4) +
+        " " + L("Nr. Espec. SIAD: ") + f("espec", 9));
+      if (p.siafi) l.push(L("Numero Especificacao Siafi: ") + f("especSiafi", 7));
+      l.push(esc(pad("", 52)) + L("Adiantamento: ") + c.adiant);
+      l.push(esc(pad("", 52)) + L("Ressarcimento: ") + c.ressarc);
+      l.push(L("Cont/Conv Saida SIAFI/SIGCON:    ") + c.cSiafi + (p.obra ? "       " + L("Informe Nr. Seq. Obra: ") + f("obra", 6) : ""));
+      l.push(esc(pad("", 43)) + L("Valor: ") + f("valor", 15));
+      l.push(L("Ord. Despesa: ") + f("ord", 6) + (c.ordNome ? " - " + esc(c.ordNome) : ""));
+      return l;
     },
-    live: function () {
-      // Avisa qual cota sera consumida assim que natureza e item estiverem preenchidos.
-      var v = vals(), ei = elemItem(v.nat, v.item);
-      if (!ei) return "";
-      return marcado(v.nat, v.item)
-        ? "Elemento-item " + ei + " está na lista de MARCADOS do PARO: a despesa sai " +
-          "da cota de Elemento/Item, não do Global."
-        : "Elemento-item " + ei + " não é marcado: a despesa sai da cota Global.";
-    },
-    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
-    pf5: function (v) {
-      var r = S.ctx.regra, fl = S.ctx.flags, val = parseMoney(v.valor);
-      if (!v.prog) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: PROGRAMA DE TRABALHO.", "err"); return; }
-      if (digits(v.nat).length !== 6) { say("0019-NATUREZA DA DESPESA INVALIDA. INFORME 6 DIGITOS.", "err"); return; }
-      if (!digits(v.item)) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: ITEM.", "err"); return; }
-      if (!digits(v.fonte)) { say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: FONTE.", "err"); return; }
-      if (!v.credor) { say("0021-INFORME O CREDOR.", "err"); return; }
-      if (fl.pessoa === "J" && !cnpjValido(v.credor)) { say("0020-CNPJ INVALIDO. CONFIRA OS DIGITOS VERIFICADORES.", "err"); return; }
-      if (!v.nome) { say("0021-INFORME O NOME DO CREDOR.", "err"); return; }
+    enter: function (v) {
+      var c = S.ctx;
+      var prog = digits(v.prog), nat = digits(v.nat), item = digits(v.item), fonte = digits(v.fonte);
+      if (!prog || !nat || !item || !fonte || !digits(v.proc) || v.ipe === "") return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (prog.length !== 16) return erro("0012-PROGRAMA DE TRABALHO INVALIDO. INFORME OS 16 DIGITOS.");
+      if (nat.length !== 6) return erro("0019-NATUREZA DA DESPESA INVALIDA.");
+      var cred = digits(v.credor);
+      if (!cred) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (c.pessoa === "J" && !cnpjValido(cred)) return erro("0020-CNPJ INVALIDO.");
+      if (!CREDORES[cred]) return erro("0021-CREDOR NAO CADASTRADO NA TABELA CREDOR/DEVEDOR.");
+      c.nome = CREDORES[cred].nome;
       var tp = (v.tipo || "").toUpperCase();
-      if (["O", "E", "G"].indexOf(tp) === -1) { say("0025-TIPO DE EMPENHO INVALIDO. USE O, E OU G.", "err"); return; }
-      if (r.pede.indexOf("siad") !== -1 && !v.especSiad) {
-        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NR. ESPEC. SIAD.", "err"); return;
+      if (["O", "E", "G"].indexOf(tp) < 0) return erro("0025-TIPO DE EMPENHO INVALIDO. INFORME O, E OU G.");
+      var p = pedeEspec(c, nat, item);
+      if ((p.siad && !c.pede) || (p.siad && !(c.pede || {}).siad) || (p.obra && !(c.pede || {}).obra)) {
+        c.pede = p; return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
       }
-      if (r.pede.indexOf("siad") !== -1 && !v.procSiad) {
-        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NR. PROCESSO SIAD.", "err"); return;
+      c.pede = p;
+      var esp = null;
+      if (p.siad) {
+        if (!digits(v.pUn) || !digits(v.pSeq) || !digits(v.pAno) || !digits(v.espec)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+        esp = ESPECS[String(parseInt(digits(v.espec), 10))];
+        if (!esp) return erro("0141-ESPECIFICACAO SIAD NAO ENCONTRADA.");
+        var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000" + digits(v.pSeq)).slice(-3) + digits(v.pAno);
+        if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
+        if (esp.contrato && c.cSiad !== "S") return erro("0143-ESPECIFICACAO COM CONTRATO NO SIAD. INFORME 'S' EM CONTRATO SAIDA SIAD (PF3).");
       }
-      if (r.pede.indexOf("siafi") !== -1 && !v.especSiafi) {
-        say("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO: NUMERO ESPECIFICACAO SIAFI.", "err"); return;
-      }
-      if (r.pede.indexOf("obra") !== -1 && !v.obra) {
-        say("0139-INFORME O SEQUENCIAL DA OBRA.", "err"); return;
-      }
-      if (!val || val <= 0) { erroValor(v.valor); return; }
-      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
-      var mk = marcado(v.nat, v.item);
-      var conta = mk ? "cotaItem" : "cotaGlobal";
-      if (val > S.contas[conta]) {
-        say("0031-SALDO DE COTA INSUFICIENTE NA " + (mk ? "ELEMENTO/ITEM" : "GLOBAL") +
-            ". VALOR LIDO: " + brl(val) + " · DISPONIVEL: " + brl(S.contas[conta]) +
-            ". LEMBRE: OS DOIS ULTIMOS DIGITOS SAO OS CENTAVOS.", "err"); return;
-      }
-      if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
-      S.ctx.novo = { nome: v.nome.toUpperCase(), credor: digits(v.credor), nat: digits(v.nat),
-                     item: digits(v.item).padStart(2, "0"), fonte: digits(v.fonte),
-                     prog: v.prog, tipo: tp, valor: val,
-                     marcado: mk, conta: conta,
-                     procSiad: v.procSiad || "", especSiad: v.especSiad || "",
-                     especSiafi: v.especSiafi || "", obra: v.obra || "" };
-      if (r.lic) { S.screen = "licitacao"; say("", ""); return; }
-      gravaEmpenho();
+      if (p.obra && !digits(v.obra)) return erro("0139-INFORME SEQUENCIAL OBRA.");
+      var val = valor(v.valor);
+      if (!val) return erro("0022-VALOR INVALIDO. DIGITE SO NUMEROS, SEM PONTO NEM VIRGULA.");
+      var ord = digits(v.ord);
+      if (!ORDS[ord]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
+      c.ordNome = ORDS[ord];
+      var mk = MARCADOS.indexOf(elemItem(nat, item)) >= 0, cota = mk ? "cotaItem" : "cotaGlobal";
+      if (val > S.contas[cota]) return erro("0031-SALDO DE COTA " + (mk ? "ELEMENTO/ITEM" : "GLOBAL") + " INSUFICIENTE. DISPONIVEL: " + brl(S.contas[cota]));
+      if (val > S.contas.credDisp) return erro("0032-CREDITO DISPONIVEL INSUFICIENTE.");
+      c.doc = { uo: c.uo, prog: prog, nat: nat, item: ("0" + item).slice(-2), fonte: fonte, proc: digits(v.proc), ipe: digits(v.ipe) || "0",
+        cnpj: cred, tipo: tp, valor: val, ord: ord, espec: esp ? String(parseInt(digits(v.espec), 10)) : "",
+        procSiad: esp ? esp.proc : "", contrato: esp ? esp.contrato : null, cota: cota };
+      c.hist = { tipo: "EMP", titulo: "APROPRIACAO DE EMPENHO DA DESPESA", rotulo: "APROPRIACAO EMPENHO", ref: "REGISTRA APROPRIACAO DE EMPENHO", fim: "empConf" };
+      if (p.lic) return go("popLic");
+      go("histPad");
     },
-    pf3: function () { S.screen = "empenho"; }
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); },
+    pf3: function () { go("popAprop"); }
   };
 
-  // --- Modalidade de licitacao, quando nao ha especificacao SIAD -----------
-  SCREENS.licitacao = {
-    fields: ["mod", "nrLic", "nrProc"],
-    pf: ["PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
-    hint: "Quando a unidade usa especificação SIAD, a modalidade vem sozinha pela integração. Sem ela, você informa aqui.",
-    regra: true,
-    body: function () {
-      return head("NFCAEG03", "Registrar Apropriacao de Empenho") +
-        '  <span class="k">Elemento/Item exige Licitacao</span>\n\n' +
-        '  <span class="k">Cod  Modalidade</span>\n' +
-        ["   1   CONCORRENCIA", "   2   TOMADA DE PRECOS", "   3   CONVITE",
-         "   4   CONCURSO", "   5   LEILAO", "   6   PREGAO",
-         "   7   COMPRA DIRETA", "   8   DISPENSA", "   9   INEXIGIBILIDADE",
-         "  10   REGISTRO DE PRECOS", "  11   CARTA CONVITE BIRD", ""].join("\n") +
-        '  <span class="k">Modalidade ..:</span> ' + f("mod", 2, "6") + "\n" +
-        '  <span class="k">Nr. Licitacao:</span> ' + f("nrLic", 8, "12/2026") + "\n" +
-        '  <span class="k">Nr. Processo :</span> ' + f("nrProc", 10, "50057/2026") + "\n";
+  SC.popLic = {
+    pf: { 3: "Volta" },
+    draw: function () {
+      var W2 = 44, items = ["CONCORRENCIA", "TOMADA DE PRECOS", "CONVITE", "CONCURSO", "LEILAO", "PREGAO",
+        "COMPRA DIRETA", "DISPENSA", "INEXIGIBILIDADE", "REGISTRO DE PRECOS", "CARTA CONVITE BIRD"];
+      return box(SC.empG03.draw(), 34, 3, W2, [bl(W2, [" Elemento/Item exige Licitacao"]), bl(W2, [" Marque      Modalidade Licitacao"])]
+        .concat(items.map(function (t, i) { return bl(W2, ["     ", F("lic" + i, 1), "     " + t]); }))
+        .concat([bl(W2, ["   Nr. Licitacao: ", F("nrLic", 10)]), bl(W2, ["   Nr. Processo:  ", F("nrProc", 10)])]));
     },
-    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    enter: function (v) {
+      var n = 0; for (var i = 0; i < 11; i++) if ((v["lic" + i] || "").toUpperCase() === "X") n++;
+      if (n !== 1) return erro("0005-MARQUE 'X' EM UMA MODALIDADE.");
+      if (!v.nrLic || !v.nrProc) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      go("histPad");
+    },
+    pf3: function () { go("empG03"); }
+  };
+
+  // ---- Historico padrao (empenho e reforco) e historico de referencia (todos)
+  SC.histPad = {
+    pf: { 2: "Anula", 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var h = S.ctx.hist, W2 = 76;
+      return box([], 1, 0, W2, [
+        bl(W2, [" Historico - " + h.titulo, ]), bl(W2, [""]),
+        bl(W2, [" Ano Exercicio: 2026"]), bl(W2, [" UE: " + S.ue + " - " + UES[S.ue]]), bl(W2, [""]),
+        bl(W2, [" Marque                    Historico Padrao"]), bl(W2, ["   'X'"])
+      ].concat(HIST_EMP.map(function (t, i) { return bl(W2, ["    ", F("hp" + i, 1), "   " + h.rotulo + " - " + t]); }))
+        .concat([bl(W2, [""]), bl(W2, [""]), bl(W2, [" ------------------------ PF5---PF7---PF8-----------------------------"]),
+          bl(W2, ["                          Conf -Pag +Pag"])]));
+    },
+    enter: function (v) {
+      var n = -1, k = 0;
+      for (var i = 0; i < 6; i++) if ((v["hp" + i] || "").toUpperCase() === "X") { n = i; k++; }
+      if (k !== 1) return erro("0005-MARQUE 'X' EM UM HISTORICO PADRAO.");
+      S.ctx.hist.padrao = n; S.ctx.hist.conf = true;
+      say("0130-TECLE PF5 PARA CONFIRMAR OU 'ENTER' PARA REFAZER A SELECAO.");
+    },
     pf5: function (v) {
-      var m = parseInt(v.mod, 10);
-      if (!m || m < 1 || m > 11) { say("0029-MODALIDADE INVALIDA. INFORME DE 1 A 11.", "err"); return; }
-      if (!v.nrLic) { say("0004-INFORME O NUMERO DA LICITACAO.", "err"); return; }
-      if (!v.nrProc) { say("0004-INFORME O NUMERO DO PROCESSO.", "err"); return; }
-      S.ctx.novo.mod = m;
-      gravaEmpenho();
+      if (!S.ctx.hist.conf) return SC.histPad.enter(v);
+      if (S.ctx.hist.padrao !== 2) { S.ctx.hist.conf = false; return erro("0131-HISTORICO PADRAO INCOMPATIVEL COM A NATUREZA DA DESPESA."); }
+      S.ctx.hist.conf = false; go("histRef");
     },
-    pf3: function () { S.screen = "empenho2"; }
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); },
+    pf3: function () { go(S.ctx.hist.tipo === "EMP" ? "empG03" : "refG09"); }
+  };
+
+  SC.histRef = {
+    pf: { 2: "Anula", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      var h = S.ctx.hist, W2 = 76;
+      var pn = h.padraoFixo || (h.padrao + 1), pt = h.padraoTxt || (h.rotulo + " - " + HIST_EMP[h.padrao]);
+      var inner = [bl(W2, [""]), bl(W2, ["      Historico - " + h.titulo]), bl(W2, [""]),
+        bl(W2, [" Ano Exercicio: 2026"]), bl(W2, [" UE: " + S.ue + " - " + UES[S.ue]]), bl(W2, [""]),
+        bl(W2, [" Historico Padrao: " + pn]), bl(W2, [" " + pt]),
+        bl(W2, ["                         Historico de Referencia"]),
+        bl(W2, ["    " + h.ref + " ", F("hr0", 68 - h.ref.length - 1, { def: "" })])];
+      for (var i = 1; i < 6; i++) inner.push(bl(W2, ["    ", F("hr" + i, 68)]));
+      inner.push(bl(W2, [""]), bl(W2, [" ------------------------------ PF5 ------------------------------------"]),
+        bl(W2, ["                                Conf"]));
+      return box([], 1, 0, W2, inner);
+    },
+    enter: function (v) {
+      var t = [0, 1, 2, 3, 4, 5].map(function (i) { return v["hr" + i] || ""; }).join(" ").trim();
+      if (!t) return erro("0004-INFORME O HISTORICO DE REFERENCIA.");
+      S.ctx.hist.texto = t; S.ctx.hist.conf = true;
+      say("0130-TECLE PF5 PARA CONFIRMAR OU 'ENTER' REFAZER O HISTORICO.");
+    },
+    pf5: function (v) {
+      if (!S.ctx.hist.conf) { SC.histRef.enter(v); if (!S.ctx.hist.conf) return; }
+      S.ctx.hist.conf = false;
+      var fim = S.ctx.hist.fim;
+      go(fim, fim === "empConf" ? "0130-TECLE PF5 P/ CONFIRMAR OU PF2 P/ ANULAR OU ENTER P/ VER PROXIMA TELA." :
+        fim === "opResumo" ? "0017-TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR." :
+        fim === "refConf" ? "0017-TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR." : "TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR");
+    },
+    pf2: function () { go(S.ctx.hist.tipo === "OP" ? "m71" : "m51", "0013-REGISTRO ANULADO."); },
+    pf3: function () { go(S.ctx.hist.tipo === "EMP" || S.ctx.hist.tipo === "REF" ? "histPad" : (S.ctx.hist.tipo === "LIQ" ? "liqG14" : "opEK03")); }
+  };
+
+  // ---- Confirmacao do empenho
+  function telaEmpenho(e, o) {
+    o = o || {};
+    var cr = CREDORES[e.cnpj] || { nome: "" };
+    var l = [
+      esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")),
+      esc(row(o.v || "VFCAEG0C", "S I A F I - MG", hojeStr())),
+      esc(row(S.user, "Registrar Apropriacao de Empenho", hora())),
+      esc(pad("", 62) + lpad("2G37", 18)),
+      L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento: ") + pad(o.num ? ("0000000" + o.num).slice(-7) : "", 13) +
+        L("Evento: ") + (o.num ? "0502.001" : "0000.000")
+    ].concat(cabUnid()).concat([
+      "       " + L("UO      Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"),
+      esc(linhaClass(e)),
+      L("CNPJ/CAPJ-Credor: ") + esc(fmtCnpj(e.cnpj)),
+      L("Nome: ") + esc(cr.nome),
+      L("Tipo Empenho: ") + e.tipo
+    ]);
+    if (e.espec) l.push(L("Nr. Processo SIAD (Un/Seq/Ano): ") + esc(fmtProc(e.procSiad)) + "  " + L("Nr. Espec. SIAD: ") + e.espec);
+    l.push(esc(pad("", 52)) + L("Adiantamento: ") + "N", esc(pad("", 52)) + L("Ressarcimento: ") + "N");
+    l.push(esc(pad("", 43)) + L("Valor: ") + esc(lpad(brl(e.valor || e.empenhado), 22)));
+    l.push(L("Ord. Despesa: ") + esc((e.ord || "350057") + " - " + ORDS[e.ord || "350057"]));
+    return l;
+  }
+
+  SC.empConf = {
+    pf: { 2: "Anula", 5: "Conf", 9: "MenuP", 10: "Info", 12: "Fim" },
+    draw: function () { return telaEmpenho(S.ctx.doc); },
+    enter: function () { go("empContr", "0130-TECLE PF5 PARA CONFIRMAR OU PF2 P/ ANULAR OU ENTER PARA VER PROXIMA TELA"); },
+    pf5: gravaEmpenho,
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); }
+  };
+  SC.empContr = {
+    pf: { 2: "Anula", 5: "Conf", 9: "MenuP", 10: "Info", 12: "Fim" },
+    draw: function () {
+      var d = S.ctx.doc, ct = d.contrato;
+      return [esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEG0D", "S I A F I - MG", hojeStr())),
+        esc(row(S.user, "Registrar Apropriacao de Empenho", hora())), esc(pad("", 62) + lpad("2G37", 18)),
+        L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento:") + "               " + L("Evento: ") + "0000.000"]
+        .concat(cabUnid()).concat(["", "",
+          "    " + L("Contrato/Convenio Saida:"),
+          "    " + L("Tipo:   ") + (ct ? ct.tipo + " - CONTRATO SIAD" : ""),
+          "    " + L("Numero: ") + (ct ? ("0000000" + ct.num).slice(-7) : ""),
+          "    " + L("Contrato/Convenio Entrada:"),
+          "    " + L("Tipo:"), "    " + L("Numero:"), "",
+          L("Ord. Despesa: ") + esc(d.ord + " - " + ORDS[d.ord])]);
+    },
+    enter: function () { go("empConf", "0130-TECLE PF5 P/ CONFIRMAR OU PF2 P/ ANULAR OU ENTER P/ VER PROXIMA TELA."); },
+    pf5: gravaEmpenho,
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); }
   };
 
   function gravaEmpenho() {
-    var n = S.ctx.novo, r = S.ctx.regra;
+    var d = S.ctx.doc;
     S.seqEmp += 1;
-    var e = { num: String(S.seqEmp), ano: "2026", credor: n.nome,
-              cnpj: n.credor, natureza: n.nat, item: n.item, fonte: n.fonte,
-              tipo: n.tipo, empenhado: n.valor, liquidado: 0,
-              liqLiquido: 0, pagoLiq: 0, pagoBruto: 0, retido: 0, ir: 0,
-              caso: S.cenario };
-    S.empenhos.push(e);
-    // Empenho: sai da cota e do credito disponivel, compromete a DDR.
-    mv(n.conta, -n.valor);
-    mv("credDisp", -n.valor); mv("empLiq", n.valor);
-    mv("ddr1", -n.valor); mv("ddr2", n.valor);
-    var diverg = conferir(n);
-    if (S.cenario) S.casos[S.cenario].emp = e.num;
-    logit("<b>Empenho " + e.num + "</b> · " + brl(n.valor) + " · " + esc(e.credor) +
-          " · cota " + (n.marcado ? "Elemento/Item" : "Global"));
-    S.ctx.ultimo = e.num;
-    var ei = elemItem(n.nat, n.item);
-    var linhas = [
-      "Nr. Empenho ....: " + e.num + " / 2026",
-      "Credor .........: " + e.credor,
-      "Elemento-Item ..: " + (ei || "—") + (n.marcado ? "  (MARCADO)" : ""),
-      "Cota consumida .: " + (n.marcado ? "Elemento/Item (9.9.8.0.2.03.02)"
-                                        : "Global — GMIFP (9.9.8.0.2.03.01)"),
-      "Tipo de Empenho : " + n.tipo,
-      "Valor Empenhado : " + brl(n.valor)
-    ];
-    if (n.especSiad)  linhas.push("Espec. SIAD ....: " + n.especSiad);
-    if (n.especSiafi) linhas.push("Espec. SIAFI ...: " + n.especSiafi);
-    if (n.obra)       linhas.push("Seq. da Obra ...: " + n.obra);
-    if (n.mod)        linhas.push("Modalidade .....: " + n.mod);
-    linhas.push("", "Regra de especificacao aplicada: " + r.n,
-                "A cota caiu e o valor entrou em Credito Empenhado a Liquidar.");
-    var conf = null;
-    if (S.cenario) {
-      conf = diverg.length
-        ? { ok: false, txt: "CONFERENCIA COM O QUADRO: diverge em " + diverg.join(", ") + "." }
-        : { ok: true, txt: "CONFERENCIA COM O QUADRO: todos os dados conferem." };
-      if (diverg.length) logit("Conferência do empenho " + e.num + ": diverge em " + esc(diverg.join(", ")));
-    }
-    S.screen = "feito";
-    S.ctx.feito = { titulo: "Empenho registrado", linhas: linhas, volta: "exec51", conf: conf };
-    say("", "");
+    var e = empBase(String(S.seqEmp), d.cnpj, d.nat, d.item, d.tipo, d.valor);
+    e.uo = d.uo; e.prog = d.prog; e.fonte = d.fonte; e.proc = d.proc; e.ipe = d.ipe; e.ord = d.ord;
+    e.espec = d.espec; e.procSiad = d.procSiad; e.cota = d.cota; e.hist = S.ctx.hist.texto;
+    S.emps.push(e);
+    mv(d.cota, -d.valor); mv("credDisp", -d.valor); mv("empLiq", d.valor); mv("ddr1", -d.valor); mv("ddr2", d.valor);
+    S.ctx.done = { lines: telaEmpenho(d, { num: e.num, v: "VFCAEG0C" }), back: "m51" };
+    go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
   }
 
-  SCREENS.reforcoSel = {
-    fields: ["emp"],
-    pf: ["PF3/Esc Volta"],
-    hint: "Reforço só aumenta um empenho que JÁ EXISTE. Para registrar o empenho de um contrato novo, volte (Esc) e use a opção 01.",
-    body: function () {
-      return head("NFCAE051", "Reforcar Empenho da Despesa") +
-        listaEmp() + "\n" +
-        '  <span class="k">Nr. Empenho:</span> ' + f("emp", 6, S.ctx.ultimo || "000");
+  // ---- Documento registrado / transmissao para assinatura digital
+  SC.feito = {
+    pf: { 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var l = S.ctx.done.lines.slice();
+      if (S.ctx.done.trans) {
+        l = box(l, 2, 8, 76, [bl(76, ["                            MENSAGEM"]), bl(76, [""]), bl(76, [""]),
+          bl(76, ["         TRANSMISSAO EFETUADA COM SUCESSO PARA ASSINATURA DIGITAL"]),
+          bl(76, ["                       TECLE <ENTER> PARA CONTINUAR"]), bl(76, [""]), bl(76, [""])]);
+      }
+      return l;
     },
-    enter: function (v) {
-      var e = findEmp(v.emp);
-      if (!e) { naoEncontrado(v.emp); return; }
-      S.ctx.emp = e.num; S.screen = "reforco"; say("", "");
+    enter: function () {
+      if (!S.ctx.done.trans && !S.ctx.done.semAssin) { S.ctx.done.trans = true; return say(""); }
+      go(S.ctx.done.back);
     },
-    pf3: function () { S.screen = "exec51"; }
+    pf3: function () { go(S.ctx.done.back); }
   };
 
-  SCREENS.reforco = {
-    fields: ["valor", "ord"],
-    pf: ["PF2 Anula", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
-    hint: "O reforço soma ao empenho existente e consome mais crédito disponível.",
-    body: function () {
+  // ---- Janela de selecao de empenho (reforco, liquidacao, consultas)
+  SC.popEmp = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var W2 = 31;
+      return box(m51base(), 47, 5, W2, [
+        bl(W2, [" Ano Exercicio     : 2026"]),
+        bl(W2, [" Unid. Executora   : " + S.ue]),
+        bl(W2, [" Unid. Orcamentaria: ", F("uo", 4)]),
+        bl(W2, [" Nr. Empenho       : ", F("ne", 7)]),
+        bl(W2, [" ------------PF6------------"]),
+        bl(W2, ["             Sel"])
+      ]);
+    },
+    enter: function (v) {
+      var uo = digits(v.uo);
+      if (!uo || !digits(v.ne)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!UOS[uo]) return erro("0016-UNIDADE ORCAMENTARIA NAO CADASTRADA. TECLE PF6 PARA SELECIONAR.");
+      var e = findEmp(v.ne);
+      if (!e || e.uo !== uo) return erro("0041-EMPENHO NAO CADASTRADO PARA A UNIDADE.");
+      var c = S.ctx; c.emp = e.num;
+      if (c.acao === "2") return go(c.op === "04" ? "consLiq" : "consEmp");
+      if (c.op === "03") return go("refG09");
+      if (c.op === "04") {
+        if (saldoLiq(e) <= 0) return erro("0043-EMPENHO SEM SALDO A LIQUIDAR.");
+        return go("liqG14");
+      }
+      erro("0003-OPCAO/ACAO INVALIDA.");
+    },
+    pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
+    pf3: function () { go("m51"); }
+  };
+
+  // ---- Reforco
+  function cabDoc(code, vcode, title, extra) {
+    return [esc(row(code, "Estado de Minas Gerais", "PRODEMGE")), esc(row(vcode, "S I A F I - MG", hojeStr())),
+      esc(row(S.user, title, hora())), esc(pad("", 62) + lpad("2G37", 18)), extra].concat(cabUnid());
+  }
+  function telaReforco(e, o) {
+    o = o || {};
+    var cr = CREDORES[e.cnpj];
+    return cabDoc("NFCAEG09", "VFCAEG09", "Reforcar Empenho da Despesa",
+      L("Ano Exercicio: ") + "2026 " + L("Nr.Empenho: ") + ("0000000" + e.num).slice(-7) + " " + L("Sq. Reforco: ") +
+      pad(o.sq ? ("000" + o.sq).slice(-4) : "", 8) + L("Evento: ") + (o.sq ? "0504 001" : "0000 000"))
+      .concat(["     " + L("UO     Progr.Trabalho         Nat. Despesa  Item  Fonte Proc. IPE"), esc(linhaClass(e)),
+        L("CNPJ - Credor: ") + esc(fmtCnpj(e.cnpj)), L("Nome: ") + esc(cr.nome),
+        L("Total Empenhado: ") + esc(lpad(brl(totalEmp(e)), 18)) + "    " + L("Saldo Empenho: ") + esc(lpad(brl(saldoLiq(e)), 18))]);
+  }
+  SC.refG09 = {
+    pf: { 1: "Ajuda", 2: "Anula", 3: "Volta", 5: "Conf", 9: "MenuP", 12: "Fim" },
+    draw: function () {
       var e = findEmp(S.ctx.emp);
-      return head("NFCAEG09", "Reforcar Empenho da Despesa") +
-        '<span class="k">Nr. Empenho:</span> <span class="v">' + e.num + "</span> / 2026\n" +
-        '<span class="k">Credor ....:</span> ' + e.credor + "\n\n" +
-        '<span class="k">Total Empenhado:</span> <span class="v">' + lpad(brl(e.empenhado), 14) + "</span>" +
-        '    <span class="k">Saldo Empenho:</span> <span class="v">' + brl(e.empenhado - e.liquidado) + "</span>\n" +
-        '<span class="k">Cota Global:</span> <span class="v">' + brl(S.contas.cotaGlobal) +
-        '</span>   <span class="k">Cota Elemento/Item:</span> <span class="v">' +
-        brl(S.contas.cotaItem) + "</span>\n\n" +
-        '  <span class="k">Valor do Reforco:</span> ' + f("valor", 12, "200000") + "\n" +
-        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
-    },
-    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
-    pf5: function (v) {
-      var e = findEmp(S.ctx.emp), val = parseMoney(v.valor);
-      if (!val || val <= 0) { erroValor(v.valor); return; }
-      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
-      var ct = marcado(e.natureza, e.item) ? "cotaItem" : "cotaGlobal";
-      if (val > S.contas[ct]) { say("0031-SALDO DE COTA INSUFICIENTE.", "err"); return; }
-      if (val > S.contas.credDisp) { say("0032-CREDITO DISPONIVEL INSUFICIENTE.", "err"); return; }
-      e.empenhado += val;
-      mv(ct, -val);
-      mv("credDisp", -val); mv("empLiq", val);
-      mv("ddr1", -val); mv("ddr2", val);
-      logit("<b>Reforço</b> no empenho " + e.num + " · " + brl(val));
-      S.screen = "feito";
-      S.ctx.feito = { titulo: "Reforco registrado", linhas: [
-        "Nr. Empenho ....: " + e.num,
-        "Valor do Reforco: " + brl(val),
-        "Total Empenhado : " + brl(e.empenhado)
-      ], volta: "exec51" };
-      say("", "");
-    },
-    pf3: function () { S.screen = "reforcoSel"; }
-  };
-
-  SCREENS.liqSel = {
-    fields: ["emp"],
-    pf: ["PF3/Esc Volta"],
-    hint: "Liquide o empenho do contrato que você acabou de registrar. A nota fiscal está no quadro, abaixo do terminal.",
-    body: function () {
-      return head("NFCAE051", "Liquidar Empenho da Despesa") +
-        listaEmp() + "\n" +
-        '  <span class="k">Nr. Empenho:</span> ' + f("emp", 6, S.ctx.ultimo || "000");
+      return telaReforco(e).concat([L("Valor do Reforco: ") + f("valor", 15), L("Ord. Despesa: ") + f("ord", 6)]);
     },
     enter: function (v) {
-      var e = findEmp(v.emp);
-      if (!e) { naoEncontrado(v.emp); return; }
-      if (e.empenhado - e.liquidado <= 0) { say("0043-EMPENHO SEM SALDO A LIQUIDAR.", "err"); return; }
-      // Empenho de um dos contratos: a ficha da nota acompanha o contrato dele.
-      var c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
-      if (c) {
-        document.getElementById("nf-tipo").value = c.ficha.tipo;
-        document.getElementById("nf-simples").value = c.ficha.simples;
-        document.getElementById("nf-iss").value = c.ficha.iss;
-        document.getElementById("nf-mo").value = c.ficha.mo;
-        document.getElementById("nf-espec").value = c.ficha.espec;
-      }
-      S.ctx.emp = e.num; S.screen = "liquidar"; say("", "");
+      var e = findEmp(S.ctx.emp), val = valor(v.valor);
+      if (!val) return erro("0022-VALOR INVALIDO. DIGITE SO NUMEROS, SEM PONTO NEM VIRGULA.");
+      if (!ORDS[digits(v.ord)]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
+      if (val > S.contas[e.cota || "cotaGlobal"]) return erro("0031-SALDO DE COTA INSUFICIENTE.");
+      if (val > S.contas.credDisp) return erro("0032-CREDITO DISPONIVEL INSUFICIENTE.");
+      S.ctx.ref = { valor: val, ord: digits(v.ord) };
+      S.ctx.hist = { tipo: "REF", titulo: "Reforco de Empenho da Despesa", rotulo: "REFORCO EMPENHO", ref: "REGISTRA REFORCO DE EMPENHO", fim: "refConf" };
+      if (EXIGE_ESPEC.indexOf(elemItem(e.nat, e.item)) >= 0) return go("popRefSiad");
+      go("histPad");
     },
-    pf3: function () { S.screen = "exec51"; }
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); },
+    pf3: function () { go("popEmp"); }
   };
-
-  SCREENS.liquidar = {
-    fields: ["valor", "ret", "ord"],
-    pf: ["PF2 Anula", "PF3/Esc Volta"],
-    hint: "Liquide o valor da NOTA FISCAL, que pode ser menor que o saldo do empenho. Retenção S abre a tela de eventos para ISS e INSS; o IRRF o SIAFI aplica sozinho.",
-    body: function () {
-      var e = findEmp(S.ctx.emp), saldo = e.empenhado - e.liquidado;
-      return head("NFCAEG14", "Liquidar Empenho da Despesa") +
-        '<span class="k">Nr. Empenho:</span> <span class="v">' + e.num + "</span> / 2026    " +
-        '<span class="k">Nat. Despesa:</span> ' + e.natureza + "    " +
-        '<span class="k">Fonte:</span> ' + e.fonte + "\n" +
-        '<span class="k">Credor ....:</span> ' + e.credor + "\n\n" +
-        '<span class="k">Saldo a Liquidar:</span> <span class="v">' + brl(saldo) + "</span>\n\n" +
-        '<span class="rule">------------- Informacoes para Liquidar Empenho da Despesa -------------</span>\n' +
-        '  <span class="k">Vl. a Liquidar .:</span> ' + f("valor", 12, semVirgula(saldo)) + "\n" +
-        '  <span class="k">Retencao (S/N) .:</span> ' + f("ret", 1, "S") + "\n" +
-        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
+  SC.popRefSiad = {
+    pf: { 3: "Volta" },
+    draw: function () {
+      var W2 = 50;
+      return box(SC.refG09.draw(), 12, 8, W2, [bl(W2, ["                    Informe:"]), bl(W2, [""]),
+        bl(W2, ["                            Numero    Seq.  Ano"]),
+        bl(W2, [" Nr. Processo Compra Siad: ", F("pUn", 7), "  ", F("pSeq", 3), "  ", F("pAno", 4)]),
+        bl(W2, [" Nr. Especificacao Siad : ", F("espec", 9)]), bl(W2, [""]),
+        bl(W2, [" -------------------- PF3 --------------------"]), bl(W2, ["                      Volta"])]);
     },
     enter: function (v) {
-      var e = findEmp(S.ctx.emp), saldo = e.empenhado - e.liquidado;
-      var val = parseMoney(v.valor);
-      if (!val || val <= 0) { erroValor(v.valor); return; }
-      if (val > saldo) { say("0044-VALOR MAIOR QUE O SALDO A LIQUIDAR: " + brl(saldo), "err"); return; }
-      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
-      var r = (v.ret || "").toUpperCase();
-      if (r !== "S" && r !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) NO CAMPO RETENCAO.", "err"); return; }
-      S.ctx.liq = { valor: val, ret: r };
-      if (r === "S") { S.screen = "eventos"; say("", ""); }
-      else { S.screen = "liqConf"; say("", ""); }
+      var e = findEmp(S.ctx.emp);
+      var esp = ESPECS[String(parseInt(digits(v.espec) || "0", 10))];
+      if (!esp) return erro("0141-ESPECIFICACAO SIAD NAO ENCONTRADA.");
+      var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000" + digits(v.pSeq)).slice(-3) + digits(v.pAno);
+      if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
+      if (e.espec && String(parseInt(digits(v.espec), 10)) !== e.espec) return erro("0144-ESPECIFICACAO DIFERENTE DA DO EMPENHO.");
+      go("histPad");
     },
-    pf3: function () { S.screen = "liqSel"; }
+    pf3: function () { go("refG09"); }
   };
-
-  // Cada tributo vai numa linha: INSS em "previdenciarios", ISS em "outras
-  // retencoes". IRRF nao tem linha: o SIAFI aplica pelo codigo 6256.
-  var EVENTOS = [
-    ["ev1", "CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS"],
-    ["ev2", "OUTRAS RETENCOES"],
-    ["ev3", "RESSARCIMENTO AO ESTADO-ORCAMENTO CORRENTE"],
-    ["ev4", "DEPOSITOS JUDICIAIS-OUTRAS DESPESAS CORRENTES"],
-    ["ev5", "FUNFIP-FUNDO FINANCEIRO PREVIDENCIARIO A RECOLHER"],
-    ["ev6", "RETENCAO DE CAUCOES E GARANTIAS DIVERSAS"],
-    ["ev7", "OUTROS IMPOSTOS A RECOLHER AO TESOURO ESTADUAL-ITCD"]
-  ];
-
-  SCREENS.eventos = {
-    fields: EVENTOS.map(function (e) { return e[0]; }),
-    pf: ["PF2 Limpa", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
-    hint: "Digite 1 na linha de cada tributo retido e deixe as outras em branco. INSS vai em Previdenciários, ISS em Outras Retenções. IRRF não tem linha: o SIAFI aplica sozinho.",
-    body: function () {
-      return head("NFCAEG14", "Liquidar Empenho da Despesa") +
-        '  <span class="k">Qtde</span>  <span class="k">Eventos de Retencao</span>\n' +
-        EVENTOS.map(function (e) { return "   " + f(e[0], 2, "__") + "  " + e[1]; }).join("\n") +
-        '\n\n<span class="dimmed">O IRRF nao aparece aqui: ele ja e aplicado pelo codigo 6256.</span>';
-    },
-    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
-    pf5: function (v) {
-      var r = calcRet(S.ctx.liq.valor);
-      var q = {};
-      for (var i = 0; i < EVENTOS.length; i++) {
-        var id = EVENTOS[i][0], t = (v[id] || "").replace(/_/g, "").trim();
-        if (t && !/^\d+$/.test(t)) { say("0018-QUANTIDADE INVALIDA NA LINHA " + EVENTOS[i][1] + ".", "err"); return; }
-        q[id] = t ? parseInt(t, 10) : 0;
-      }
-      var querPrev = r.inss > 0 ? 1 : 0, querOutras = r.iss > 0 ? 1 : 0;
-      if (q.ev1 !== querPrev) {
-        say(querPrev
-          ? "0075-HA INSS A RETER (CESSAO DE MAO DE OBRA). INFORME 1 EM CONTRIBUICAO/RETENCAO/DESCONTOS PREVIDENCIARIOS."
-          : "0076-NAO HA INSS NESTA NOTA. DEIXE A LINHA PREVIDENCIARIOS EM BRANCO.", "err"); return;
-      }
-      if (q.ev2 !== querOutras) {
-        say(querOutras
-          ? "0077-HA ISS A RETER. O ISSQN VAI EM OUTRAS RETENCOES: INFORME 1 NESSA LINHA."
-          : "0078-NAO HA ISS NESTA NOTA. DEIXE A LINHA OUTRAS RETENCOES EM BRANCO.", "err"); return;
-      }
-      for (var j = 2; j < EVENTOS.length; j++) {
-        if (q[EVENTOS[j][0]]) {
-          say("0079-ESTA NOTA NAO TEM " + EVENTOS[j][1] + ". DEIXE A LINHA EM BRANCO.", "err"); return;
-        }
-      }
-      S.screen = "liqConf"; say("", "");
-    },
-    pf3: function () { S.screen = "liquidar"; }
-  };
-
-  SCREENS.liqConf = {
-    fields: [],
-    pf: ["PF2 Anula", "PF5/Ctrl+Enter Conf"],
-    hint: "Confira o líquido antes de confirmar. É este valor que o fornecedor recebe.",
-    body: function () {
-      var e = findEmp(S.ctx.emp), L = S.ctx.liq;
-      var r = L.ret === "S" ? calcRet(L.valor) : (function () {
-        var x = calcRet(L.valor); return { ir: x.ir, iss: 0, inss: 0, total: x.ir, inssBarrado: false };
-      })();
-      S.ctx.ret = r;
-      var f2 = nf();
-      var linhas = [
-        '<span class="rule">------------------- Detalhamento da Liquidacao -------------------</span>',
-        '<span class="k">Tipo  CPF/CNPJ                                        Valor</span>',
-        "  P   " + pad(e.cnpj, 44) + lpad(brl(L.valor), 14),
-      ];
-      if (r.ir > 0)   linhas.push('  R   <span class="dimmed">IRRF cod. 6256</span>' + pad("", 30) + lpad(brl(r.ir), 14));
-      if (r.iss > 0)  linhas.push('  R   <span class="dimmed">ISSQN ' + f2.iss + "%</span>" + pad("", 32) + lpad(brl(r.iss), 14));
-      if (r.inss > 0) linhas.push('  R   <span class="dimmed">INSS 11%</span>' + pad("", 36) + lpad(brl(r.inss), 14));
-      linhas.push('<span class="rule">' + "-".repeat(68) + "</span>");
-      linhas.push('<span class="k">Valor Bruto ..:</span> ' + lpad(brl(L.valor), 14));
-      linhas.push('<span class="k">Vl. Retencoes :</span> ' + lpad(brl(r.total), 14));
-      linhas.push('<span class="k">Valor Liquido :</span> <span class="v">' + lpad(brl(L.valor - r.total), 14) + "</span>");
-      var av = "";
-      if (f2.simples) av = '\n\n<span class="msg">Optante do Simples: sem IRRF e sem INSS.</span>';
-      if (r.inssBarrado) av += '\n<span class="msg">INSS calculado abaixo de R$ 29,00 — nao retido.</span>';
-      if (f2.tipo === "mercadoria" && f2.iss > 0) av += '\n<span class="msg">Material nao sofre ISS, ainda que a ficha traga aliquota.</span>';
-      return head("NFCAEG1A", "Liquidar Empenho da Despesa") + linhas.join("\n") + av;
+  SC.refConf = {
+    pf: { 1: "Ajuda", 2: "Anula", 3: "Volta", 5: "Conf", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var e = findEmp(S.ctx.emp), r = S.ctx.ref;
+      return telaReforco(e).concat([L("Valor do Reforco: ") + esc(brl(r.valor)), L("Ord. Despesa: ") + esc(r.ord + " - " + ORDS[r.ord])]);
     },
     pf5: function () {
-      var e = findEmp(S.ctx.emp), L = S.ctx.liq, r = S.ctx.ret;
-      var liquido = L.valor - r.total;
-      e.liquidado += L.valor;
-      e.liqLiquido += liquido;
-      e.retido += r.total;
-      e.ir += r.ir;
-      // Orcamentario: a liquidar -> liquidado a pagar. DDR: empenho -> liquidacao.
-      mv("empLiq", -L.valor); mv("liqPagar", L.valor);
-      mv("ddr2", -L.valor); mv("ddr3", L.valor);
-      // Patrimonial: material entra no almoxarifado; servico vira VPD.
-      mv(nf().tipo === "mercadoria" ? "estoque" : "vpd", L.valor);
-      mv("fornec", liquido);
-      if (r.ir > 0) mv("irrf", r.ir);
-      if (r.iss > 0) mv("iss", r.iss);
-      if (r.inss > 0) mv("inss", r.inss);
-      logit("<b>Liquidação</b> emp. " + e.num + " · bruto " + brl(L.valor) +
-            " · retenções " + brl(r.total) + " · líquido " + brl(liquido));
-      var conf = null, c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
-      if (c) {
-        S.casos[c.id].liq = true;
-        conf = L.valor === c.conf.nota
-          ? { ok: true, txt: "CONFERENCIA: valor liquidado igual ao da nota fiscal." }
-          : { ok: false, txt: "CONFERENCIA: a nota fiscal e de " + brl(c.conf.nota) +
-                              ", mas foram liquidados " + brl(L.valor) + "." };
-      }
-      S.ctx.ultimo = e.num;
-      S.screen = "feito";
-      S.ctx.feito = { titulo: "Liquidacao registrada", linhas: [
-        "Nr. Empenho ....: " + e.num,
-        "Valor Bruto ....: " + brl(L.valor),
-        "Retencoes ......: " + brl(r.total),
-        "Valor Liquido ..: " + brl(liquido),
-        "Saldo a liquidar: " + brl(e.empenhado - e.liquidado),
-        "",
-        "Proximo passo: pagar o liquido ao credor (navegacao 71).",
-        "As retencoes ficam na unidade, para recolher por DAE."
-      ], volta: "exec51", conf: conf };
-      say("", "");
+      var e = findEmp(S.ctx.emp), r = S.ctx.ref, ct = e.cota || "cotaGlobal";
+      e.reforcos.push({ sq: e.reforcos.length + 1, valor: r.valor });
+      mv(ct, -r.valor); mv("credDisp", -r.valor); mv("empLiq", r.valor); mv("ddr1", -r.valor); mv("ddr2", r.valor);
+      S.ctx.done = { lines: telaReforco(e, { sq: e.reforcos.length }).concat([L("Valor do Reforco: ") + esc(brl(r.valor)),
+        L("Ord. Despesa: ") + esc(r.ord + " - " + ORDS[r.ord])]), back: "m51" };
+      go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
     },
-    pf3: function () { S.screen = "liquidar"; }
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); }
   };
 
-  SCREENS.op071 = {
-    fields: ["opcao", "acao"],
-    pf: ["PF3/Esc Volta", "PF9 MenuP"],
-    hint: "Opção 01, Ação 1. Esse menu também cancela (2), consulta (3) e imprime (4).",
-    body: function () {
-      return head("NFCAE071", "Movimentacao Financeira Bancaria") +
-        '       <span class="dimmed">Ordem de Pagamento</span>\n\n' +
-        ["  01-Ordem de Pagamento Bancaria              1-Registrar",
-         "  02-Ordem de Pagamento Cheque - Unid.Tes.    2-Cancelar",
-         "  03-Ordem de Pagamento Cheque - CMU          3-Consultar",
-         "  04-Ordem de Pagamento Pessoal Bancaria      4-Imprimir",
-         "  07-Alteracao das Informacoes IRRF", "", ""].join("\n") +
-        '     <span class="k">Opcao</span> &lt; ' + f("opcao", 2) + ' &gt;     <span class="k">Acao</span> &lt; ' + f("acao", 1) + " &gt;";
+  // ---- Liquidacao
+  function cabLiq(e, o) {
+    o = o || {};
+    var cr = CREDORES[e.cnpj];
+    return cabDoc("NFCAEG14", o.v || "VFCAEG14", "Liquidar Empenho da Despesa",
+      L("Ano Exercicio: ") + "2026    " + L("Nr.Empenho: ") + "2026 " + e.num + "        " + L("Sq.Liquidacao: ") + (o.sq || ""))
+      .concat(["        " + L("UO     Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"), esc(linhaClass(e)), "",
+        L("CREDOR-CNPJ       ") + esc(fmtCnpj(e.cnpj)), L("Nome: ") + esc(CREDORES[e.cnpj].nome)]);
+  }
+  SC.liqG14 = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var e = findEmp(S.ctx.emp), d = hoje();
+      return cabLiq(e).concat([
+        L("Saldo a Liquidar: ") + esc(lpad(brl(saldoLiq(e)), 20)), "", "",
+        esc(" -------------- Informacoes para Liquidar Empenho da Despesa ------------------"),
+        " " + L("Nr. Conformidade de Liquidacao: ") + f("cfUn", 7) + " " + f("cfSeq", 3) + " " + f("cfAno", 4) +
+          " " + L("Nr. Conf. SIAD: ") + f("cfSiad", 9),
+        " " + L("Retencao: ") + f("ret", 1) + " " + L("(S/N) Multa Contratual: ") + f("multa", 1) + " " +
+          L("(S/N) Dt. Prev. Pagto: ") + f("dpD", 2) + " / " + f("dpM", 2) + " / " + f("dpA", 4),
+        " " + L("Ano/Mes Competencia: ") + f("cpA", 4) + " / " + f("cpM", 2) + "         " + L("Vl. a Liquidar: ") + f("valor", 15),
+        "", " " + L("Ord. Desp.: ") + f("ord", 6)
+      ]);
     },
     enter: function (v) {
-      if (v.opcao === "01" && (v.acao === "1" || !v.acao)) { S.screen = "opTipo"; say("", ""); return; }
-      if (v.opcao === "01") { say("0007-NESTE SIMULADOR SOMENTE A ACAO 1 ESTA DISPONIVEL.", "err"); return; }
-      say("0003-INFORME A OPCAO 01 E A ACAO 1.", "err");
+      var e = findEmp(S.ctx.emp), up = function (x) { return (x || "").toUpperCase(); };
+      if (!digits(v.cfUn) || !digits(v.cfSeq) || !digits(v.cfAno)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (EXIGE_ESPEC.indexOf(elemItem(e.nat, e.item)) >= 0 && !digits(v.cfSiad)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (["S", "N"].indexOf(up(v.ret)) < 0 || ["S", "N"].indexOf(up(v.multa)) < 0) return erro("0018-DIGITE S(SIM) OU N(NAO).");
+      if (up(v.multa) === "S") return erro("0009-MULTA CONTRATUAL NAO DISPONIVEL NO TREINAMENTO.");
+      var dd = +digits(v.dpD), mm = +digits(v.dpM), aa = +digits(v.dpA);
+      var dt = new Date(aa, mm - 1, dd);
+      if (!dd || !mm || !aa || dt.getDate() !== dd || dt.getMonth() !== mm - 1) return erro("0035-DATA DE PREVISAO DE PAGAMENTO INVALIDA.");
+      var t = new Date(); t.setHours(0, 0, 0, 0);
+      if (dt < t) return erro("0036-DATA DE PREVISAO DE PAGAMENTO MENOR QUE A DATA ATUAL.");
+      var ca = +digits(v.cpA), cm = +digits(v.cpM);
+      if (ca !== 2026 || cm < 1 || cm > 12) return erro("0037-ANO/MES DE COMPETENCIA INVALIDO.");
+      var val = valor(v.valor);
+      if (!val) return erro("0022-VALOR INVALIDO. DIGITE SO NUMEROS, SEM PONTO NEM VIRGULA.");
+      if (val > saldoLiq(e)) return erro("0044-VALOR A LIQUIDAR MAIOR QUE O SALDO A LIQUIDAR.");
+      if (!ORDS[digits(v.ord)]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
+      S.ctx.liq = { conf: digits(v.cfUn) + " " + digits(v.cfSeq) + " " + digits(v.cfAno), confSiad: digits(v.cfSiad),
+        ret: up(v.ret), dtPrev: [("0" + dd).slice(-2), ("0" + mm).slice(-2), aa].join("/"), comp: ca + " / " + ("0" + cm).slice(-2),
+        valor: val, ord: digits(v.ord), qtd: [], rets: [] };
+      S.ctx.hist = { tipo: "LIQ", titulo: "Liquidacao de Empenho da Despesa", padraoFixo: 3,
+        padraoTxt: "LIQUIDACAO DESPESA - OUTRAS DESPESAS CORRENTES", ref: "REGISTRA LIQUIDACAO DESPESA", fim: "liqConf" };
+      go(S.ctx.liq.ret === "S" ? "popEventos" : "histRef");
     },
-    pf3: function () { S.screen = "subsistemas"; }
+    pf3: function () { go("popEmp"); }
   };
 
-  SCREENS.opTipo = {
-    fields: ["x"],
-    pf: ["PF3/Esc Volta"],
-    hint: "Digite X na linha Por Credor — é o pagamento normal a fornecedor.",
-    body: function () {
-      return head("NFCAE071", "Ordem de Pagamento Bancaria") +
-        '  <span class="k">Marque</span>\n' +
-        "   'X'\n" +
-        "   __   Credores Diversos\n" +
-        "   " + f("x", 1) + "   Por Credor\n" +
-        "   __   Com Desconto\n" +
-        "   __   Por Codigo de Barras\n" +
-        "   __   Recolhimento de Retencao por Credor\n" +
-        "   __   Guia Previdenciaria de Retencao s/ Cod. Barras\n" +
-        "   __   Depositos Diversas Origens\n" +
-        "   __   Suprimento de Caixa\n" +
-        "   __   Sentenca Judicial\n";
+  SC.popEventos = {
+    pf: { 3: "Volta" },
+    draw: function () {
+      var W2 = 72;
+      return box(SC.liqG14.draw(), 3, 5, W2, [bl(W2, [""]), bl(W2, [" Qtde                       Eventos de Retencao"])]
+        .concat(EVENTOS.map(function (t, i) { return bl(W2, ["   ", F("q" + i, 2), " " + t]); }))
+        .concat([bl(W2, [""]), bl(W2, [" --------------------PF2---------------PF5------------------------"]),
+          bl(W2, ["                     Anula             Conf"])]));
     },
-    enter: function (v) {
-      if ((v.x || "").toUpperCase() !== "X") { say("0005-MARQUE X NA OPCAO POR CREDOR.", "err"); return; }
-      S.screen = "opSel"; say("", "");
-    },
-    pf3: function () { S.screen = "op071"; }
-  };
-
-  SCREENS.opSel = {
-    fields: ["emp", "ord"],
-    pf: ["PF3/Esc Volta"],
-    hint: "Só é possível pagar o que está liquidado. A lista mostra o LÍQUIDO a pagar de cada empenho.",
-    body: function () {
-      return head("NFCAEK03", "Registrar Ordem de Pagamento Bancaria") +
-        '       <span class="dimmed">Pagamento por Credor</span>\n' +
-        listaEmp(true) + "\n" +
-        '  <span class="k">Nr. Empenho ....:</span> ' + f("emp", 6, S.ctx.ultimo || "000") + "\n" +
-        '  <span class="k">Ord. Despesa ...:</span> ' + f("ord", 6, "350057") + "\n";
-    },
-    enter: function (v) {
-      var e = findEmp(v.emp);
-      if (!e) { naoEncontrado(v.emp); return; }
-      if (!v.ord) { say("0024-INFORME O ORDENADOR DE DESPESA.", "err"); return; }
-      if (e.liqLiquido - e.pagoLiq <= 0) {
-        say("0051-EMPENHO SEM SALDO LIQUIDADO A PAGAR. LIQUIDE PRIMEIRO.", "err"); return;
-      }
-      S.ctx.emp = e.num; S.screen = "opReg"; say("", "");
-    },
-    pf3: function () { S.screen = "opTipo"; }
-  };
-
-  SCREENS.opReg = {
-    fields: ["debitar", "valor", "irrf", "cod"],
-    pf: ["PF2 Anula", "PF3/Esc Volta", "PF5/Ctrl+Enter Conf"],
-    hint: "O valor a pagar é o LÍQUIDO da liquidação. As retenções ficam na unidade, para recolher depois por DAE.",
-    body: function () {
-      var e = findEmp(S.ctx.emp);
-      var liq = e.liqLiquido - e.pagoLiq;
-      var c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
-      var banco = c ? c.q.pagamento : [["Banco / agência", "001 / 0001-9"], ["Conta corrente", "00001-0"]];
-      return head("NFCAEK03", "Registrar Ordem de Pagamento Bancaria") +
-        '       <span class="dimmed">Pagamento por Credor</span>\n' +
-        '<span class="k">CNPJ-Credor:</span> ' + esc(e.cnpj) + "  -  " + esc(e.credor) + "\n\n" +
-        '  <span class="k">Conta Debitar ..:</span> ' + f("debitar", 1, "X") + '  Conta Unica\n' +
-        '  <span class="k">Conta Creditar .:</span> <span class="dimmed">Banco ' + esc(banco[0][1]) +
-        "  C/C " + esc(banco[1][1]) + "</span>\n" +
-        '  <span class="dimmed">                   (preenchida pelo cadastro do credor)</span>\n\n' +
-        '  <span class="k">Valor Liquidado (bruto):</span> ' + brl(e.liquidado - e.pagoBruto) + "\n" +
-        '  <span class="k">Retencoes ...........:</span> ' + brl(e.retido) + "\n" +
-        '  <span class="k">Liquido a Pagar .....:</span> <span class="v">' + brl(liq) + "</span>\n\n" +
-        '  <span class="k">Vl. a Pagar ....:</span> ' + f("valor", 12, semVirgula(liq)) + "\n" +
-        '  <span class="k">IRRF (S/N) .....:</span> ' + f("irrf", 1, e.ir > 0 ? "S" : "N") + "\n" +
-        '  <span class="k">Codigo .........:</span> ' + f("cod", 4, "6256") + "\n";
-    },
-    enter: function () { say("0145-TECLE PF5 (Ctrl+Enter) PARA CONFIRMAR.", "msg"); },
+    enter: function () { say("TECLE PF5 PARA CONFIRMAR A QUANTIDADE INFORMADA."); },
     pf5: function (v) {
-      var e = findEmp(S.ctx.emp);
-      var liq = e.liqLiquido - e.pagoLiq;
-      var brutoAberto = e.liquidado - e.pagoBruto;
-      if ((v.debitar || "").toUpperCase() !== "X") { say("0033-MARQUE X EM CONTA A DEBITAR.", "err"); return; }
-      var val = parseMoney(v.valor);
-      if (!val || val <= 0) { erroValor(v.valor); return; }
-      if (val > liq) {
-        say("0052-VALOR MAIOR QUE O LIQUIDO A PAGAR: " + brl(liq) +
-            ". O BRUTO MENOS AS RETENCOES.", "err"); return;
+      var q = [], tot = 0;
+      for (var i = 0; i < 7; i++) {
+        var t = (v["q" + i] || "").trim();
+        if (t && !/^\d+$/.test(t)) return erro("0018-QUANTIDADE INVALIDA.");
+        q.push(t ? +t : 0); tot += t ? +t : 0;
       }
-      if (val > S.contas.cota) { say("0061-RECURSO FINANCEIRO INSUFICIENTE NA COTA.", "err"); return; }
-      var ir = (v.irrf || "").toUpperCase();
-      if (ir !== "S" && ir !== "N") { say("0018-DIGITE S(SIM) OU N(NAO) NO CAMPO IRRF.", "err"); return; }
-      if (e.ir > 0 && ir !== "S") { say("0070-HOUVE RETENCAO DE IRRF NA LIQUIDACAO. INFORME S.", "err"); return; }
-      if (ir === "S" && (v.cod || "").trim() !== "6256") {
-        say("0071-CODIGO DE IRRF INCORRETO PARA PESSOA JURIDICA. USE 6256.", "err"); return;
-      }
-      // O bruto baixado e proporcional ao liquido pago (todo, se pagou tudo).
-      var bruto = val === liq ? brutoAberto : Math.round(brutoAberto * val / liq);
-      e.pagoLiq += val;
-      e.pagoBruto += bruto;
-      mv("liqPagar", -bruto); mv("pago", bruto);
-      mv("ddr3", -bruto); mv("ddr4", bruto);
-      mv("fornec", -val);
-      mv("cota", -val);
-      logit("<b>Pagamento</b> emp. " + e.num + " · " + brl(val) + " ao credor");
-      var conf = null, c = e.caso && CENARIOS.filter(function (x) { return x.id === e.caso; })[0];
-      if (c) {
-        S.casos[c.id].pago = true;
-        conf = e.liqLiquido - e.pagoLiq === 0
-          ? { ok: true, txt: "CONFERENCIA: liquido pago integralmente. Ciclo do contrato concluido." }
-          : { ok: false, txt: "CONFERENCIA: ainda restam " + brl(e.liqLiquido - e.pagoLiq) + " liquidos a pagar." };
-      }
-      var pend = S.contas.irrf + S.contas.iss + S.contas.inss;
-      S.screen = "feito";
-      S.ctx.feito = { titulo: "Registro efetuado", linhas: [
-        "Nr. Ordem de Pagamento: " + (700 + S.log.length),
-        "Nr. Empenho ..........: " + e.num,
-        "Valor Pago ...........: " + brl(val),
-        "Saldo a liquidar .....: " + brl(e.empenhado - e.liquidado),
-        "",
-        "Retencoes na unidade, a recolher por DAE: " + brl(pend),
-        "Confira os saldos na navegacao 95."
-      ], volta: "subsistemas", conf: conf };
-      say("", "");
+      if (!tot) return erro("0045-INFORME A QUANTIDADE DE RETENCOES.");
+      if (tot > 6) return erro("0046-QUANTIDADE MAXIMA DE RETENCOES EXCEDIDA.");
+      S.ctx.liq.qtd = q; go("popDetalhe", "INFORME O CPF/CNPJ DO CREDOR DE CADA RETENCAO E O VALOR. TECLE PF5.");
     },
-    pf3: function () { S.screen = "opSel"; }
+    pf2: function () { clearFields(); },
+    pf3: function () { go("liqG14"); }
   };
 
-  function filtraContas(q) {
-    q = String(q || "").trim().toLowerCase();
-    if (!q) return ACCTS.slice();
-    var qd = q.replace(/[^\d]/g, "");
-    return ACCTS.filter(function (a) {
-      var cd = a.code.replace(/\./g, "");
-      return a.code.indexOf(q) === 0 || (qd && qd === q.replace(/\./g, "") && cd.indexOf(qd) === 0) ||
-             a.name.toLowerCase().indexOf(q) !== -1 || a.g.toLowerCase().indexOf(q) !== -1;
-    });
+  function linhasRet() {
+    var out = [];
+    S.ctx.liq.qtd.forEach(function (n, ev) { for (var k = 0; k < n; k++) out.push(ev); });
+    return out;
   }
-
-  SCREENS.consulta = {
-    fields: ["conta"],
-    pf: ["PF3/Esc Volta", "Enter Pesquisa"],
-    hint: "Digite o início do código (ex.: 6.2.2 ou 82111) ou parte do nome (ex.: IRRF) e tecle Enter. Em branco lista todas.",
-    body: function () {
-      var lista = filtraContas(S.ctx.consulta);
-      var l = [head("NFCAE095", "Consulta Saldos Contabeis")];
-      l.push('  <span class="k">Conta Contabil:</span> ' + f("conta", 22, S.ctx.consulta || "todas") + "\n");
-      l.push('<span class="k">' + pad("Conta", 24) + pad("Descricao", 38) + pad("D/C", 4) + lpad("Saldo", 14) + "</span>");
-      l.push('<span class="rule">' + "-".repeat(80) + "</span>");
-      if (!lista.length) l.push('<span class="err">0090-NENHUMA CONTA ENCONTRADA PARA "' + esc(S.ctx.consulta) + '".</span>');
-      var g = null;
-      lista.forEach(function (a) {
-        if (a.g !== g) { g = a.g; l.push('<span class="dimmed">' + esc(g.toUpperCase()) + "</span>"); }
-        var v = S.contas[a.id];
-        var line = pad(a.code, 24) + pad(a.name.slice(0, 36), 38) + pad(a.nat, 4) + lpad(brl(v), 14);
-        l.push(v === 0 ? '<span class="dimmed">' + esc(line) + "</span>"
-                       : (a.alert && v > 0 ? '<span class="err">' + esc(line) + "</span>" : esc(line)));
+  SC.popDetalhe = {
+    pf: { 2: "Anula", 3: "Volta", 5: "Conf" },
+    draw: function () {
+      var e = findEmp(S.ctx.emp), L2 = S.ctx.liq, W2 = 78;
+      var inner = [bl(W2, ["                Detalhamento da Liquidacao"]),
+        bl(W2, ["                                              Valor a Pagar: ", H('<span id="vpag"></span>', 15)]),
+        bl(W2, [" Tipo    CPF/CNPJ                                                 Valor"]),
+        bl(W2, [" P    OUTRAS DESPESAS CORRENTES"]),
+        bl(W2, ["      " + e.cnpj + "                                     ", H('<span id="vp"></span>', 15)])];
+      linhasRet().forEach(function (ev, i) {
+        inner.push(bl(W2, [" R    " + EVENTOS[ev].slice(0, 66)]));
+        inner.push(bl(W2, ["      ", F("rc" + i, 14), ev === 0 ? "   COMPETENCIA " : "               ",
+          ev === 0 ? F("rm" + i, 2) : H("  ", 2), ev === 0 ? " / " : "   ", ev === 0 ? F("ra" + i, 4) : H("    ", 4), "        ", F("rv" + i, 15)]));
       });
-      var pend = S.contas.irrf + S.contas.iss + S.contas.inss;
-      l.push("");
-      if (pend > 0) l.push('<span class="err">ATENCAO: ' + brl(pend) + " em retencoes pendentes de recolhimento por DAE.</span>");
-      return l.join("\n");
+      inner.push(bl(W2, [""]), bl(W2, [" ----------------------- PF2 --- PF3 --- PF5 --------------------------"]),
+        bl(W2, ["                           Anula      Volta      Conf"]));
+      return box([], 0, 0, W2, inner);
     },
-    enter: function (v) { S.ctx.consulta = v.conta; say("", ""); },
-    pf3: function () { S.ctx.consulta = ""; S.screen = "subsistemas"; }
-  };
-
-  SCREENS.feito = {
-    fields: [],
-    pf: ["Enter Continua"],
-    hint: "Tecle Enter para voltar ao menu.",
-    body: function () {
-      var F = S.ctx.feito;
-      var out = head("NFCAEG09", F.titulo) +
-        '<span class="msg">0011-REGISTRO EFETUADO.</span>\n\n' +
-        F.linhas.map(function (x) { return "  " + esc(x); }).join("\n");
-      if (F.conf) {
-        out += "\n\n  " + '<span class="' + (F.conf.ok ? "msg" : "err") + '">' + esc(F.conf.txt) + "</span>";
+    after: function () {
+      // Valor a pagar ao credor = valor liquidado - retencoes (atualiza ao digitar).
+      function upd() {
+        var t = 0;
+        linhasRet().forEach(function (ev, i) { var el = document.getElementById("rv" + i); t += (el && valor(el.value)) || 0; });
+        var p = S.ctx.liq.valor - t;
+        document.getElementById("vp").textContent = lpad(brl(p), 15);
+        document.getElementById("vpag").textContent = lpad(brl(p), 15);
       }
-      return out;
+      fieldEls().forEach(function (el) { el.addEventListener("input", upd); });
+      upd();
     },
-    enter: function () { S.screen = S.ctx.feito.volta; say("", ""); }
+    enter: function () { say("TECLE PF5 PARA CONFIRMAR."); },
+    pf5: function (v) {
+      var rets = [], tot = 0, ok = true;
+      linhasRet().forEach(function (ev, i) {
+        if (!ok) return;
+        var c = digits(v["rc" + i]), val = valor(v["rv" + i]);
+        if (!c || !val) { ok = false; return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO."); }
+        if (!cnpjValido(c)) { ok = false; return erro("0020-CNPJ DO CREDOR DA RETENCAO INVALIDO."); }
+        if (!CREDORES[c]) { ok = false; return erro("0021-CREDOR DA RETENCAO NAO CADASTRADO NA TABELA CREDOR/DEVEDOR."); }
+        if (ev === 0) {
+          var m = +digits(v["rm" + i]), a = +digits(v["ra" + i]);
+          if (!m || m > 12 || !a) { ok = false; return erro("0037-COMPETENCIA DA RETENCAO PREVIDENCIARIA INVALIDA."); }
+          if (val < 2900) { ok = false; return erro("0047-VALOR DA RETENCAO PREVIDENCIARIA NAO PODE SER INFERIOR A R$ 29,00."); }
+        }
+        rets.push({ ev: ev, cnpj: c, valor: val }); tot += val;
+      });
+      if (!ok) return;
+      if (tot >= S.ctx.liq.valor) return erro("0048-TOTAL DAS RETENCOES MAIOR OU IGUAL AO VALOR LIQUIDADO.");
+      S.ctx.liq.rets = rets; go("histRef");
+    },
+    pf2: function () { clearFields(); },
+    pf3: function () { go("popEventos"); }
   };
 
-  function listaEmp(soLiq) {
-    var l = ['<span class="k">  Nr.Emp   Credor                      ' +
-             (soLiq ? "Liquido a Pagar" : "Saldo a Liquidar") + "</span>"];
-    S.empenhos.forEach(function (e) {
-      var v = soLiq ? (e.liqLiquido - e.pagoLiq) : (e.empenhado - e.liquidado);
-      l.push("  " + pad(e.num, 9) + pad(esc(e.credor.slice(0, 26)), 28) + lpad(brl(v), 16));
-    });
-    return l.join("\n") + "\n";
+  function retTotal(l) { return l.rets.reduce(function (a, r) { return a + r.valor; }, 0); }
+  function telaLiqConf(e, l, o) {
+    o = o || {};
+    return cabLiq(e, { v: "VFCAEG1A", sq: o.sq }).concat(["",
+      esc(" -----------------------------Dados da Liquidacao-----------------------------"),
+      L("Nr. Conformidade de Liquidacao: ") + esc(l.conf) + "  " + L("Nr. Conf. SIAD: ") + esc(l.confSiad),
+      L("Saldo Liquidar:  ") + esc(lpad(brl(o.saldo != null ? o.saldo : saldoLiq(e)), 16)) + "  " + L("Valor Liquidado: ") + esc(lpad(brl(l.valor), 16)),
+      L("Valor Retencao:  ") + esc(lpad(l.rets.length ? brl(retTotal(l)) : "", 16)) + "  " + L("Vl. Multa Contratual:"),
+      L("Valor Liquido :  ") + esc(lpad(brl(l.valor - retTotal(l)), 16)),
+      L("Ord. Despesa: ") + esc(l.ord + " - " + ORDS[l.ord])]);
   }
+  SC.liqConf = {
+    pf: { 2: "Anula", 5: "Conf", 9: "MenuP", 12: "Fim" },
+    draw: function () { return telaLiqConf(findEmp(S.ctx.emp), S.ctx.liq); },
+    pf5: function () {
+      var e = findEmp(S.ctx.emp), l = S.ctx.liq, rt = retTotal(l), liq = l.valor - rt;
+      var sq = e.liqs.length + 1;
+      e.liqs.push({ sq: sq, bruto: l.valor, ret: l.rets, liquido: liq, comp: l.comp, dtPrev: l.dtPrev, hist: S.ctx.hist.texto });
+      mv("empLiq", -l.valor); mv("liqPagar", l.valor); mv("ddr2", -l.valor); mv("ddr3", l.valor);
+      mv(e.nat.slice(4, 6) === "30" ? "estoque" : "vpd", l.valor);
+      mv("fornec", liq);
+      l.rets.forEach(function (r) { mv(r.ev === 0 ? "inss" : "outras", r.valor); });
+      S.ctx.done = { lines: telaLiqConf(e, l, { sq: sq, saldo: saldoLiq(e) + l.valor }), back: "m51" };
+      go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
+    },
+    pf2: function () { go("m51", "0013-REGISTRO ANULADO."); }
+  };
 
-  // ---------------------------------------------------------------- render
-  var crt = document.getElementById("crt");
-  var pfbar = document.getElementById("pfbar");
-  var hint = document.getElementById("hint");
+  // ---- Consultas de empenho e de liquidacao
+  SC.consEmp = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var e = findEmp(S.ctx.emp), l = telaEmpenho(e, { num: e.num, v: "VFCAEG04" });
+      l[2] = esc(row(S.user, "Consulta Apropriacao de Empenho", hora()));
+      l.push("", L("Total Empenhado: ") + esc(lpad(brl(totalEmp(e)), 16)) + "   " + L("Saldo a Liquidar: ") + esc(lpad(brl(saldoLiq(e)), 16)),
+        L("Liquidado .....: ") + esc(lpad(brl(liquidado(e)), 16)) + "   " + L("Saldo a Pagar ..: ") + esc(lpad(brl(saldoPagar(e)), 16)));
+      return l;
+    },
+    pf3: function () { go("popEmp"); }
+  };
+  SC.consLiq = {
+    pf: { 1: "Ajuda", 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var e = findEmp(S.ctx.emp);
+      var l = [esc(row("NFCAEG16", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEG16", "S I A F I - MG", hojeStr())),
+        esc(row(S.user, "Consulta Liquidacao Empenho da Despesa", hora())), esc(pad("", 62) + lpad("2G37", 18)),
+        L("Ano Exercicio: ") + "2026        " + L("Nr. Empenho: ") + ("0000000" + e.num).slice(-7)].concat(cabUnid()).concat([
+        "           " + L("UO    Programa de Trabalho       Nat. Despesa  Item  Fonte Proc. IPE"), esc(linhaClass(e)),
+        L("CNPJ Credor: ") + esc(fmtCnpj(e.cnpj)), L("Nome: ") + esc(CREDORES[e.cnpj].nome), "",
+        "                     " + L("Sq.Reg   Valor Bruto   Retencao   Valor Liquido  Ord.Despesa")]);
+      if (!e.liqs.length) l.push("                     " + esc("NENHUMA LIQUIDACAO REGISTRADA."));
+      e.liqs.forEach(function (q) {
+        l.push("                      " + esc(pad(("00" + q.sq).slice(-3), 6) + lpad(brl(q.bruto), 13) + lpad(brl(retTotal({ rets: q.ret })), 11) +
+          lpad(brl(q.liquido), 16) + "  " + (e.ord || "350057")));
+      });
+      return l;
+    },
+    pf3: function () { go("popEmp"); }
+  };
 
-  var telaAnterior = null;
+  // ---- Movimentacao Financeira Bancaria / Ordem de Pagamento
+  SC.m07 = {
+    pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE007", "VFCAE007", "Movimentacao Financeira Bancaria", "", ["01-Ordem de Pagamento",
+        "02-Transferencia Financeira Bancaria", "03-Ajuste Conciliacao Pagamento/Transferencia",
+        "04-Transmissao Bancaria", "05-Indice de Rateio de Repasse aos Municipios"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = digits(v.opcao);
+      if (o === "01" || o === "1") return go("m71");
+      if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("subs"); }
+  };
+  var M71 = ["01-Ordem de Pagamento Bancaria                           1-Registrar",
+    "02-Ordem de Pagamento Cheque - Unidade Tesouraria        2-Cancelar",
+    "03-Ordem de Pagamento Cheque - CMU                       3-Consultar",
+    "04-Ordem de Pagamento Pessoal Bancaria                   4-Imprimir",
+    "05-Ordem de Pagamento Pessoal Cheque - Unidade Tesouraria",
+    "06-Ordem de Pagamento Pessoal Cheque - CMU",
+    "07-Alteracao das Informacoes IRRF - Ordem Pagamento Bancaria",
+    "08-Alteracao das Informacoes IRRF - Ordem Pagamento Cheque - Unid. Tesouraria",
+    "09-Alteracao das Informacoes IRRF - Ordem Pagamento Cheque - CMU"];
+  function m71base() { return menu("NFCAE071", "VFCAE071", "Movimentacao Financeira Bancaria", "Ordem de Pagamento", M71, { acao: true }); }
+  SC.m71 = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: m71base,
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = ("0" + digits(v.opcao)).slice(-2), a = digits(v.acao);
+      if (!digits(v.opcao)) return erro("0001-INFORME A OPCAO.");
+      if (!a) return erro("0004-INFORME A ACAO.");
+      if (o === "01" && a === "1") { S.ctx = {}; return go("popOPTipo"); }
+      erro("0009-OPCAO/ACAO NAO DISPONIVEL NO TREINAMENTO.");
+    },
+    pf3: function () { go("m07"); }
+  };
+  SC.popOPTipo = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var W2 = 58;
+      return box(m71base(), 21, 5, W2, [bl(W2, ["          Ordem de Pagamento Bancaria"]), bl(W2, [" Marque"]), bl(W2, ["  'X'"])]
+        .concat(TIPOS_OP.map(function (t, i) { return bl(W2, ["  ", F("tp" + i, 1), "   " + t]); })));
+    },
+    enter: function (v) {
+      var n = [], i;
+      for (i = 0; i < TIPOS_OP.length; i++) if ((v["tp" + i] || "").toUpperCase() === "X") n.push(i);
+      if (n.length !== 1) return erro("0005-MARQUE 'X' EM UM TIPO DE ORDEM DE PAGAMENTO.");
+      if (n[0] !== 1) return erro("0009-TIPO DE ORDEM DE PAGAMENTO NAO DISPONIVEL NO TREINAMENTO.");
+      go("popOPCred");
+    },
+    pf3: function () { go("m71"); }
+  };
+  SC.popOPCred = {
+    pf: { 3: "Volta" },
+    draw: function () {
+      var W2 = 44;
+      return box(m71base(), 34, 7, W2, [bl(W2, ["          Pagamento por Credor"]), bl(W2, [""]),
+        bl(W2, [" Ano Exercicio:      2026"]), bl(W2, [" Unid. Executora:    " + S.ue]),
+        bl(W2, [" Unid. Orcamentaria: ", F("uo", 4)]), bl(W2, [" CPF/CAPF-Credor:    ", F("cpf", 11)]),
+        bl(W2, [" CNPJ/CAPJ-Credor:   ", F("cnpj", 14)]), bl(W2, [" Ordenador Despesa:  ", F("ord", 6)]), bl(W2, [""]),
+        bl(W2, [" -------------PF3--------PF6--------------"]), bl(W2, ["               Volta      Sel"])]);
+    },
+    enter: function (v) {
+      var uo = digits(v.uo), c = digits(v.cnpj);
+      if (!uo || (!c && !digits(v.cpf)) || !digits(v.ord)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!UOS[uo]) return erro("0016-UNIDADE ORCAMENTARIA NAO CADASTRADA. TECLE PF6 PARA SELECIONAR.");
+      if (!c) return erro("0021-CREDOR NAO CADASTRADO NA TABELA CREDOR/DEVEDOR.");
+      if (!cnpjValido(c)) return erro("0020-CNPJ INVALIDO.");
+      if (!CREDORES[c]) return erro("0021-CREDOR NAO CADASTRADO NA TABELA CREDOR/DEVEDOR.");
+      if (!ORDS[digits(v.ord)]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
+      S.ctx = { uo: uo, cnpj: c, ord: digits(v.ord), fase: 1 };
+      go("opEK03");
+    },
+    pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
+    pf3: function () { go("popOPTipo"); }
+  };
+
+  function aliqIrrf(e) { return e.nat.slice(4, 6) === "30" ? 0.012 : 0.048; }
+  function cabOP(code, vcode, title, extra) {
+    var cr = CREDORES[S.ctx.cnpj];
+    return [esc(row(code, "Estado de Minas Gerais", "PRODEMGE")), esc(row(vcode, "S I A F I - MG", hojeStr())),
+      esc(row(S.user, title, hora())), esc(row("", "Pagamento por Credor", "B162")), extra,
+      L("Unid. Executora:  ") + esc(S.ue + " - " + UES[S.ue]), L("Unid. Orcamentaria: ") + esc(S.ctx.uo + " - PMMG"),
+      L("CNPJ-Credor:    ") + esc(fmtCnpj(S.ctx.cnpj) + " - " + cr.nome)];
+  }
+  SC.opEK03 = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var c = S.ctx, cr = CREDORES[c.cnpj];
+      var l = cabOP("NFCAEK03", "VFCAEK03", "Registrar Ordem de Pagamento Bancaria",
+        L("Ano Exercicio:    ") + "2026      " + L("Ano Empenho: ") + f("anoEmp", 4, { def: "2026" }) +
+        (c.fase >= 2 ? "    " + L("Dt.Pagto: ") + f("pgD", 2, { def: c.dt[0] }) + " / " + f("pgM", 2, { def: c.dt[1] }) + " / " + f("pgA", 4, { def: c.dt[2] }) : ""));
+      l.push("",
+        L("Conta Debitar:  ") + f("cu", 1) + " " + L("Conta Unica"),
+        "                " + f("ob", 1) + " " + L("Banco: ") + f("obB", 3) + " " + L("Agencia: ") + f("obA", 6) + " " + L("Conta: ") + f("obC", 10),
+        L("Conta Creditar:   Banco: ") + esc(cr.banco || "") + " " + L("Agencia: ") + esc(cr.ag || "") + " " + L("Conta: ") + esc(cr.cc || ""),
+        "     " + L("Nr. Emp.") + "       " + L("Saldo a Pagar") + "    " + L("Vl. Bruto a Pagar") + "  " + L("IRRF(S/N)/Codigo"));
+      for (var i = 0; i < 6; i++) {
+        var e = c.sel && c.sel[i] ? findEmp(c.sel[i]) : null;
+        l.push("     " + f("ne" + i, 7) + "  " + esc(lpad(e ? brl(saldoPagar(e)) : "", 16)) + "   " + f("vb" + i, 15) + "    " + f("ir" + i, 1) + "     " + f("cd" + i, 4));
+      }
+      l.push("", L("Ordenador Despesa: ") + esc(c.ord + " - " + ORDS[c.ord]));
+      return l;
+    },
+    enter: function (v) {
+      var c = S.ctx, up = function (x) { return (x || "").toUpperCase(); };
+      if (digits(v.anoEmp) !== "2026") return erro("0050-ANO DO EMPENHO INVALIDO.");
+      var cu = up(v.cu) === "X", ob = up(v.ob) === "X";
+      if (cu === ob) return erro("0033-MARQUE 'X' EM CONTA UNICA OU INFORME OUTRO BANCO.");
+      if (ob && (!digits(v.obB) || !digits(v.obA) || !digits(v.obC))) return erro("0034-INFORME BANCO, AGENCIA E CONTA A DEBITAR.");
+      var sel = [];
+      for (var i = 0; i < 6; i++) {
+        var n = digits(v["ne" + i]);
+        if (!n) continue;
+        var e = findEmp(n);
+        if (!e || e.uo !== c.uo) return erro("0041-EMPENHO " + n + " NAO CADASTRADO PARA A UNIDADE.");
+        if (e.cnpj !== c.cnpj) return erro("0049-EMPENHO " + n + " NAO PERTENCE AO CREDOR INFORMADO.");
+        if (saldoPagar(e) <= 0) return erro("0051-EMPENHO " + n + " SEM SALDO LIQUIDADO A PAGAR.");
+        sel.push(e.num);
+      }
+      if (!sel.length) return erro("0004-INFORME O NUMERO DO EMPENHO.");
+      var mudou = JSON.stringify(sel) !== JSON.stringify(c.sel || []);
+      c.sel = sel;
+      c.conta = cu ? { unica: true } : { banco: digits(v.obB), ag: digits(v.obA), cc: digits(v.obC) };
+      if (mudou || !c.fase || c.fase < 1.5) { c.fase = 1.5; return say("INFORME O VALOR BRUTO A PAGAR E O IRRF E TECLE ENTER."); }
+      var itens = [];
+      for (var j = 0; j < sel.length; j++) {
+        var em = findEmp(sel[j]), vb = valor(v["vb" + j]), ir = up(v["ir" + j]), cd = digits(v["cd" + j]);
+        if (!vb) return erro("0022-VALOR BRUTO INVALIDO. DIGITE SO NUMEROS, SEM PONTO NEM VIRGULA.");
+        if (vb > saldoPagar(em)) return erro("0052-VALOR BRUTO MAIOR QUE O SALDO A PAGAR DO EMPENHO " + em.num + ".");
+        if (ir !== "S" && ir !== "N") return erro("0018-DIGITE S(SIM) OU N(NAO).");
+        if (!cd) return erro("0053-INFORME O CODIGO DO IRRF.");
+        // IRRF sobre o valor bruto da nota proporcional ao que se paga agora.
+        var base = Math.round(vb * liquidado(em) / liqNet(em));
+        itens.push({ num: em.num, vb: vb, irrf: ir === "S" ? Math.round(base * aliqIrrf(em)) : 0, cod: cd });
+      }
+      c.itens = itens;
+      if (c.fase < 2) {
+        var d = new Date(); d.setDate(d.getDate() + 3);
+        c.dt = [("0" + d.getDate()).slice(-2), ("0" + (d.getMonth() + 1)).slice(-2), "" + d.getFullYear()];
+        c.fase = 2; return say("0139- TECLE 'ENTER' PARA CONTINUAR OU ALTERE A DATA DE PAGAMENTO.");
+      }
+      var dd = +digits(v.pgD), mm = +digits(v.pgM), aa = +digits(v.pgA), dt = new Date(aa, mm - 1, dd);
+      if (!dd || !mm || dt.getDate() !== dd || dt.getMonth() !== mm - 1) return erro("0035-DATA DE PAGAMENTO INVALIDA.");
+      var hj = new Date(); hj.setHours(0, 0, 0, 0);
+      if (dt < hj) return erro("0036-DATA DE PAGAMENTO MENOR QUE A DATA ATUAL.");
+      c.dtPag = [("0" + dd).slice(-2), ("0" + mm).slice(-2), aa].join("/");
+      c.hist = { tipo: "OP", titulo: "ORDEM DE PAGAMENTO BANCARIA", padraoFixo: 1, padraoTxt: "REGISTRO ORDEM PAGAMENTO BANCARIA",
+        ref: "REGISTRA PAGAMENTO POR CREDOR -", fim: "opResumo" };
+      go("histRef");
+    },
+    pf3: function () { go("popOPCred"); }
+  };
+  function telaResumo(o) {
+    var c = S.ctx, cr = CREDORES[c.cnpj];
+    var l = [esc(row("NFCAEK03", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEK0B", "S I A F I - MG", hojeStr())),
+      esc(row(S.user, "Resumo Ordem de Pagamento Global", hora())), esc(row("", "Ordem de Pagamento por Credor", "B162")),
+      L("Ano Exercicio: ") + "2026  " + L("Data Registro: ") + hojeStr() + "  " + L("Data Pagamento: ") + c.dtPag,
+      L("Unid. Executora: ") + esc(S.ue + " - " + UES[S.ue]), L("Unid. Orcamentaria: ") + esc(c.uo + " - PMMG"),
+      L("CNPJ - Credor:   ") + esc(fmtCnpj(c.cnpj) + " - " + cr.nome), "",
+      L("Conta Debitada:  ") + esc(c.conta.unica ? "Conta Unica" : "Banco: " + c.conta.banco + " Agencia: " + c.conta.ag + " Conta: " + c.conta.cc),
+      L("Conta Creditada: ") + esc("Banco: " + cr.banco + " Agencia: " + cr.ag + " Conta: " + cr.cc),
+      L("Nr. Documento Global: ") + pad(o.glob || "", 20) + L("Ano Empenho: ") + "2026" + "        " + L("Cod."),
+      L("Nr.Emp. Nr.Doc.  Vl. Bruto a Pagar      Vl. IRRF     Vl. Ordem Pagto  IRRF")];
+    c.itens.forEach(function (it, i) {
+      l.push(esc(pad(it.num, 8) + pad(o.docs ? o.docs[i] : "", 6) + lpad(brl(it.vb), 18) + lpad(it.irrf ? brl(it.irrf) : "", 14) +
+        lpad(brl(it.vb - it.irrf), 20) + "  " + it.cod));
+    });
+    while (l.length < 20) l.push("");
+    l.push(L("Ordenador Despesa: ") + esc(c.ord + " - " + ORDS[c.ord]));
+    return l;
+  }
+  SC.opResumo = {
+    pf: { 2: "Anula", 3: "Volta", 5: "Conf", 9: "MenuP", 12: "Fim" },
+    draw: function () { return S.ctx.reg ? telaResumo(S.ctx.reg) : telaResumo({}); },
+    pf5: function () {
+      var c = S.ctx;
+      if (c.reg) return;
+      S.seqOPg += 1;
+      var docs = [];
+      c.itens.forEach(function (it) {
+        var e = findEmp(it.num);
+        S.seqOPd += 1; docs.push(String(S.seqOPd));
+        var bruto = Math.round(it.vb * liquidado(e) / liqNet(e));
+        if (it.vb === saldoPagar(e)) bruto = liquidado(e) - e.pagoBruto;
+        e.pagoNet += it.vb; e.pagoBruto += bruto;
+        mv("liqPagar", -bruto); mv("pago", bruto); mv("ddr3", -bruto); mv("ddr4", bruto);
+        mv("fornec", -it.vb); mv("irrf", it.irrf); mv("cota", -(it.vb - it.irrf));
+      });
+      c.reg = { glob: String(S.seqOPg), docs: docs };
+      say("0011-REGISTRO EFETUADO.");
+    },
+    enter: function () { if (S.ctx.reg) go("m71"); },
+    pf2: function () { if (!S.ctx.reg) go("m71", "0013-REGISTRO ANULADO."); },
+    pf3: function () { go("m71"); }
+  };
+
+  // ---- Consulta / Relatorio: saldo de contas contabeis (modelo do treino)
+  SC.m09 = {
+    pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE009", "VFCAE009", "Consulta / Relatorio", "", ["01-Tabela", "02-Saldo Contabil"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = digits(v.opcao);
+      if (o === "02" || o === "2") return go("m91");
+      if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("subs"); }
+  };
+  SC.m91 = {
+    pf: { 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var q = (S.ctx.busca || "").toUpperCase(), qd = digits(q);
+      var lista = ACCTS.filter(function (a) {
+        if (!q) return true;
+        return a[1].indexOf(q) === 0 || (qd && qd === q.replace(/\./g, "") && a[1].replace(/\./g, "").indexOf(qd) === 0) || a[3].indexOf(q) >= 0;
+      });
+      var l = head("NFCAE091", "VFCAE091", "Consulta / Relatorio", "Saldo Contabil");
+      l.push("", "  " + L("Conta Contabil (ou parte do nome): ") + f("busca", 24), "",
+        L(pad("  Conta", 25) + pad("Descricao", 36) + "D/C" + lpad("Saldo", 16)));
+      if (!lista.length) l.push(esc("  0090-NENHUMA CONTA ENCONTRADA."));
+      lista.slice(0, 15).forEach(function (a) {
+        l.push(esc("  " + pad(a[1], 23) + pad(a[3], 36) + " " + a[2] + " " + lpad(brl(S.contas[a[0]]), 16)));
+      });
+      return l;
+    },
+    enter: function (v) { S.ctx.busca = (v.busca || "").trim(); keep.busca = S.ctx.busca; say(""); },
+    pf3: function () { S.ctx = {}; go("m09"); }
+  };
+
+  // ===================================================== motor
+  var T = document.getElementById("t");
+  var telaAnterior = null, keep = {};
+  function fieldEls() { return Array.prototype.slice.call(T.querySelectorAll("input")); }
+  function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v; keep[id] = v; }
+  function clearFields() { fieldEls().forEach(function (el) { el.value = ""; }); keep = {}; }
+  function vals() { var o = {}; fieldEls().forEach(function (el) { o[el.id] = el.value.trim(); }); return o; }
 
   function render() {
-    var sc = SCREENS[S.screen];
-    // Erro na mesma tela: o SIAFI mantem o que foi digitado, o simulador tambem.
-    var digitado = {};
-    if (telaAnterior === S.screen) {
-      fieldEls().forEach(function (el) { digitado[el.id] = el.value; });
-    }
+    var sc = SC[S.screen];
+    // Na mesma tela (erro, segunda fase), o que foi digitado continua la.
+    if (telaAnterior === S.screen) fieldEls().forEach(function (el) { keep[el.id] = el.value; });
+    else keep = {};
     telaAnterior = S.screen;
-    var html = "";
-    if (S.msg) {
-      html += '<span class="' + (S.msgKind === "err" ? "err" : "msg") + '">' + esc(S.msg) + "</span>\n";
-    }
-    html += sc.body();
-    crt.innerHTML = '<div class="ln">' + html + "</div>";
-    fieldEls().forEach(function (el) { if (digitado[el.id]) el.value = digitado[el.id]; });
-
-    var keys = (sc.pf || []).slice();
-    if (S.screen === "subsistemas") keys.push("51 Empenho/Liquidacao", "71 Pagamento", "95 Consulta saldos");
-    pfbar.innerHTML = keys.map(function (k) {
-      var p = k.split(" ");
-      return "<span><b>" + esc(p.shift()) + "</b> " + esc(p.join(" ")) + "</span>";
-    }).join("");
-
-    var dica = sc.hint || "";
-    if (sc.live) { var L = sc.live(); if (L) dica = L; }
-    hint.innerHTML = dica ? '<span class="tag">dica</span><span>' + esc(dica) + "</span>" : "";
-
-    renderLedger();
-    renderCenarios();
-    renderTrail();
-    renderLog();
-    salva();
-    renderRegra();
-
-    // A regra e a cota se formam enquanto ele digita, antes de avancar.
-    if (S.screen === "empenho") {
-      fieldEls().forEach(function (el) { el.addEventListener("input", renderRegra); });
-    }
-    if (SCREENS[S.screen].live) {
-      fieldEls().forEach(function (el) {
-        el.addEventListener("input", function () {
-          var L = SCREENS[S.screen].live();
-          hint.innerHTML = L ? '<span class="tag">dica</span><span>' + esc(L) + "</span>"
-                             : '<span class="tag">dica</span><span>' + esc(SCREENS[S.screen].hint || "") + "</span>";
-        });
-      });
-    }
-
-    var first = crt.querySelector("input.f");
+    var lines = sc.draw();
+    while (lines.length < 23) lines.push("");
+    lines = lines.slice(0, 23);
+    var msg = S.msg ? '<span class="' + (S.msgErr ? "e" : "m") + '">' + esc(S.msg) + "</span>" : "";
+    var r = ruler(sc.pf);
+    T.innerHTML = [msg].concat(lines).concat(r).join("\n");
+    fieldEls().forEach(function (el) {
+      var d = el.getAttribute("data-def");
+      if (keep[el.id] != null && keep[el.id] !== "") el.value = keep[el.id];
+      else if (d) el.value = d;
+    });
+    if (sc.after) sc.after();
+    var first = fieldEls().filter(function (el) { return !el.value; })[0] || fieldEls()[0];
     if (first) first.focus();
+    if (S.screen !== "login") salva();
   }
 
-  function fieldsOf(sc) {
-    return typeof sc.fields === "function" ? sc.fields() : (sc.fields || []);
-  }
-
-  function vals() {
-    var sc = SCREENS[S.screen], o = {};
-    fieldsOf(sc).forEach(function (id) {
-      var el = document.getElementById(id);
-      o[id] = el ? el.value.trim() : "";
-    });
-    return o;
-  }
-
-  function renderRegra() {
-    var sc = SCREENS[S.screen];
-    var card = document.getElementById("regra-card");
-    if (!sc.regra) { card.hidden = true; return; }
-    card.hidden = false;
-    var box = document.getElementById("regra");
-    var r;
-    if (S.screen === "empenho") {
-      var v = vals(), up = function (x) { return (x || "").toUpperCase(); };
-      var faltam = ["adiant", "ressarc", "cSiafi", "cSiad", "obras"].filter(function (k) {
-        return up(v[k]) !== "S" && up(v[k]) !== "N";
-      });
-      if (faltam.length) {
-        box.innerHTML = '<p style="font-size:12.5px;color:var(--dim);margin:0">' +
-          "Preencha os cinco campos S/N e a regra aparece aqui, antes de você avançar.</p>";
-        return;
-      }
-      r = regraEspec({ adiant: up(v.adiant), ressarc: up(v.ressarc),
-                       cSiafi: up(v.cSiafi), cSiad: up(v.cSiad), obras: up(v.obras) });
-    } else {
-      r = S.ctx.regra;
-    }
-    if (!r) { card.hidden = true; return; }
-    var pede = r.pede.length
-      ? r.pede.map(function (p) {
-          return p === "siad" ? "especificação SIAD"
-               : p === "siafi" ? "especificação SIAFI-MG" : "sequencial da obra";
-        }).join(" + ")
-      : (r.lic ? "modalidade de licitação" : "nada");
-    box.innerHTML =
-      '<p style="margin:0 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--crt-key)">REGRA ' + esc(r.n) + "</p>" +
-      '<p style="margin:0 0 10px;font-size:12.5px;line-height:1.5">' + esc(r.txt) + "</p>" +
-      '<p style="margin:0;font-size:12.5px"><span style="color:var(--dim)">O sistema vai pedir:</span> ' +
-      '<b style="color:var(--crt-val)">' + esc(pede) + "</b></p>";
-  }
-
-  function renderLedger() {
-    var tb = document.getElementById("bal");
-    var lista = filtraContas(S.busca);
-    var g = null, linhas = "";
-    lista.forEach(function (a) {
-      if (a.g !== g) { g = a.g; linhas += '<tr class="grp"><td colspan="4">' + esc(g) + "</td></tr>"; }
-      var v = S.contas[a.id], ini = S.contasIni[a.id], mov = v - ini;
-      var cls = [];
-      if (v === 0 && mov === 0) cls.push("zero");
-      if (S.flash.indexOf(a.id) !== -1) cls.push("flash");
-      if (a.alert && v > 0) cls.push("alert");
-      var movTxt = mov === 0
-        ? '<span class="ant">—</span>'
-        : '<span class="mov' + (mov < 0 ? " down" : "") + '">' +
-          (mov > 0 ? "+" : "") + brl(mov) + "</span>";
-      linhas += '<tr class="' + cls.join(" ") + '">' +
-        '<td><span class="nm">' + esc(a.name) + '</span><span class="acct">' +
-          esc(a.code) + " · " + (a.nat || "D") + "</span></td>" +
-        '<td class="amt ant">' + brl(ini) + "</td>" +
-        '<td class="amt">' + movTxt + "</td>" +
-        '<td class="amt">' + brl(v) + "</td></tr>";
-    });
-    if (!lista.length) {
-      linhas = '<tr><td colspan="4" style="color:var(--dim);padding-top:8px">Nenhuma conta encontrada.</td></tr>';
-    }
-    tb.innerHTML = "<thead><tr><th>Conta</th><th>Anterior</th><th>Movimento</th>" +
-                   "<th>Atual</th></tr></thead><tbody>" + linhas + "</tbody>";
-    if (S.flash.length) setTimeout(function () {
-      S.flash = [];
-      Array.prototype.forEach.call(tb.querySelectorAll("tr.flash"), function (tr) {
-        tr.classList.remove("flash");
-      });
-    }, 900);
-  }
-
-  function renderCenarios() {
-    var box = document.getElementById("cenarios");
-    box.innerHTML = CENARIOS.map(function (c) {
-      var p = S.casos[c.id], st = p.pago ? " · ✓ pago" : p.liq ? " · ✓ liquidado" : p.emp ? " · ✓ empenhado" : "";
-      return '<button type="button" data-cen="' + c.id + '"' +
-             (S.cenario === c.id ? ' class="on"' : "") + ">" +
-             esc(c.nome) + "<span>" + esc(c.tag + st) + "</span></button>";
-    }).join("");
-    Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
-      b.addEventListener("click", function () { carregaCenario(b.getAttribute("data-cen")); });
-    });
-
-    var brief = document.getElementById("brief");
-    var quadro = document.getElementById("quadro");
-    var c = cenarioAtual();
-    if (!c) {
-      brief.innerHTML = '<p style="color:var(--dim);margin:0">Escolha um dos contratos. ' +
-        "O quadro com os dados aparece embaixo do terminal.</p>";
-      quadro.innerHTML = '<p class="qempty">Nenhum contrato aberto. Clique em um dos botões ' +
-        "amarelos “Contrato” no topo do terminal para ver os dados do empenho, da nota fiscal e do pagamento.</p>";
-      return;
-    }
-    brief.innerHTML =
-      '<p>' + esc(c.texto) + "</p>" +
-      '<p class="lbl">Primeira tela do empenho</p>' +
-      '<p><code>' + esc(c.flags) + "</code></p>";
-
-    var p = S.casos[c.id];
-    var etapa = !p.emp ? "empenho" : !p.liq ? "nota" : !p.pago ? "pagamento" : "";
-    function sec(id, titulo, dados, feito) {
-      return '<section class="' + (feito ? "ok" : etapa === id ? "now" : "") + '"><h3>' +
-        (feito ? "✓ " : "") + esc(titulo) + "</h3><dl>" +
-        dados.map(function (d) { return "<dt>" + esc(d[0]) + "</dt><dd>" + esc(d[1]) + "</dd>"; }).join("") +
-        "</dl></section>";
-    }
-    var empInfo = p.emp ? [["Empenho registrado", "Nº " + p.emp + " / 2026"]] : [];
-    quadro.innerHTML =
-      '<div class="qhead"><b>' + esc(c.nome) + "</b><span>" +
-        esc(c.q.contrato[2][1]) + " · CNPJ " + esc(c.q.contrato[3][1]) + "</span></div>" +
-      '<div class="qgrid">' +
-        sec("contrato", "Contrato", c.q.contrato, false) +
-        sec("empenho", "1 · Dados para o empenho", c.q.empenho.concat(empInfo), !!p.emp) +
-        sec("nota", "2 · Nota fiscal (liquidação)", c.q.nota, !!p.liq) +
-        sec("pagamento", "3 · Dados para o pagamento", c.q.pagamento, !!p.pago) +
-      "</div>" +
-      '<p class="qnote">' + (
-        !p.emp ? "Próximo passo: navegação 51, opção 01, ação 1. Na primeira tela marque " + esc(c.flags) + "."
-        : !p.liq ? "Próximo passo: navegação 51, opção 04, ação 1, empenho " + esc(p.emp) + ". Liquide o valor da nota fiscal."
-        : !p.pago ? "Próximo passo: navegação 71, opção 01, ação 1, Por Credor, empenho " + esc(p.emp) + ". Pague o líquido."
-        : "Ciclo concluído. Confira os saldos na navegação 95 ou no balancete ao lado.") + "</p>";
-  }
-
-  function carregaCenario(id) {
-    var c = CENARIOS.filter(function (x) { return x.id === id; })[0];
-    if (!c) return;
-    S.cenario = id;
-    document.getElementById("nf-tipo").value = c.ficha.tipo;
-    document.getElementById("nf-simples").value = c.ficha.simples;
-    document.getElementById("nf-iss").value = c.ficha.iss;
-    document.getElementById("nf-mo").value = c.ficha.mo;
-    document.getElementById("nf-espec").value = c.ficha.espec;
-    S.screen = "subsistemas";
-    say("0001-CONTRATO CARREGADO. LEIA O QUADRO ABAIXO E DIGITE 51 EM NAVEGACAO.", "msg");
+  function pf(n) {
+    var sc = SC[S.screen], v = vals(), fn = sc["pf" + n];
+    if (n === 12 && !fn) { S.user = ""; S.ctx = {}; go("login", "0000-SESSAO ENCERRADA."); return render(); }
+    if (n === 9 && !fn && S.screen !== "login" && S.screen !== "ueSel") { S.ctx = {}; go("subs"); return render(); }
+    if (fn) fn(v); else erro("0015-TECLA INVALIDA.");
     render();
   }
 
-  function renderTrail() {
-    var p = S.cenario ? S.casos[S.cenario] : {};
-    var steps = [["emp", "1 Empenho"], ["liq", "2 Liquidação"], ["pago", "3 Pagamento"]];
-    var next = null;
-    for (var i = 0; i < steps.length; i++) if (!p[steps[i][0]]) { next = steps[i][0]; break; }
-    var tr = document.getElementById("trail");
-    tr.innerHTML =
-      '<span class="lbl">Contrato:</span>' +
-      CENARIOS.map(function (c) {
-        return '<button type="button" class="s pick' + (S.cenario === c.id ? " on" : "") +
-               '" data-cen="' + c.id + '">' + esc(c.nome.split(" — ")[0]) + " · espec. " +
-               esc(c.conf.especSiad) + "</button>";
-      }).join("") +
-      '<span class="sep"></span>' +
-      steps.map(function (s) {
-        var c = p[s[0]] ? "done" : (S.cenario && s[0] === next ? "now" : "");
-        return '<span class="s ' + c + '">' + (p[s[0]] ? "✓ " : "") + esc(s[1]) + "</span>";
-      }).join("");
-    Array.prototype.forEach.call(tr.querySelectorAll("button.pick"), function (b) {
-      b.addEventListener("click", function () { carregaCenario(b.getAttribute("data-cen")); });
-    });
-  }
-
-  function renderLog() {
-    var el = document.getElementById("log");
-    el.innerHTML = S.log.length
-      ? S.log.map(function (x) { return "<div>" + x + "</div>"; }).join("")
-      : '<div class="empty">nenhum lançamento ainda</div>';
-  }
-
-  // ---------------------------------------------------------------- teclado
-  function fieldEls() { return Array.prototype.slice.call(crt.querySelectorAll("input.f")); }
-
-  function move(dir) {
-    var els = fieldEls();
-    if (!els.length) return;
-    var i = els.indexOf(document.activeElement);
-    if (i === -1) { els[0].focus(); return; }
-    var j = (i + dir + els.length) % els.length;
-    els[j].focus();
-    els[j].setSelectionRange(els[j].value.length, els[j].value.length);
-  }
-
   document.addEventListener("keydown", function (ev) {
-    var sc = SCREENS[S.screen];
-    // Campos fora do terminal (ficha da nota, pesquisa de conta) usam o teclado normal.
-    var t = ev.target;
-    var fora = t && t.closest && (t.closest(".nf") || t.id === "busca-conta");
-    if (fora && ev.key !== "Escape") return;
-
-    // PF5 — confirma
-    if ((ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) || ev.key === "F5") {
+    var k = ev.key;
+    if ((k === "Enter" && (ev.ctrlKey || ev.metaKey)) || k === "F5") { ev.preventDefault(); return pf(5); }
+    if (k === "Escape") { ev.preventDefault(); return pf(3); }
+    var m = /^F(\d{1,2})$/.exec(k);
+    if (m) { ev.preventDefault(); return pf(+m[1]); }
+    if (k === "Enter") {
       ev.preventDefault();
-      if (sc.pf5) sc.pf5(vals()); else say("0017-NADA A CONFIRMAR NESTA TELA.", "err");
-      render(); return;
+      var sc = SC[S.screen];
+      if (sc.enter) sc.enter(vals()); else erro("0017-TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR.");
+      return render();
     }
-    // PF3 — volta
-    if (ev.key === "Escape" || ev.key === "F3") {
+    var els = fieldEls(), i = els.indexOf(document.activeElement);
+    if (k === "ArrowDown" || k === "ArrowUp") {
       ev.preventDefault();
-      if (sc.pf3) { sc.pf3(); say("", ""); } else say("0015-TELA INICIAL.", "err");
-      render(); return;
-    }
-    // PF2 — anula / limpa
-    if (ev.key === "F2") {
-      ev.preventDefault();
-      fieldEls().forEach(function (el) { el.value = ""; });
-      say("0012-CAMPOS LIMPOS.", "msg"); render(); return;
-    }
-    // PF9 — menu principal
-    if (ev.key === "F9") {
-      ev.preventDefault(); S.screen = "subsistemas"; say("", ""); render(); return;
-    }
-    if (ev.key === "ArrowDown") { ev.preventDefault(); move(1); return; }
-    if (ev.key === "ArrowUp")   { ev.preventDefault(); move(-1); return; }
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      if (sc.enter) sc.enter(vals());
-      render(); return;
+      if (!els.length) return;
+      var j = i < 0 ? 0 : (i + (k === "ArrowDown" ? 1 : -1) + els.length) % els.length;
+      els[j].focus(); els[j].select();
     }
   });
-
-  document.getElementById("reset").addEventListener("click", function () {
-    S = fresh(); document.getElementById("busca-conta").value = "";
-    try { localStorage.removeItem(CHAVE); } catch (e) {}
-    say("0000-SIMULACAO REINICIADA.", "msg"); render();
+  // Salto automatico para o proximo campo quando o atual enche (como no 3270).
+  T.addEventListener("input", function (ev) {
+    var el = ev.target;
+    if (el.tagName === "INPUT" && el.value.length >= +el.maxLength) {
+      var els = fieldEls(), i = els.indexOf(el);
+      if (i >= 0 && i < els.length - 1) { els[i + 1].focus(); els[i + 1].select(); }
+    }
+  });
+  // A regua de PF tambem responde ao clique (teclados sem F1-F12).
+  T.addEventListener("mousedown", function (ev) {
+    var p = ev.target.closest && ev.target.closest(".pf");
+    if (p) { ev.preventDefault(); pf(+p.getAttribute("data-pf")); }
   });
 
-  document.getElementById("busca-conta").addEventListener("input", function (ev) {
-    S.busca = ev.target.value; renderLedger();
-  });
-
-  ["nf-tipo", "nf-simples", "nf-iss", "nf-mo", "nf-espec"].forEach(function (id) {
-    document.getElementById(id).addEventListener("change", render);
-  });
-
-  var recuperou = recupera();
-  var nEmp = S.empenhos.length - 2;
-  if (recuperou && (nEmp > 0 || S.cenario)) {
-    S.screen = "subsistemas";
-    say("0002-PROGRESSO RECUPERADO" + (nEmp > 0 ? ": " + nEmp + " EMPENHO(S) SEU(S) NA LISTA" : "") +
-        ". PARA COMECAR DO ZERO, USE REINICIAR SIMULACAO.", "msg");
-  } else {
-    say("0001-BEM-VINDO. ESCOLHA UM CONTRATO NO TOPO E DIGITE 51 EM NAVEGACAO.", "msg");
-  }
+  if (recupera()) say("0000-INFORME USUARIO E SENHA. SEU PROGRESSO NO TREINAMENTO FOI MANTIDO.");
+  else say("0000-INFORME USUARIO E SENHA.");
   render();
 })();
 </script>
-
-</body></html>
+</body>
+</html>
