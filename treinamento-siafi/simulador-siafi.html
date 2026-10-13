@@ -59,7 +59,8 @@
   // ===================================================== tabelas do treino
   // Todos os codigos e nomes abaixo sao ficticios, para treinamento.
   var SENHA = "TREINO";
-  var UES = { "1250057": "UNIDADE DE TREINAMENTO PMMG - OPERACIONAL" };
+  var UES = { "1250057": "EST. MAIOR DO COM. DE POLICIAMENTO ESPECIALIZADO" };
+  var UPG = { "1250057": "0025" };
   var UOS = { "1251": "POLICIA MILITAR DO ESTADO DE MINAS GERAIS" };
   var ORDS = { "350057": "ORDENADOR DE DESPESA - TREINAMENTO" };
   var CREDORES = {
@@ -75,14 +76,14 @@
   };
   // Especificacoes SIAD que a "integracao" devolve ao SIAFI.
   var ESPECS = {
-    "4812": { proc: "1250057412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
-    "4566": { proc: "1250057300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" },
-    "5101": { proc: "1250057615" + "2026", contrato: null, modalidade: "REGISTRO DE PRECOS" },
-    "5102": { proc: "1250057620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
-    "5103": { proc: "1250057630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" }
+    "4812": { proc: "1251655412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
+    "4566": { proc: "1251655300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" },
+    "5101": { proc: "1251655615" + "2026", contrato: null, modalidade: "REGISTRO DE PRECOS" },
+    "5102": { proc: "1251655620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
+    "5103": { proc: "1251655630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" }
   };
   // Tabela Elemento/Item: exige especificacao SIAD?
-  var EXIGE_ESPEC = ["30.05", "30.17", "37.01", "37.02", "39.16", "39.99"];
+  var EXIGE_ESPEC = ["30.05", "30.16", "30.17", "37.01", "37.02", "39.18", "39.99"];
   // Anexo XIII do PARO: itens executados so na cota de Elemento/Item.
   var MARCADOS = ["30.23", "30.25", "30.26", "30.33", "30.34", "37.01", "37.02",
     "37.04", "37.05", "39.03", "39.12", "39.13", "39.15", "39.17", "39.18",
@@ -128,7 +129,7 @@
   ];
   var SALDOS = { cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, inss: 0, outras: 0,
     vpd: 6122500, credDisp: 12000000, empLiq: 1530000, liqPagar: 210000, pago: 4875000,
-    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 2500000 };
+    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 4500000 };
 
   function novoEstado() {
     return {
@@ -507,7 +508,7 @@
         "       " + L("UO      Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"),
         "      " + c.uo + "  " + f("prog", 20) + "   " + f("nat", 6) + "      " + f("item", 2) + "   " +
           f("fonte", 4) + "  " + f("proc", 1) + "    " + f("ipe", 1),
-        L("Unid. Programacao Gasto: ") + f("upg", 3),
+        L("Unid. Programacao Gasto: ") + f("upg", 4),
         L(c.pessoa === "J" ? "CNPJ/CAPJ-Credor: " : "CPF/CAPF-Credor:  ") + f("credor", c.pessoa === "J" ? 14 : 11),
         L("Nome: ") + esc(c.nome || ""),
         L("Tipo Empenho: ") + f("tipo", 1)
@@ -528,6 +529,9 @@
       if (!prog || !nat || !item || !fonte || !digits(v.proc) || v.ipe === "") return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
       if (prog.length !== 16) return erro("0012-PROGRAMA DE TRABALHO INVALIDO. INFORME OS 16 DIGITOS.");
       if (nat.length !== 6) return erro("0019-NATUREZA DA DESPESA INVALIDA.");
+      var upg = ("000" + digits(v.upg)).slice(-4);
+      if (!digits(v.upg)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (upg !== UPG[S.ue]) return erro("0138-UNIDADE DE PROGRAMACAO DE GASTO INVALIDA PARA A UNIDADE EXECUTORA.");
       var cred = digits(v.credor);
       if (!cred) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
       if (c.pessoa === "J" && !cnpjValido(cred)) return erro("0020-CNPJ INVALIDO.");
@@ -664,6 +668,7 @@
     ].concat(cabUnid()).concat([
       "       " + L("UO      Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"),
       esc(linhaClass(e)),
+      L("Unid. Programacao Gasto: ") + esc(UPG[S.ue] + " - EM CPE"),
       L("CNPJ/CAPJ-Credor: ") + esc(fmtCnpj(e.cnpj)),
       L("Nome: ") + esc(cr.nome),
       L("Tipo Empenho: ") + e.tipo
@@ -1253,13 +1258,14 @@
   };
   // ---- 09 Consulta/Relatorio > 01 Tabela (citado nas notas dos manuais)
   var ELEM = {
-    "30.05": { d: "MATERIAL DE EXPEDIENTE", espec: "S", adiant: "N", lic: "S", nit: "N" },
-    "30.17": { d: "MATERIAL DE PROCESSAMENTO DE DADOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
-    "37.01": { d: "LOCACAO DE MAO DE OBRA - LIMPEZA E CONSERVACAO", espec: "S", adiant: "N", lic: "S", nit: "N" },
-    "37.02": { d: "LOCACAO DE MAO DE OBRA - APOIO ADMINISTRATIVO", espec: "S", adiant: "N", lic: "S", nit: "N" },
-    "39.16": { d: "MANUTENCAO E CONSERVACAO DE VEICULOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "30.05": { d: "MATERIAL PARA ESCRITORIO", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "30.16": { d: "MATERIAL DE INFORMATICA", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "30.17": { d: "ARTIGOS PARA LIMPEZA E HIGIENE", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "37.01": { d: "LOCACAO DE SERVICOS DE CONSERVACAO E LIMPEZA", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "37.02": { d: "LOCACAO DE SERVICOS DE APOIO ADMINISTRATIVO", espec: "S", adiant: "N", lic: "S", nit: "N" },
+    "39.18": { d: "REPAROS DE VEICULOS", espec: "S", adiant: "N", lic: "S", nit: "N" },
     "39.99": { d: "OUTROS SERVICOS DE TERCEIROS - PESSOA JURIDICA", espec: "S", adiant: "N", lic: "S", nit: "N" },
-    "15.01": { d: "DIARIAS - MILITAR", espec: "N", adiant: "S", lic: "N", nit: "S" }
+    "15.01": { d: "DIARIAS MILITAR", espec: "N", adiant: "S", lic: "N", nit: "S" }
   };
   SC.m91 = {
     pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
