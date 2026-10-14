@@ -154,8 +154,10 @@ function atualizarEtapa(req) {
     const col = cab.col;
     conferir_(aba.getRange(req.linha, col['etapa'] + 1).getValue(), req.etapa);
 
-    const mapa = { responsavel: 'responsavel', observacoes: 'observacoes', documento: 'documento/comprovacao', conclusao: 'data conclusao' };
+    const mapa = { responsavel: 'responsavel', observacoes: 'observacoes', documento: 'documento/comprovacao', conclusao: 'data conclusao', nome: 'etapa', fase: 'fase' };
     const mudou = [];
+    if (req.campos.nome !== undefined && !String(req.campos.nome).trim()) throw new Error('O nome da etapa não pode ficar vazio.');
+    if (req.campos.fase !== undefined) req.campos.fase = String(req.campos.fase).toUpperCase();
     Object.keys(mapa).forEach(campo => {
       if (!(campo in req.campos) || col[mapa[campo]] === undefined) return;
       const cel = aba.getRange(req.linha, col[mapa[campo]] + 1);
@@ -165,6 +167,14 @@ function atualizarEtapa(req) {
       gravar_(cel, novo);
       mudou.push(campo + ': "' + texto_(antigo) + '" → "' + texto_(novo) + '"');
     });
+    if (req.campos.prazo && col['prazo sugerido'] !== undefined) {
+      const cel = aba.getRange(req.linha, col['prazo sugerido'] + 1);
+      const nova = formulaPrazo_(ss, aba, req.linhaResumo, req.campos.prazo);
+      if (cel.getFormula() !== nova) {
+        mudou.push('prazo: ' + (cel.getFormula() || texto_(cel.getValue())) + ' → ' + nova);
+        cel.setFormula(nova);
+      }
+    }
     if (mudou.length) historico_(ss, req.aba, req.linha, req.turma, req.etapa, 'Edição da etapa', mudou.join('; '));
     return { ok: true, alteracoes: mudou.length };
   }, req.ano);
@@ -599,6 +609,8 @@ function lerAbasOperacionais_(ss, avisos) {
     const hResumo = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
     if (hResumo < 0) return;
     const cr = indice_(v[hResumo]);
+    const fx = aba.getDataRange().getFormulas();
+    const letras = { ini: letra_(cr['inicio'] + 1), fim: letra_(cr['termino'] + 1) };
 
     const resumo = [];
     for (let i = hResumo + 1; i < v.length; i++) {
@@ -651,6 +663,7 @@ function lerAbasOperacionais_(ss, avisos) {
           colEtapa: col['etapa'] + 1,
           colStatus: col['status'] + 1,
           colConclusao: col['data conclusao'] !== undefined ? col['data conclusao'] + 1 : null,
+          regra: regraPrazo_(col['prazo sugerido'] !== undefined ? fx[i][col['prazo sugerido']] : '', letras),
           fase: texto_(r[col['fase']]).toUpperCase(),
           prazo: iso_(prazo),
           etapa: etapa,
@@ -1374,6 +1387,158 @@ function reescreverFormula_(formula, abaAtual, regras) {
     });
   }
   return partes.join('"');
+}
+
+/* ================================================================== */
+/* Incluir / excluir etapas do checklist                               */
+/* ================================================================== */
+
+const ORDEM_FASES_ = ['ANTES', 'DURANTE', 'DEPOIS'];
+
+/** "=B5-25" → { ref: 'inicio', dias: -25 }; "=C5+7" → { ref: 'termino', dias: 7 }; data digitada → null. */
+function regraPrazo_(f, letras) {
+  const m = String(f || '').match(/^=\$?([A-Z]{1,3})\$?\d+\s*(?:([+-])\s*(\d+))?\s*$/);
+  if (!m) return null;
+  const ref = m[1] === letras.ini ? 'inicio' : m[1] === letras.fim ? 'termino' : null;
+  if (!ref) return null;
+  return { ref: ref, dias: m[2] ? (m[2] === '-' ? -1 : 1) * Number(m[3]) : 0 };
+}
+
+/** Fórmula do prazo a partir da linha da turma no resumo: { ref: 'inicio'|'termino', dias: ±n }. */
+function formulaPrazo_(ss, aba, linhaResumo, regra) {
+  if (!linhaResumo) throw new Error('Linha da turma no resumo não informada.');
+  const v = aba.getRange(1, 1, Math.min(aba.getLastRow(), 8), aba.getLastColumn()).getValues();
+  const h = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+  if (h < 0) throw new Error('Resumo de turmas não encontrado na aba ' + aba.getName() + '.');
+  const c = indice_(v[h]);
+  const letra = letra_((regra.ref === 'termino' ? c['termino'] : c['inicio']) + 1);
+  const n = Math.round(Number(regra.dias) || 0);
+  return '=' + letra + linhaResumo + (n ? (n > 0 ? '+' : '-') + Math.abs(n) : '');
+}
+
+/** Bloco de etapas de uma turma: localiza pelo cabeçalho mais próximo acima de `linhaRef` (ou pelo índice da turma no resumo). */
+function blocoDaTurma_(aba, linhaResumo) {
+  const v = aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['turma', 'inicio', 'termino'], 8);
+  const resumo = [];
+  for (let i = h + 1; i < v.length && texto_(v[i][0]); i++) resumo.push(i + 1);
+  const k = resumo.indexOf(Number(linhaResumo));
+  if (k < 0) throw new Error('Turma não encontrada no resumo (linha ' + linhaResumo + ').');
+  const cabs = [];
+  for (let i = h + 1; i < v.length; i++) {
+    const l = v[i].map(x => semAcento_(x));
+    if (l[0] === 'fase' && l.indexOf('etapa') >= 0 && l.indexOf('status') >= 0) cabs.push(i + 1);
+  }
+  const cab = cabs[k];
+  if (!cab) throw new Error('Bloco de etapas da turma não encontrado.');
+  const col = indice_(v[cab - 1]);
+  const limite = k + 1 < cabs.length ? cabs[k + 1] - 2 : v.length;
+  const etapas = [];
+  for (let r = cab + 1; r <= limite; r++) {
+    const nome = texto_((v[r - 1] || [])[col['etapa']]);
+    if (nome) etapas.push({ linha: r, nome: nome, fase: texto_(v[r - 1][col['fase']]).toUpperCase() });
+  }
+  return { cab: cab, col: col, largura: larguraCabecalho_(v[cab - 1]), etapas: etapas, cr: indice_(v[h]), turma: texto_(v[Number(linhaResumo) - 1][0]) };
+}
+
+/** Faz as contagens do resumo (COUNTA/COUNTIF F12:F48) cobrirem exatamente as etapas do bloco. */
+function ajustarContagens_(aba, linhaResumo, cab, ultima) {
+  const lr = Math.max(aba.getLastColumn(), 1);
+  const rng = aba.getRange(linhaResumo, 1, 1, lr), f = rng.getFormulas()[0];
+  f.forEach((fx, j) => {
+    if (!fx) return;
+    const novo = fx.replace(/(\$?[A-Z]{1,3}\$?)(\d+):(\$?[A-Z]{1,3}\$?)(\d+)/g, (m, c1, a, c2, b) => {
+      a = Number(a); b = Number(b);
+      return a >= cab - 1 && a <= cab + 2 ? c1 + (cab + 1) + ':' + c2 + ultima : m;
+    });
+    if (novo !== fx) aba.getRange(linhaResumo, j + 1).setFormula(novo);
+  });
+}
+
+/** Insere uma etapa num bloco, depois da última etapa da mesma fase (ou da fase anterior). */
+function inserirEtapa_(aba, linhaResumo, d) {
+  const b = blocoDaTurma_(aba, linhaResumo);
+  const fase = String(d.fase || 'ANTES').toUpperCase();
+  const ordem = f => { const i = ORDEM_FASES_.indexOf(f); return i < 0 ? 3 : i; };
+  let depois = b.cab;
+  b.etapas.forEach(e => { if (ordem(e.fase) <= ordem(fase)) depois = e.linha; });
+  const modelo = b.etapas.length ? (b.etapas.find(e => e.linha === depois) || b.etapas[0]).linha : null;
+
+  aba.insertRowAfter(depois);
+  const nova = depois + 1;
+  if (modelo) {
+    const src = aba.getRange(modelo >= nova ? modelo + 1 : modelo, 1, 1, b.largura);
+    src.copyTo(aba.getRange(nova, 1, 1, b.largura), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    src.copyTo(aba.getRange(nova, 1, 1, b.largura), SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
+  }
+  const letraIni = letra_(b.cr['inicio'] + 1), letraFim = letra_(b.cr['termino'] + 1);
+  const linha = new Array(b.largura).fill('');
+  const put = (k, x) => { if (b.col[k] !== undefined) linha[b.col[k]] = x; };
+  put('fase', fase);
+  put('inicio', '=' + letraIni + linhaResumo);
+  put('termino', '=' + letraFim + linhaResumo);
+  put('prazo sugerido', formulaPrazo_(null, aba, linhaResumo, d.prazo || { ref: 'inicio', dias: 0 }));
+  put('etapa', String(d.nome).trim());
+  put('status', 'Pendente');
+  put('responsavel', d.responsavel || '');
+  put('documento/comprovacao', d.documento || '');
+  aba.getRange(nova, 1, 1, b.largura).setValues([linha]);
+  // Colunas com fórmula própria da linha (ex.: situação do prazo): copia da linha modelo, ajustando a linha.
+  if (modelo) {
+    const m = modelo >= nova ? modelo + 1 : modelo;
+    const fm = aba.getRange(m, 1, 1, b.largura).getFormulas()[0];
+    const usadas = ['fase', 'inicio', 'termino', 'prazo sugerido', 'etapa', 'status', 'responsavel', 'documento/comprovacao'].map(k => b.col[k]);
+    fm.forEach((fx, j) => {
+      if (!fx || usadas.indexOf(j) >= 0) return;
+      aba.getRange(nova, j + 1).setFormula(reescreverFormula_(fx, aba.getName(), [{ aba: null, de: m, ate: m, para: nova }]));
+    });
+  }
+  const ultima = Math.max(nova, b.etapas.length ? b.etapas[b.etapas.length - 1].linha + (b.etapas[b.etapas.length - 1].linha >= nova ? 1 : 0) : nova);
+  ajustarContagens_(aba, linhaResumo, b.cab, ultima);
+  return nova;
+}
+
+/**
+ * Inclui uma etapa no checklist de uma ou mais turmas.
+ * req.alvos: [{ aba, linhaResumo, turma }] (a turma aberta e, se marcado, as outras);
+ * req: nome, fase, prazo { ref, dias }, responsavel, documento.
+ */
+function incluirEtapa(req) {
+  return comTrava_(ss => {
+    const nome = String(req.nome || '').trim();
+    if (!nome) throw new Error('Informe o nome da etapa.');
+    if (ORDEM_FASES_.indexOf(String(req.fase || '').toUpperCase()) < 0) throw new Error('Fase inválida.');
+    const alvos = (req.alvos || []).slice();
+    if (!alvos.length) throw new Error('Nenhuma turma escolhida.');
+    // De baixo para cima em cada aba: inserir linhas não desloca as turmas ainda por processar.
+    alvos.sort((a, b) => a.aba === b.aba ? b.linhaResumo - a.linhaResumo : a.aba.localeCompare(b.aba));
+    const feitas = [];
+    alvos.forEach(a => {
+      const aba = abaOuErro_(ss, a.aba);
+      conferir_(aba.getRange(a.linhaResumo, 1).getValue(), a.turma);
+      const linha = inserirEtapa_(aba, a.linhaResumo, req);
+      historico_(ss, a.aba, linha, a.turma, nome, 'Etapa incluída', req.fase + ' · prazo ' + JSON.stringify(req.prazo || {}));
+      feitas.push(a.turma);
+    });
+    return { ok: true, turmas: feitas };
+  }, req.ano);
+}
+
+/** Exclui uma etapa (apaga a linha do bloco; o resumo da turma se ajusta). */
+function excluirEtapa(req) {
+  return comTrava_(ss => {
+    const aba = abaOuErro_(ss, req.aba);
+    const cab = cabecalhoDoBloco_(aba, req.linha);
+    conferir_(aba.getRange(req.linha, cab.col['etapa'] + 1).getValue(), req.etapa);
+    const b = blocoDaTurma_(aba, req.linhaResumo);
+    if (b.etapas.length <= 1) throw new Error('A turma precisa ter ao menos uma etapa.');
+    const resto = b.etapas.filter(e => e.linha !== Number(req.linha));
+    aba.deleteRow(Number(req.linha));
+    const ultima = resto[resto.length - 1].linha - (resto[resto.length - 1].linha > req.linha ? 1 : 0);
+    ajustarContagens_(aba, req.linhaResumo, b.cab, ultima);
+    historico_(ss, req.aba, req.linha, req.turma, req.etapa, 'Etapa excluída', '');
+    return { ok: true };
+  }, req.ano);
 }
 
 /* ================================================================== */

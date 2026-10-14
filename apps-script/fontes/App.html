@@ -849,6 +849,7 @@
     const t = S.turmaIdx[id]; if (!t) return;
     if (S.drawer !== id) { S.fase = 'ANTES'; delete S.pg['d-steps']; }
     if (S.edit && S.edit.id !== id && !(S.edit.tipo === 'etapa' && S.idx[S.edit.id] && S.idx[S.edit.id].turmaId === id)) S.edit = null;
+    if (S.edit && S.edit.tipo === 'nova-etapa' && S.edit.id === id) S.fase = S.edit.campos.fase;
     S.drawer = id;
     const es = S.dados.etapas.filter(e => e.turmaId === id);
     const nIni = dias(t.inicio);
@@ -859,7 +860,8 @@
 
     let lista = es.filter(e => e.fase === S.fase);
     if (S.soPendentes) lista = lista.filter(e => !concluida(e) || (S.edit && S.edit.id === e.id));
-    const steps = lista.map(e => {
+    const novaEtapa = S.edit && S.edit.tipo === 'nova-etapa' && S.edit.id === id ? formNovaEtapa(t) : '';
+    const steps = novaEtapa + lista.map(e => {
       if (S.edit && S.edit.tipo === 'etapa' && S.edit.id === e.id) return formEtapa(e);
       const n = dias(e.prazo), late = !concluida(e) && n !== null && n < 0;
       const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
@@ -902,6 +904,7 @@
       '<div class="d-right"><div class="d-right-head"><h3>Checklist</h3>' +
         '<div class="seg">' + abas.map(([k, l, x]) => '<button data-fasetab="' + k + '" class="' + (S.fase === k ? 'on' : '') + '">' + l + ' <small style="color:var(--ink-3)">' + x.filter(concluida).length + '/' + x.length + '</small></button>').join('') + '</div>' +
         '<label class="switch"><input type="checkbox" id="chkPend"' + (S.soPendentes ? ' checked' : '') + '><span></span>Só em aberto</label>' +
+        (pode && t.aba && !(S.edit && S.edit.tipo === 'nova-etapa') ? '<button class="btn small" data-acao="nova-etapa" title="Incluir uma etapa no checklist desta turma">＋ Etapa</button>' : '') +
         pager('d-steps') + '</div>' +
         caixa('d-steps', steps || '<div class="empty">' + (es.length ? 'Nada em aberto aqui. ✓' : 'Esta turma não tem aba operacional vinculada.') + '</div>') +
       '</div></div>' +
@@ -929,17 +932,74 @@
       .sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }
 
+  const REFS_PRAZO = [['ai', 'dias antes do início'], ['di', 'dias depois do início'], ['at', 'dias antes do término'], ['dt', 'dias depois do término']];
+  function regraParaCampos(r) {
+    if (!r) return { prazoDias: '', prazoRef: 'ai' };
+    const ini = r.ref === 'inicio';
+    return { prazoDias: String(Math.abs(r.dias)), prazoRef: (r.dias < 0 ? 'a' : 'd') + (ini ? 'i' : 't') };
+  }
+  function camposParaRegra(c) {
+    if (c.prazoDias === '' || c.prazoDias == null) return null;
+    const n = Math.abs(Math.round(Number(c.prazoDias)) || 0);
+    return { ref: c.prazoRef[1] === 'i' ? 'inicio' : 'termino', dias: c.prazoRef[0] === 'a' ? -n : n };
+  }
+  const opsEquipe = atual => [['', '— definir']].concat((S.dados.responsaveis || []).map(n => [n, n]))
+    .concat(atual && (S.dados.responsaveis || []).indexOf(atual) < 0 ? [[atual, atual + ' (fora da equipe)']] : []);
+  const camposPrazo = c => '<div class="form g2 prazo-g" style="margin-top:0">' + campo('Prazo (dias)', 'prazoDias', c.prazoDias, 'number', ' min="0" step="1" placeholder="ex.: 25"') +
+    campoSel('&nbsp;', 'prazoRef', c.prazoRef, REFS_PRAZO) + '</div>';
+
   function formEtapa(e) {
     const c = S.edit.campos;
+    if (S.edit.excluir) {
+      return '<div class="step editing"><div class="chk"></div><div style="min-width:0;grid-column:2 / 4">' +
+        '<div class="t" style="white-space:normal">' + esc(e.etapa) + '</div>' +
+        '<div class="hint danger" style="margin-top:8px">A linha desta etapa será <b>apagada</b> da planilha (só desta turma). O histórico registra a exclusão.</div>' +
+        '<div class="form-acoes">' + botao('confirmar-exclusao-etapa', 'Excluir etapa', 'danger') + botao('voltar-etapa', 'Voltar', '') + '</div></div></div>';
+    }
     return '<div class="step editing"><div class="chk"></div><div style="min-width:0;grid-column:2 / 4">' +
-      '<div class="t" style="white-space:normal">' + esc(e.etapa) + '</div>' +
-      '<div class="m">' + esc(e.fase) + ' · prazo ' + fmtAno(e.prazo) + ' · status: ' + esc(e.status) + '</div>' +
+      '<div class="m">Editando etapa · status: ' + esc(e.status) + (e.regra ? '' : ' · prazo digitado na planilha (' + fmtAno(e.prazo) + ')') + '</div>' +
+      '<div class="form" style="margin-top:6px">' + campo('Nome da etapa', 'nome', c.nome, 'text') + '</div>' +
+      '<div class="form g2">' + campoSel('Fase', 'fase', c.fase, [['ANTES', 'Antes do início'], ['DURANTE', 'Durante'], ['DEPOIS', 'Depois']]) +
+        campoSel('Responsável', 'responsavel', c.responsavel, opsEquipe(c.responsavel)) + '</div>' +
+      camposPrazo(c) +
       '<div class="form g2">' +
-        campo('Responsável', 'responsavel', c.responsavel, 'text', ' list="dl-resp"') +
         campo('Data de conclusão', 'conclusao', c.conclusao, 'date') +
         campo('Documento / comprovação', 'documento', c.documento, 'text') +
-        campo('Observações', 'observacoes', c.observacoes, 'text') +
-      '</div><div class="form-acoes">' + botao('salvar-etapa', 'Salvar', 'primary') + botao('descartar', 'Descartar', '') + '</div></div></div>';
+      '</div><div class="form" style="margin-top:8px">' + campo('Observações', 'observacoes', c.observacoes, 'text') + '</div>' +
+      '<div class="form-acoes">' + botao('salvar-etapa', 'Salvar', 'primary') + botao('descartar', 'Descartar', '') +
+      '<span style="margin-left:auto"></span>' + botao('excluir-etapa', 'Excluir etapa…', 'danger-ghost') + '</div></div></div>';
+  }
+
+  /** Etapa com nome parecido (mesmo verbo e 2/3 das palavras): evita duplicar "Solicitar relação de discentes". */
+  function parecida(a, b) {
+    const pal = s => norm(s).replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 3);
+    const A = pal(a), B = pal(b);
+    if (!A.length || !B.length || A[0].slice(0, 4) !== B[0].slice(0, 4)) return false;
+    const comuns = A.filter(w => B.some(x => x.slice(0, 5) === w.slice(0, 5))).length;
+    return comuns >= Math.ceil(A.length * 2 / 3);
+  }
+  /** Outras turmas (com aba, não canceladas) que ainda não têm etapa parecida. */
+  function turmasSemEtapa(nome, exceto) {
+    if (!String(nome || '').trim()) return [];
+    return S.dados.turmas.filter(t => t.aba && t.linhaResumo && t.id !== exceto && t.sit !== 'canc' &&
+      !S.dados.etapas.some(e => e.turmaId === t.id && parecida(nome, e.etapa)));
+  }
+
+  function formNovaEtapa(t) {
+    const c = S.edit.campos;
+    const outras = turmasSemEtapa(c.nome, t.id);
+    const jaTem = String(c.nome || '').trim() && S.dados.etapas.some(e => e.turmaId === t.id && parecida(c.nome, e.etapa));
+    return '<div class="step editing nova"><div class="chk">＋</div><div style="min-width:0;grid-column:2 / 4">' +
+      '<div class="t">Nova etapa nesta turma</div>' +
+      '<div class="form" style="margin-top:6px">' + campo('Nome da etapa', 'nome', c.nome, 'text', ' placeholder="Ex.: Solicitar relação de discentes"') + '</div>' +
+      (jaTem ? '<div class="hint danger" style="margin:6px 0 0">Esta turma já tem uma etapa com nome parecido.</div>' : '') +
+      '<div class="form g2">' + campoSel('Fase', 'fase', c.fase, [['ANTES', 'Antes do início'], ['DURANTE', 'Durante'], ['DEPOIS', 'Depois']]) +
+        campoSel('Responsável', 'responsavel', c.responsavel, opsEquipe('')) + '</div>' +
+      camposPrazo(c) +
+      '<label class="switch" style="margin-top:10px"><input type="checkbox" id="chkOutras"' + (c.outras ? ' checked' : '') + (outras.length ? '' : ' disabled') + '><span></span>' +
+        'Incluir também nas outras ' + outras.length + ' turma(s) que ainda não têm esta etapa</label>' +
+      (c.outras && outras.length ? '<div class="hint" style="margin-top:4px">' + outras.map(x => esc(nomeCurto(x))).join(' · ') + '</div>' : '') +
+      '<div class="form-acoes">' + botao('salvar-nova-etapa', c.outras && outras.length ? 'Incluir em ' + (outras.length + 1) + ' turmas' : 'Incluir etapa', 'primary') + botao('descartar', 'Cancelar', '') + '</div></div></div>';
   }
 
   function formTurma(t) {
@@ -1292,7 +1352,7 @@
 
     if (nome === 'editar-etapa') {
       const e = S.idx[el.dataset.id]; if (!e) return;
-      S.edit = { tipo: 'etapa', id: e.id, campos: { responsavel: e.responsavel || '', documento: e.documento || '', observacoes: e.observacoes || '', conclusao: e.conclusao || '' } };
+      S.edit = { tipo: 'etapa', id: e.id, campos: Object.assign({ nome: e.etapa, fase: e.fase || 'ANTES', responsavel: e.respN || e.responsavel || '', documento: e.documento || '', observacoes: e.observacoes || '', conclusao: e.conclusao || '' }, regraParaCampos(e.regra)) };
       const novaTurma = S.drawer !== e.turmaId;
       S.drawer = e.turmaId;
       if (novaTurma || S.fase !== e.fase) S.fase = e.fase || 'ANTES';
@@ -1305,6 +1365,11 @@
       return abrirTurma(t.id);
     }
     if (nome === 'cancelar-turma') { S.edit = { tipo: 'cancelar', id: t.id, campos: { motivo: '' } }; return abrirTurma(t.id); }
+    if (nome === 'nova-etapa') { S.edit = { tipo: 'nova-etapa', id: t.id, campos: { nome: '', fase: S.fase || 'ANTES', responsavel: '', prazoDias: '', prazoRef: S.fase === 'DEPOIS' ? 'dt' : 'ai', outras: false } }; S.pg['d-steps'] = 0; return abrirTurma(t.id); }
+    if (nome === 'salvar-nova-etapa') return salvarNovaEtapa(t);
+    if (nome === 'excluir-etapa') { S.edit.excluir = true; return abrirTurma(t.id); }
+    if (nome === 'voltar-etapa') { S.edit.excluir = false; return abrirTurma(t.id); }
+    if (nome === 'confirmar-exclusao-etapa') return excluirEtapa(t);
     if (nome === 'descartar') { S.edit = null; return abrirTurma(t.id); }
     if (nome === 'salvar-etapa') return salvarEtapa();
     if (nome === 'salvar-turma') return salvarTurma(t);
@@ -1313,13 +1378,47 @@
   }
 
   function salvarEtapa() {
-    const e = S.idx[S.edit.id], c = Object.assign({}, S.edit.campos);
-    gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, campos: c }, () => {
-      e.responsavel = c.responsavel.trim(); e.respN = respPadrao(e.responsavel); e.documento = c.documento.trim();
-      e.observacoes = c.observacoes.trim(); e.conclusao = c.conclusao || null;
+    const e = S.idx[S.edit.id], c = Object.assign({}, S.edit.campos), t = S.turmaIdx[e.turmaId];
+    if (!String(c.nome || '').trim()) return toast('O nome da etapa não pode ficar vazio.', 'err');
+    const regra = camposParaRegra(c);
+    const mudouPrazo = regra && (!e.regra || regra.ref !== e.regra.ref || regra.dias !== e.regra.dias);
+    const campos = { nome: c.nome.trim(), fase: c.fase, responsavel: c.responsavel, documento: c.documento, observacoes: c.observacoes, conclusao: c.conclusao };
+    if (mudouPrazo) campos.prazo = regra;
+    gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, linhaResumo: t && t.linhaResumo, campos: campos }, () => {
+      Object.assign(e, { etapa: campos.nome, fase: c.fase, responsavel: String(c.responsavel || '').trim(), documento: String(c.documento || '').trim(),
+        observacoes: String(c.observacoes || '').trim(), conclusao: c.conclusao || null });
+      e.respN = respPadrao(e.responsavel);
       S.edit = null;
-      toast('✓ Etapa atualizada: ' + e.etapa);
+      recalcular();
+      toast('✓ Etapa atualizada: ' + e.etapa + (mudouPrazo && RUN ? '. Recalculando o prazo…' : ''));
       montarFiltros(); refrescar();
+      if (RUN && mudouPrazo) carregar(true); // o prazo vem da fórmula da planilha
+    });
+  }
+
+  function salvarNovaEtapa(t) {
+    const c = S.edit.campos;
+    const nome = String(c.nome || '').trim();
+    if (!nome) return toast('Informe o nome da etapa.', 'err');
+    const regra = camposParaRegra(c);
+    if (!regra) return toast('Informe o prazo em dias (pode ser 0).', 'err');
+    const alvos = [t].concat(c.outras ? turmasSemEtapa(nome, t.id) : []).map(x => ({ aba: x.aba, linhaResumo: x.linhaResumo, turma: x.turma }));
+    gravarNoServidor('incluirEtapa', { nome: nome, fase: c.fase, prazo: regra, responsavel: c.responsavel, alvos: alvos }, () => {
+      S.edit = null; S.fase = c.fase;
+      toast('✓ Etapa incluída' + (alvos.length > 1 ? ' em ' + alvos.length + ' turmas' : '') + (RUN ? '. Atualizando…' : ' (demonstração)'));
+      refrescar();
+      if (RUN) carregar(true);
+    });
+  }
+
+  function excluirEtapa(t) {
+    const e = S.idx[S.edit.id];
+    gravarNoServidor('excluirEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, linhaResumo: t.linhaResumo }, () => {
+      S.edit = null;
+      toast('Etapa excluída: ' + e.etapa + (RUN ? '. Atualizando…' : ' (demonstração)'));
+      if (!RUN) { S.dados.etapas = S.dados.etapas.filter(x => x !== e); delete S.idx[e.id]; recalcular(); }
+      refrescar();
+      if (RUN) carregar(true);
     });
   }
 
@@ -1507,6 +1606,12 @@
     if (el.id === 'ordTurmas') { S.turmasOrdem = el.value; S.pg = {}; return render(); }
     if (el.id === 'chkConcl') { S.etapasConcluidas = el.checked; S.pg = {}; return render(); }
     if (el.id === 'chkPend') { S.soPendentes = el.checked; S.pg['d-steps'] = 0; return abrirTurma(S.drawer); }
+    if (el.id === 'chkOutras' && S.edit) { S.edit.campos.outras = el.checked; return abrirTurma(S.drawer); }
+    if (S.edit && S.edit.tipo === 'nova-etapa' && el.dataset && (el.dataset.campo === 'nome' || el.dataset.campo === 'fase')) {
+      S.edit.campos[el.dataset.campo] = el.value;
+      if (el.dataset.campo === 'fase') S.edit.campos.prazoRef = el.value === 'DEPOIS' ? 'dt' : el.value === 'DURANTE' ? 'di' : 'ai';
+      return abrirTurma(S.drawer);
+    }
     const mapa = { fUnidade: 'unidade', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
     if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; return filtrosMudaram(); }
     if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return filtrosMudaram(); }
@@ -1558,7 +1663,7 @@
     }
     if (ev.key === 'Enter' && S.edit && !S.salvando && document.activeElement.tagName === 'INPUT' && document.activeElement.dataset.campo) {
       ev.preventDefault();
-      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova' }[S.edit.tipo] || '');
+      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova', 'nova-etapa': 'salvar-nova-etapa' }[S.edit.tipo] || '');
       return;
     }
     if (digitando) return;

@@ -122,3 +122,12 @@ O painel passa a abrir a cópia para o ano (registro em Propriedades do script �
   o texto antigo é anotado nas Observações da etapa ("Responsável anterior: …"). A coluna Responsável ganha
   lista de seleção ligada à aba Listas.
 - A **planilha nova por unidade** já sai com essas correções (e com curso SiGE/cidade preenchidos).
+
+## Editar, incluir e excluir etapas
+
+No detalhe da turma (checklist):
+- **✎** na etapa: nome, fase, responsável (equipe), **prazo** (N dias antes/depois do início ou do término —
+  vira a fórmula `=B5-25` na planilha), conclusão, documento, observações. **Excluir etapa…** apaga a linha.
+- **＋ Etapa**: inclui uma etapa nova na fase escolhida, com prazo pela regra. Opcional: incluir também em todas as
+  outras turmas que ainda não têm etapa com nome parecido (ex.: "Solicitar relação de discentes").
+- As contagens do resumo da turma (Total/Feito/Pendente…) são ajustadas para cobrir as etapas do bloco.
