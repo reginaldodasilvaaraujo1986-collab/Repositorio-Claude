@@ -1759,6 +1759,9 @@
   function clearFields() { fieldEls().forEach(function (el) { el.value = ""; }); keep = {}; }
   function vals() { var o = {}; fieldEls().forEach(function (el) { o[el.id] = el.value.trim(); }); return o; }
 
+  var ERR_CAMPO = { "0141": "espec", "0142": "pUn", "0143": "espec", "0024": "ord", "0020": "cr1", "0021": "cr1",
+    "0148": "cr1", "0012": "pa", "0145": "pa", "0146": "nat", "0019": "nat", "0026": "fonte", "0147": "fonte",
+    "0138": "upg", "0022": "valor", "0149": "valor", "0031": "valor", "0025": "tipo" };
   function render() {
     var sc = SC[S.screen];
     // Na mesma tela (erro, segunda fase), o que foi digitado continua la.
@@ -1788,8 +1791,15 @@
       else if (d) el.value = d;
     });
     if (sc.after) sc.after();
-    var first = fieldEls().filter(function (el) { return !el.value; })[0] || fieldEls()[0];
-    if (first) first.focus();
+    // Depois de um erro, o cursor vai para o campo com problema, todo selecionado:
+    // o que for digitado substitui o conteudo antigo.
+    var ef = S.msgErr && ERR_CAMPO[(S.msg || "").slice(0, 4)];
+    var efEl = ef && document.getElementById(ef);
+    if (efEl) { efEl.focus(); efEl.select(); }
+    else {
+      var first = fieldEls().filter(function (el) { return !el.value; })[0] || fieldEls()[0];
+      if (first) first.focus();
+    }
     if (S.screen !== "login") salva();
   }
 
@@ -1821,14 +1831,40 @@
       els[j].focus(); els[j].select();
     }
   });
-  // Salto automatico para o proximo campo quando o atual enche (como no 3270).
+  // Salto automatico para o proximo campo quando o cursor chega ao fim (como no 3270).
+  function avanca(el) {
+    var els = fieldEls(), i = els.indexOf(el);
+    if (i >= 0 && i < els.length - 1) { els[i + 1].focus(); els[i + 1].select(); }
+  }
   T.addEventListener("input", function (ev) {
     var el = ev.target;
-    if (el.tagName === "INPUT" && el.value.length >= +el.maxLength) {
-      var els = fieldEls(), i = els.indexOf(el);
-      if (i >= 0 && i < els.length - 1) { els[i + 1].focus(); els[i + 1].select(); }
-    }
+    if (el.tagName === "INPUT" && el.value.length >= +el.maxLength && el.selectionStart >= +el.maxLength) avanca(el);
   });
+  // Digitacao por cima (sobrescreve), como no terminal 3270: clicar num campo
+  // preenchido e digitar troca os caracteres em vez de empurra-los.
+  T.addEventListener("beforeinput", function (ev) {
+    var el = ev.target;
+    if (el.tagName !== "INPUT" || ev.inputType !== "insertText" || !ev.data || ev.data.length !== 1) return;
+    if (clicado === el) {
+      clicado = null; ev.preventDefault();
+      el.value = ev.data; el.setSelectionRange(1, 1);
+      if (+el.maxLength <= 1) avanca(el);
+      return;
+    }
+    var a = el.selectionStart, b = el.selectionEnd, v = el.value, max = +el.maxLength;
+    if (a !== b || a >= v.length) return;
+    ev.preventDefault();
+    el.value = v.slice(0, a) + ev.data + v.slice(a + 1);
+    el.setSelectionRange(a + 1, a + 1);
+    if (a + 1 >= max) avanca(el);
+  });
+  // Clicar num campo preenchido e digitar substitui o valor antigo inteiro.
+  // (Setas, Backspace ou Delete logo apos o clique permitem corrigir so um digito.)
+  var clicado = null;
+  T.addEventListener("mousedown", function (ev) {
+    var el = ev.target; clicado = el.tagName === "INPUT" && el.value ? el : null;
+  }, true);
+  document.addEventListener("keydown", function (ev) { if (ev.key.length !== 1) clicado = null; }, true);
   // A regua de PF tambem responde ao clique (teclados sem F1-F12).
   T.addEventListener("mousedown", function (ev) {
     var p = ev.target.closest && ev.target.closest(".pf");
