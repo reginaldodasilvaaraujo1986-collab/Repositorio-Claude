@@ -23,7 +23,7 @@
     formandos:  ['Formandos', 'Militares formados no ano'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
-  const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral
+  const ROTACAO_MS = 0; // troca automática de página nos cartões da visão geral (0 = desligada; ex.: 12000 para modo TV)
 
   const S = {
     dados: null, idx: {}, turmaIdx: {},
@@ -130,13 +130,15 @@
     S.pg[key] = Math.min(S.pg[key] || 0, paginas.length - 1);
     const editando = box.querySelector('.editing');
     if (editando) S.pg[key] = Math.max(0, paginas.findIndex(pg => pg.indexOf(editando) >= 0));
-    mostrarPagina(box);
+    mostrarPagina(box, false);
   }
 
-  function mostrarPagina(box) {
+  /** animar = true só quando a página é virada (clique, roda, teclado ou rotação automática). */
+  function mostrarPagina(box, animar) {
     const p = S.pg[box.dataset.key] || 0;
     box._paginas.forEach((pg, i) => pg.forEach(el => { el.style.display = i === p ? '' : 'none'; }));
-    box.classList.remove('page-in'); void box.offsetWidth; box.classList.add('page-in');
+    box.classList.remove('page-in');
+    if (animar) { void box.offsetWidth; box.classList.add('page-in'); }
     desenharPager(box);
   }
 
@@ -158,7 +160,7 @@
     if (!box || !box._paginas || box._paginas.length < 2) return;
     const n = box._paginas.length;
     S.pg[key] = ((S.pg[key] || 0) + delta + n) % n;
-    mostrarPagina(box);
+    mostrarPagina(box, true);
   }
 
   /* ================================================================ */
@@ -388,7 +390,10 @@
     $('#pageSub').textContent = v[1];
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
     const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras }[S.view];
-    $('#view').innerHTML = '<div class="vroot fade-in">' + fn() + '</div>';
+    // Animação de entrada só ao trocar de tela; atualizações (status, gravações, recarga) trocam o conteúdo no lugar.
+    const trocou = S._viewDesenhada !== S.view;
+    S._viewDesenhada = S.view;
+    $('#view').innerHTML = '<div class="vroot' + (trocou ? ' fade-in' : '') + '">' + fn() + '</div>';
     paginarTudo($('#view'));
   }
 
@@ -1739,7 +1744,7 @@
   setInterval(atualizarSync, 30000);
 
   // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
-  setInterval(() => {
+  if (ROTACAO_MS) setInterval(() => {
     if (document.hidden || S.drawer || S.view !== 'geral') return;
     $$('.fit[data-auto]').forEach(b => { if (!b.matches(':hover')) virar(b.dataset.key, 1); });
   }, ROTACAO_MS);
