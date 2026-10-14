@@ -90,7 +90,10 @@
     "5102": { proc: "1251655000620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
     "5103": { proc: "1251655000630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" },
     // Modelo do relatorio SIAD "Relatorio de dados de especificacao" (39.21, contrato 009521970).
-    "7256852": { proc: "0250457000025" + "2026", contrato: { tipo: "02", num: "9521970" }, modalidade: "PREGAO" }
+    "7256852": { proc: "0250457000025" + "2026", contrato: { tipo: "02", num: "9521970" }, modalidade: "PREGAO",
+      // Dotacao orcamentaria do relatorio: UO 1251, 06 181 137 4366 0001, 3.3.90.39 item 21, F 10, IPU 8, IPG 1.
+      dot: { pa: "4366", ca: "0001", nat: "339039", item: "21", fonte: "10", proc: "8", ipe: "1" },
+      cnpj: "17676389000192", valor: 3740000 }
   };
   // Tabela Elemento/Item: exige especificacao SIAD?
   var EXIGE_ESPEC = ["30.05", "30.16", "30.17", "37.01", "37.02", "39.18", "39.21", "39.99"];
@@ -158,7 +161,7 @@
   }
   function empBase(num, cnpj, nat, item, tipo, valor) {
     return { num: num, uo: "1251", prog: "06181701200100" + "01", nat: nat, item: item,
-      fonte: "60", proc: "2", ipe: "0", cnpj: cnpj, tipo: tipo, empenhado: valor,
+      fonte: "10", proc: "8", ipe: "1", cnpj: cnpj, tipo: tipo, empenhado: valor,
       reforcos: [], liqs: [], pagoNet: 0, pagoBruto: 0, espec: "", procSiad: "" };
   }
 
@@ -597,7 +600,7 @@
       if (!PA[pa]) return erro("0012-PROJETO/ATIVIDADE NAO CADASTRADO PARA A UNIDADE ORCAMENTARIA.");
       var prog = PA[pa] + pa + ("0000" + ca).slice(-4);
       if (nat.length !== 6) return erro("0019-NATUREZA DA DESPESA INVALIDA.");
-      if (fonte.length !== 2) return erro("0026-FONTE INVALIDA. INFORME 2 DIGITOS (EX.: 60).");
+      if (fonte.length !== 2) return erro("0026-FONTE INVALIDA. INFORME 2 DIGITOS (EX.: 10).");
       var upg = ("000" + digits(v.upg)).slice(-4);
       if (!digits(v.upg)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
       if (upg !== UPG[S.ue]) { c.upgNome = ""; return erro("0138-UNIDADE DE PROGRAMACAO DE GASTO INVALIDA PARA A UNIDADE EXECUTORA."); }
@@ -623,10 +626,18 @@
         if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
         if (esp.contrato && c.cSiad !== "S") return erro("0143-ESPECIFICACAO COM CONTRATO NO SIAD. INFORME 'S' EM CONTRATO SAIDA SIAD (PF3).");
         if (!esp.contrato && c.cSiad === "S") return erro("0144-ESPECIFICACAO SEM CONTRATO NO SIAD. INFORME 'N' EM CONTRATO SAIDA SIAD (PF3).");
+        if (esp.dot) {
+          var dt = esp.dot, ipeD = digits(v.ipe) || "0";
+          if (pa !== dt.pa || ("0000" + ca).slice(-4) !== dt.ca) return erro("0145-PROGRAMA DE TRABALHO DIFERENTE DA DOTACAO DA ESPECIFICACAO SIAD.");
+          if (nat !== dt.nat || ("0" + item).slice(-2) !== dt.item) return erro("0146-NATUREZA/ITEM DIFERENTE DA DOTACAO DA ESPECIFICACAO SIAD.");
+          if (fonte !== dt.fonte || digits(v.proc) !== dt.proc || ipeD !== dt.ipe) return erro("0147-FONTE/PROCEDENCIA/IPE DIFERENTE DA DOTACAO DA ESPECIFICACAO SIAD.");
+          if (cred !== esp.cnpj) return erro("0148-CREDOR DIFERENTE DO FORNECEDOR DA ESPECIFICACAO SIAD.");
+        }
       }
       if (p.obra && !digits(v.obra)) return erro("0139-INFORME SEQUENCIAL OBRA.");
       var val = valor(v.valor);
       if (!val) return erro("0022-VALOR INVALIDO. DIGITE SO NUMEROS, SEM PONTO NEM VIRGULA.");
+      if (esp && esp.valor && val > esp.valor) return erro("0149-VALOR MAIOR QUE O SALDO DA ESPECIFICACAO SIAD: " + brl(esp.valor));
       var ord = digits(v.ord);
       if (!ORDS[ord]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
       c.ordNome = ORDS[ord];
