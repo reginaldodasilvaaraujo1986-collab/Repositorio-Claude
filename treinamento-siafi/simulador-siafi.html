@@ -37,6 +37,10 @@
   #t .e { color: var(--err); }
   #t .d { color: var(--dim); }
   #t .b { color: #fff; font-weight: 600; }
+  #t .az { color: #7aa7ff; }       /* codigos e itens de menu (azul do 3270) */
+  #t .w { color: #fff; font-weight: 600; }
+  #t .r1 { color: #3fe0e6; }
+  #t .r2 { color: #8fe03a; }
   #t .pf { cursor: pointer; }
   #t .pf:hover { color: #fff; }
   #t input {
@@ -61,8 +65,10 @@
   var SENHA = "TREINO";
   var UES = { "1250057": "CPE PMMG - OPERACIONAL" };
   var UPG = { "1250057": "0025" };
-  var UPG_NOME = { "0025": "CPRV" };
-  var UOS = { "1251": "POLICIA MILITAR DO ESTADO DE MINAS GERAIS" };
+  var UPG_NOME = { "0025": "EXECUCAO DAS DESPESAS DO CPRV E UNIDADES SUBORDINADAS" };
+  var UOS = { "1251": "PMMG" };
+  // Projeto/atividade da UO 1251 -> funcao, subfuncao e programa (Progr. Trabalho = FF SSS PPP AAAA CCCC).
+  var PA = { "4366": "06181137", "2001": "06181701" };
   var ORDS = { "1305820": "ORDENADOR DE DESPESA", "350057": "ORDENADOR DE DESPESA - TREINAMENTO" };
   var CREDORES = {
     "11222333000181": { nome: "APOIO TOTAL SERVICOS LTDA", banco: "001", ag: "1234-5", cc: "98765-0" },
@@ -234,8 +240,9 @@
       esc(row(code, "Estado de Minas Gerais", "PRODEMGE")),
       esc(row(vcode, "S I A F I - MG", hojeStr())),
       esc(row(u, title, hora())),
-      esc(row("ANO: " + 2026, sub || "", "GH17")),
-      esc("UE: " + S.ue)
+      esc(row("ANO: " + 2026, sub || "", "GA20")),
+      esc("UE:  " + S.ue),
+      '<span class="az">TREINAMENTO</span>'
     ];
   }
   // Caixa desenhada por cima da tela, como as janelas do SIAFI.
@@ -294,50 +301,94 @@
   var SC = {};
 
   // ---- login (modelo de treino: so aceita o usuario de treinamento)
+  // Rodape proprio (telas de acesso e de selecao de UE nao usam a regua de PFs).
+  function rodape(itens) {
+    var h = "", col = 0;
+    itens.forEach(function (it) {
+      h += esc(" ".repeat(Math.max(0, it[0] - col))) + '<span class="pf az" data-pf="' + it[1] + '">' + esc(it[2]) + "</span>";
+      col = it[0] + it[2].length;
+    });
+    return h;
+  }
+  function horaSeg() { var d = new Date(); return hora() + ":" + ("0" + d.getSeconds()).slice(-2); }
+  function az(t) { return '<span class="az">' + esc(t) + "</span>"; }
+  function wb(t) { return '<span class="w">' + esc(t) + "</span>"; }
+
+  // ---- Tela de acesso (modelo de treino: a senha e sempre TREINO)
   SC.login = {
-    pf: { 11: "Rein", 12: "Fim" },
+    pf: {},
+    footer: function () {
+      return [rodape([[0, 1, "PF1-Duvidas"], [28, 5, "PF5-Recuperacao de Senha"], [66, 6, "PF6-Mensagens"]]),
+        rodape([[0, 11, "PF11-Reiniciar dados do treino"], [66, 12, "PF12-Fim"]])];
+    },
     draw: function () {
+      var d = hoje();
       return [
-        "", "",
-        esc(center("S I A F I - M G", W)),
-        esc(center("SISTEMA INTEGRADO DE ADMINISTRACAO FINANCEIRA", W)),
-        esc(center("ESTADO DE MINAS GERAIS", W)),
-        "",
-        '<span class="m">' + esc(center("AMBIENTE DE TREINAMENTO - DADOS FICTICIOS", W)) + "</span>",
-        "", "",
-        "                    " + L("Usuario .....: ") + f("usr", 7),
-        "",
-        "                    " + L("Senha .......: ") + f("pwd", 8, { pw: true }),
+        az(pad("SIAFI-TREINO", 70)) + az(d[0] + "/" + d[1] + "/" + String(d[2]).slice(-2)),
+        az(pad("", 70) + horaSeg()),
         "", "", "",
-        '<span class="d">' + esc(center("Use seu codigo de usuario. Senha de treinamento: TREINO", W)) + "</span>",
-        '<span class="d">' + esc(center("PF11 reinicia os dados do treinamento", W)) + "</span>"
+        '<span class="m">' + esc(center("A M B I E N T E   D E   T R E I N A M E N T O", W)) + "</span>",
+        "",
+        wb(center("S I A F I - M G   (SIMULADOR)", W)),
+        "",
+        '<span class="d">' + esc(center("Dados ficticios. Nada do que for digitado aqui sai deste navegador.", W)) + "</span>",
+        '<span class="d">' + esc(center("Senha de treinamento: TREINO  (nunca use sua senha real)", W)) + "</span>",
+        "", "", "", "", "",
+        L("Aplicacao: ") + f("app", 8),
+        L("Usuario  : ") + f("usr", 7),
+        L("Senha    : ") + f("pwd", 8, { pw: true })
       ];
     },
     enter: function (v) {
+      if (!v.app) return erro("0001-INFORME A APLICACAO.");
+      if (v.app.trim().toUpperCase() !== "SIMG") return erro("0003-APLICACAO INVALIDA. PARA O SIAFI-MG INFORME: SIMG");
       if (!v.usr || !v.pwd) return erro("0001-INFORME USUARIO E SENHA.");
-      // Qualquer codigo de usuario serve; a senha e sempre a de treino,
-      // para ninguem digitar aqui a senha de um sistema real.
+      // A aplicacao do SIAFI-MG e SIMG; qualquer codigo de usuario serve; a senha e
+      // sempre a de treino, para ninguem digitar aqui a senha de um sistema real.
       if (!/^[A-Z0-9]{4,7}$/i.test(v.usr)) return erro("0002-CODIGO DE USUARIO INVALIDO.");
       if (v.pwd.toUpperCase() !== SENHA) return erro("0002-SENHA INVALIDA. NO TREINAMENTO A SENHA E SEMPRE: TREINO");
       S.user = v.usr.toUpperCase(); go("ueSel");
     },
+    pf1: function () { say("APLICACAO: SIMG. USUARIO: SEU CODIGO. SENHA DE TREINO: TREINO."); },
+    pf5: function () { say("NO TREINAMENTO A SENHA E SEMPRE: TREINO"); },
+    pf6: function () { say("0000-NENHUMA MENSAGEM."); },
     pf11: function () { S = novoEstado(); try { localStorage.removeItem(CHAVE); } catch (e) {} say("0000-DADOS DO TREINAMENTO REINICIADOS."); },
     pf12: function () { say("0000-SESSAO ENCERRADA."); }
   };
 
+  // ---- Selecao da Unidade Executora (tela de abertura do SIAFI-MG)
+  var TRIANGULO = (function () {
+    var cifras = [[[38, 1]], [[37, 3]], [[36, 5]], [[35, 7]], [[34, 9]], [[33, 11]], [[32, 6]],
+      [[31, 6], [41, 5]], [[30, 6], [40, 7]], [[29, 6], [39, 9]], [[28, 6], [38, 11]], [[37, 13]],
+      [[26, 25]], [[25, 27]], [[24, 29]]];
+    return cifras.map(function (segs, i) {
+      var h = "", col = 0, put = function (c, t, cls) { h += esc(" ".repeat(Math.max(0, c - col))) + '<span class="' + cls + '">' + esc(t) + "</span>"; col = c + t.length; };
+      put(22 - i, ".".repeat(13), "az");
+      segs.forEach(function (sg) { put(sg[0], "$".repeat(sg[1]), "w"); });
+      put(42 + i, ".".repeat(13), "az");
+      return h;
+    });
+  })();
   SC.ueSel = {
-    pf: { 3: "Volta", 12: "Fim" },
+    pf: {},
+    footer: function () {
+      return ['<span class="az">' + "_".repeat(W) + "</span>",
+        rodape([[0, 1, "PF1-Ajuda"], [31, 10, "PF10-Informacoes"], [72, 12, "PF12-Fim"]])];
+    },
     draw: function () {
-      return [
-        esc(row("NFCAE00A", "Estado de Minas Gerais", "PRODEMGE")),
-        esc(row("VFCAE00A", "S I A F I - MG", hojeStr())),
-        esc(row(S.user, "Selecao de Unidade", hora())), "", "", "", "",
-        "            " + L("Ano Exercicio ......: ") + "2026",
-        "",
-        "            " + L("Unid. Executora ....: ") + f("ue", 7),
-        "", "", "",
-        '<span class="d">' + esc("            Informe a Unidade Executora em que vai trabalhar.") + "</span>"
+      var l = [
+        az("SEC. FAZENDA") + wb(pad("", 15) + "Estado de Minas Gerais") + az(lpad("PRODEMGE", 80 - 49)),
+        az(hojeStr()) + az(lpad(hora(), 70)),
+        "", "", "", ""
       ];
+      l.length = 4;
+      TRIANGULO.slice(2).forEach(function (t) { l.push(t); });
+      // os dois primeiros desenhos ja comecam depois de 12 colunas de rotulo
+      l[2] = az(pad("TREINO01", 12)) + TRIANGULO[0].replace(/^ {12}/, "") + az(lpad("GDRD", 80 - 55));
+      l[3] = az(pad("TREINAMENTO", 12)) + TRIANGULO[1].replace(/^ {12}/, "");
+      l.push("", wb(center("S I A F I - MG", W)), "",
+        "          " + L("Unidade Executora: ") + f("ue", 7) + "                " + L("Ano Exercicio: ") + '<span class="r2">2026</span>');
+      return l;
     },
     enter: function (v) {
       var ue = digits(v.ue);
@@ -345,18 +396,22 @@
       if (!UES[ue]) return erro("0016-UNIDADE EXECUTORA NAO CADASTRADA OU SEM PERMISSAO PARA O USUARIO.");
       S.ue = ue; go("subs");
     },
-    pf3: function () { S.user = ""; go("login"); }
+    pf1: function () { say("INFORME A UNIDADE EXECUTORA (NO TREINAMENTO: 1250057)."); },
+    pf10: function () { say("SIAFI-MG - AMBIENTE DE TREINAMENTO."); },
+    pf3: function () { S.user = ""; go("login"); },
+    pf12: function () { S.user = ""; go("login", "0000-SESSAO ENCERRADA."); }
   };
 
   function menu(code, vcode, title, sub, items, o) {
     o = o || {};
     var l = head(code, vcode, title, sub);
-    l.push("", "");
-    items.forEach(function (it) { l.push(esc("  " + it)); });
+    while (l.length < (items.length > 6 ? 7 : 9)) l.push("");
+    items.forEach(function (it) { l.push('<span class="az">' + esc(it) + "</span>"); });
     while (l.length < 19) l.push("");
-    l.push("        " + L("Opcao") + " < " + f("opcao", 2) + " >" +
-      (o.acao ? "        " + L("Acao") + " < " + f("acao", 1) + " >      " : "                           ") +
-      "  " + L("Navegacao") + " < " + f("nav", 2) + " >");
+    var W_ = function (t) { return '<span class="w">' + esc(t) + "</span>"; };
+    l.push("        " + W_("Opcao <") + " " + f("opcao", 2) + " " + W_(">") +
+      (o.acao ? "           " + W_("Acao <") + " " + f("acao", 1) + " " + W_(">") + "          " : "                                ") +
+      W_("Navegacao <") + " " + f("nav", 2) + " " + W_(">"));
     return l;
   }
   // Navegacao direta: 51 = Execucao da Despesa, 71 = Ordem de Pagamento, 91 = Consulta.
@@ -398,7 +453,7 @@
     draw: function () {
       return menu("NFCAE005", "VFCAE005", "Movimentacao da Despesa", "", ["01-Execucao da Despesa",
         "02-Execucao de Restos a Pagar/Servico da Divida", "03-Anulacao da Despesa",
-        "04-Apropriacao Contabil da Despesa", "05-Folha de Pessoal"]);
+        "05-Folha de Pessoal", "07-Recebimento Provisorio - Em Liquidacao"]);
     },
     enter: function (v) {
       if (navegar(digits(v.nav))) return;
@@ -410,9 +465,9 @@
     pf3: function () { go("subs"); }
   };
 
-  var M51 = ["01-Apropriacao do Empenho                                 1-Registrar",
-    "02-Anulacao do Empenho                                    2-Consultar",
-    "03-Reforco do Empenho                                     3-Imprimir",
+  var M51 = ["01-Apropriacao do Empenho                                      1-Registrar",
+    "02-Anulacao do Empenho                                         2-Consultar",
+    "03-Reforco do Empenho                                          3-Imprimir",
     "04-Liquidacao da Despesa Empenhada",
     "05-Anulacao Saldo Liquidado/Retencao/Multa Contratual"];
   function m51base() { return menu("NFCAE051", "VFCAE051", "Movimentacao da Despesa", "Execucao da Despesa", M51, { acao: true }); }
@@ -504,42 +559,50 @@
     pf: { 2: "Anula", 3: "Volta", 4: "Manut", 6: "Sel", 9: "MenuP", 12: "Fim" },
     draw: function () {
       var c = S.ctx, p = c.pede || { siad: false, siafi: false, obra: c.obras === "S" };
+      var sp = function (n) { return " ".repeat(n); };
       var l = [
         esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")),
         esc(row("VFCAEG03", "S I A F I - MG", hojeStr())),
         esc(row(S.user, "Registrar Apropriacao de Empenho", hora())),
-        esc(pad("", 62) + lpad("GH17", 18)),
-        L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento:") + "                " + L("Evento:")
-      ].concat(cabUnid()).concat([
-        "       " + L("UO      Progr. Trabalho        Nat. Despesa  Item  Fonte Proc. IPE"),
-        "      " + c.uo + "  " + f("prog", 20) + "   " + f("nat", 6) + "      " + f("item", 2) + "   " +
-          f("fonte", 2) + "     " + f("proc", 1) + "    " + f("ipe", 1),
-        L("Unid. Programacao Gasto: ") + f("upg", 4),
-        L(c.pessoa === "J" ? "CNPJ/CAPJ-Credor: " : "CPF/CAPF-Credor:  ") + f("credor", c.pessoa === "J" ? 14 : 11),
+        esc(pad("", 62) + lpad("GA20", 18)),
+        L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento:") + "                " + L("Evento:"),
+        L("Unid. Executora: ") + esc(pad(S.ue + " - " + UES[S.ue], 45)) + L("LCP    :"),
+        L("Unid. Orcamentaria: ") + esc("1251 - " + UOS["1251"]),
+        sp(7) + L("UO") + sp(6) + L("Progr. Trabalho") + sp(5) + L("Nat. Despesa") + sp(2) + L("Item") + sp(2) +
+          L("Fonte") + sp(1) + L("Proc.") + sp(1) + L("IPE"),
+        sp(6) + c.uo + sp(13) + f("pa", 4) + " " + f("ca", 4) + sp(6) + f("nat", 6) + sp(6) + f("item", 2) + sp(5) +
+          f("fonte", 2) + sp(4) + f("proc", 1) + sp(4) + f("ipe", 1),
+        L("Unid. Programacao Gasto: ") + f("upg", 4) + " - " + esc(c.upgNome || ""),
+        "",
+        c.pessoa === "J" ? L("CNPJ/CAPJ-Credor: ") + f("cr1", 8) + sp(2) + f("cr2", 4) + sp(2) + f("cr3", 2)
+          : L("CPF/CAPF-Credor:  ") + f("credor", 11),
         L("Nome: ") + esc(c.nome || ""),
-        L("Tipo Empenho: ") + f("tipo", 1)
-      ]);
-      if (p.siad) l.push(L("Nr. Processo SIAD (Un/Seq/Ano): ") + f("pUn", 7) + " " + f("pSeq", 6) + " " + f("pAno", 4) +
-        " " + L("Nr. Espec. SIAD: ") + f("espec", 9));
-      if (p.siafi) l.push(L("Numero Especificacao Siafi: ") + f("especSiafi", 7));
-      l.push(esc(pad("", 52)) + L("Adiantamento: ") + c.adiant);
-      l.push(esc(pad("", 52)) + L("Ressarcimento: ") + c.ressarc);
-      l.push(L("Cont/Conv Saida SIAFI/SIGCON:    ") + c.cSiafi + (p.obra ? "       " + L("Informe Nr. Seq. Obra: ") + f("obra", 6) : ""));
-      l.push(esc(pad("", 43)) + L("Valor: ") + f("valor", 15));
-      l.push(L("Ord. Despesa: ") + f("ord", 7) + (c.ordNome ? " - " + esc(c.ordNome) : ""));
+        L("Tipo Empenho: ") + f("tipo", 1),
+        p.siad ? L("Nr. Processo SIAD (Un/Seq/Ano): ") + f("pUn", 7) + " " + f("pSeq", 6) + " " + f("pAno", 4) +
+          " " + L("Nr. Espec. SIAD: ") + f("espec", 9)
+          : p.siafi ? L("Numero Especificacao Siafi: ") + f("especSiafi", 7) : "",
+        sp(55) + L("Adiantamento:  ") + c.adiant,
+        sp(55) + L("Ressarcimento: ") + c.ressarc,
+        L("Contrato/Convenio Saida SIAFI:   ") + c.cSiafi + (p.obra ? "    " + L("Informe Nr. Seq. Obra: ") + f("obra", 6) : ""),
+        "",
+        sp(54) + L("Valor: ") + f("valor", 15),
+        L("Ord. Despesa: ") + f("ord", 10) + " - " + esc(c.ordNome || "")
+      ];
       return l;
     },
     enter: function (v) {
       var c = S.ctx;
-      var prog = digits(v.prog), nat = digits(v.nat), item = digits(v.item), fonte = digits(v.fonte);
-      if (!prog || !nat || !item || !fonte || !digits(v.proc) || v.ipe === "") return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
-      if (prog.length !== 16) return erro("0012-PROGRAMA DE TRABALHO INVALIDO. INFORME OS 16 DIGITOS.");
+      var pa = digits(v.pa), ca = digits(v.ca), nat = digits(v.nat), item = digits(v.item), fonte = digits(v.fonte);
+      if (!pa || !ca || !nat || !item || !fonte || !digits(v.proc) || v.ipe === "") return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!PA[pa]) return erro("0012-PROJETO/ATIVIDADE NAO CADASTRADO PARA A UNIDADE ORCAMENTARIA.");
+      var prog = PA[pa] + pa + ("0000" + ca).slice(-4);
       if (nat.length !== 6) return erro("0019-NATUREZA DA DESPESA INVALIDA.");
       if (fonte.length !== 2) return erro("0026-FONTE INVALIDA. INFORME 2 DIGITOS (EX.: 60).");
       var upg = ("000" + digits(v.upg)).slice(-4);
       if (!digits(v.upg)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
-      if (upg !== UPG[S.ue]) return erro("0138-UNIDADE DE PROGRAMACAO DE GASTO INVALIDA PARA A UNIDADE EXECUTORA.");
-      var cred = digits(v.credor);
+      if (upg !== UPG[S.ue]) { c.upgNome = ""; return erro("0138-UNIDADE DE PROGRAMACAO DE GASTO INVALIDA PARA A UNIDADE EXECUTORA."); }
+      c.upgNome = UPG_NOME[upg];
+      var cred = c.pessoa === "J" ? digits(v.cr1) + digits(v.cr2) + digits(v.cr3) : digits(v.credor);
       if (!cred) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
       if (c.pessoa === "J" && !cnpjValido(cred)) return erro("0020-CNPJ INVALIDO.");
       if (!CREDORES[cred]) return erro("0021-CREDOR NAO CADASTRADO NA TABELA CREDOR/DEVEDOR.");
@@ -669,7 +732,7 @@
       esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")),
       esc(row(o.v || "VFCAEG0C", "S I A F I - MG", hojeStr())),
       esc(row(S.user, "Registrar Apropriacao de Empenho", hora())),
-      esc(pad("", 62) + lpad("GH17", 18)),
+      esc(pad("", 62) + lpad("GA20", 18)),
       L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento: ") + pad(o.num ? ("0000000" + o.num).slice(-7) : "", 13) +
         L("Evento: ") + (o.num ? "0502.001" : "0000.000")
     ].concat(cabUnid()).concat([
@@ -699,7 +762,7 @@
     draw: function () {
       var d = S.ctx.doc, ct = d.contrato;
       return [esc(row("NFCAEG03", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEG0D", "S I A F I - MG", hojeStr())),
-        esc(row(S.user, "Registrar Apropriacao de Empenho", hora())), esc(pad("", 62) + lpad("GH17", 18)),
+        esc(row(S.user, "Registrar Apropriacao de Empenho", hora())), esc(pad("", 62) + lpad("GA20", 18)),
         L("Ano Exercicio: ") + "2026" + "           " + L("Nr. Documento:") + "               " + L("Evento: ") + "0000.000"]
         .concat(cabUnid()).concat(["", "",
           "    " + L("Contrato/Convenio Saida:"),
@@ -781,7 +844,7 @@
   // ---- Reforco
   function cabDoc(code, vcode, title, extra) {
     return [esc(row(code, "Estado de Minas Gerais", "PRODEMGE")), esc(row(vcode, "S I A F I - MG", hojeStr())),
-      esc(row(S.user, title, hora())), esc(pad("", 62) + lpad("GH17", 18)), extra].concat(cabUnid());
+      esc(row(S.user, title, hora())), esc(pad("", 62) + lpad("GA20", 18)), extra].concat(cabUnid());
   }
   function telaReforco(e, o) {
     o = o || {};
@@ -1031,7 +1094,7 @@
     draw: function () {
       var e = findEmp(S.ctx.emp);
       var l = [esc(row("NFCAEG16", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEG16", "S I A F I - MG", hojeStr())),
-        esc(row(S.user, "Consulta Liquidacao Empenho da Despesa", hora())), esc(pad("", 62) + lpad("GH17", 18)),
+        esc(row(S.user, "Consulta Liquidacao Empenho da Despesa", hora())), esc(pad("", 62) + lpad("GA20", 18)),
         L("Ano Exercicio: ") + "2026        " + L("Nr. Empenho: ") + ("0000000" + e.num).slice(-7)].concat(cabUnid()).concat([
         "           " + L("UO    Programa de Trabalho       Nat. Despesa  Item  Fonte Proc. IPE"), esc(linhaClass(e)),
         L("CNPJ Credor: ") + esc(fmtCnpj(e.cnpj)), L("Nome: ") + esc(CREDORES[e.cnpj].nome), "",
@@ -1063,9 +1126,9 @@
     },
     pf3: function () { go("subs"); }
   };
-  var M71 = ["01-Ordem de Pagamento Bancaria                           1-Registrar",
-    "02-Ordem de Pagamento Cheque - Unidade Tesouraria        2-Cancelar",
-    "03-Ordem de Pagamento Cheque - CMU                       3-Consultar",
+  var M71 = ["01-Ordem de Pagamento Bancaria                                 1-Registrar",
+    "02-Ordem de Pagamento Cheque - Unidade Tesouraria              2-Cancelar",
+    "03-Ordem de Pagamento Cheque - CMU                             3-Consultar",
     "04-Ordem de Pagamento Pessoal Bancaria                   4-Imprimir",
     "05-Ordem de Pagamento Pessoal Cheque - Unidade Tesouraria",
     "06-Ordem de Pagamento Pessoal Cheque - CMU",
@@ -1461,7 +1524,7 @@
     draw: function () {
       var e = findEmp(S.ctx.emp), cr = CREDORES[e.cnpj];
       var l = [esc(row("NFCAEQ23", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEQ23", "S I A F I - MG", hojeStr())),
-        esc(row(S.user, "Consulta Movimentacao Despesa", hora())), esc(row("ANO: 2026", "Resumo de Empenho", "GH17")), esc("UE:"),
+        esc(row(S.user, "Consulta Movimentacao Despesa", hora())), esc(row("ANO: 2026", "Resumo de Empenho", "GA20")), esc("UE:"),
         L("Ano Exercicio: ") + "2026 " + L("Unid. Financ. Gasto: ") + "2091  " + L("Ano / Nr. Empenho: ") + "2026-" + ("0000000" + e.num).slice(-7),
         L("Unid. Executora: ") + esc(S.ue + " - " + UES[S.ue]), L("Unid. Orcamentaria: ") + esc("1251 - " + UOS["1251"]),
         L("Classific. Orcamentaria:   ") + esc(e.uo + " " + fmtProg(e.prog) + " " + e.nat + " " + ("0" + e.item).slice(-2) + " " + e.fonte + " " + e.proc + " " + e.ipe),
@@ -1479,7 +1542,7 @@
     draw: function () {
       var e = findEmp(S.ctx.emp), cr = CREDORES[e.cnpj];
       var l = [esc(row("NFCAEQ24", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEQ24", "S I A F I - MG", hojeStr())),
-        esc(row(S.user, "Consulta Movimentacao Despesa", hora())), esc(row("ANO: 2026", "Extrato de Empenho", "GH17")), esc("UE: " + S.ue),
+        esc(row(S.user, "Consulta Movimentacao Despesa", hora())), esc(row("ANO: 2026", "Extrato de Empenho", "GA20")), esc("UE: " + S.ue),
         L("Ano Exercicio: ") + "2026   " + L("Nr. Empenho: ") + ("0000000" + e.num).slice(-7),
         L("Unid. Orcamentaria: ") + esc("1251 - PMMG"), L("Credor: ") + esc(fmtCnpj(e.cnpj) + " - " + cr.nome), "",
         L("    Data       Movimentacao          Sq.Doc            Valor")];
@@ -1696,6 +1759,17 @@
     lines = lines.slice(0, 23);
     var msg = S.msg ? '<span class="' + (S.msgErr ? "e" : "m") + '">' + esc(S.msg) + "</span>" : "";
     var r = ruler(sc.pf);
+    r = sc.footer ? sc.footer() : ['<span class="r1">' + r[0] + "</span>", '<span class="r2">' + r[1] + "</span>"];
+    if (/Estado de Minas Gerais/.test(lines[0]) && lines[0].indexOf("<") < 0) {
+      for (var i = 0; i < 5; i++) {
+        var t = lines[i]; if (!t || t.indexOf("<") >= 0) continue;
+        if (i === 4) { if (/^UE:/.test(t)) lines[i] = '<span class="w">' + t + "</span>"; continue; }
+        var a = t.slice(0, 12), m = t.slice(12, 62), z = t.slice(62);
+        var zc = /PRODEMGE|GA20/.test(z) ? "az" : "w";
+        lines[i] = '<span class="' + (i === 3 ? "w" : "az") + '">' + a + '</span><span class="w">' + m +
+          '</span><span class="' + zc + '">' + z + "</span>";
+      }
+    }
     T.innerHTML = [msg].concat(lines).concat(r).join("\n");
     fieldEls().forEach(function (el) {
       var d = el.getAttribute("data-def");
