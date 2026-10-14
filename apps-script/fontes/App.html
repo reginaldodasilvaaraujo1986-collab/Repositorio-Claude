@@ -133,12 +133,15 @@
     mostrarPagina(box, false);
   }
 
+  /** Na tela Etapas (e no checklist da turma) nada se mexe sozinho: sem animações nem recarga automática. */
+  const semAnimacao = () => S.view === 'etapas' || !!S.drawer;
+
   /** animar = true só quando a página é virada (clique, roda, teclado ou rotação automática). */
   function mostrarPagina(box, animar) {
     const p = S.pg[box.dataset.key] || 0;
     box._paginas.forEach((pg, i) => pg.forEach(el => { el.style.display = i === p ? '' : 'none'; }));
     box.classList.remove('page-in');
-    if (animar) { void box.offsetWidth; box.classList.add('page-in'); }
+    if (animar && !semAnimacao()) { void box.offsetWidth; box.classList.add('page-in'); }
     desenharPager(box);
   }
 
@@ -393,7 +396,7 @@
     // Animação de entrada só ao trocar de tela; atualizações (status, gravações, recarga) trocam o conteúdo no lugar.
     const trocou = S._viewDesenhada !== S.view;
     S._viewDesenhada = S.view;
-    $('#view').innerHTML = '<div class="vroot' + (trocou ? ' fade-in' : '') + '">' + fn() + '</div>';
+    $('#view').innerHTML = '<div class="vroot' + (trocou && !semAnimacao() ? ' fade-in' : '') + '">' + fn() + '</div>';
     paginarTudo($('#view'));
   }
 
@@ -1751,7 +1754,7 @@
 
   // Recarrega a cada 5 min (usa o cache do servidor), sem atrapalhar quem está editando.
   setInterval(() => {
-    if (!document.hidden && !S.drawer && !S.edit && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) carregar(false);
+    if (!document.hidden && !semAnimacao() && !S.edit && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) carregar(false);
   }, 300000);
 })();
 </script>
