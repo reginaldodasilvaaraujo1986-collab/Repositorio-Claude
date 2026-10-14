@@ -73,18 +73,21 @@
     "66777888000181": { nome: "INFOTEC SUPRIMENTOS LTDA", banco: "001", ag: "2020-1", cc: "30405-6" },
     "77888999000181": { nome: "LIMPA BEM SERVICOS LTDA", banco: "104", ag: "1111-2", cc: "60708-9" },
     "29979036000140": { nome: "INSTITUTO NACIONAL DO SEGURO SOCIAL" },
-    "18715383000140": { nome: "MUNICIPIO DE BELO HORIZONTE" }
+    "18715383000140": { nome: "MUNICIPIO DE BELO HORIZONTE" },
+    "17676389000192": { nome: "BSC SEGURANCA ELETRONICA E TECNOLOGIA LTDA", banco: "001", ag: "0001-9", cc: "10000-1" }
   };
   // Especificacoes SIAD que a "integracao" devolve ao SIAFI.
   var ESPECS = {
-    "4812": { proc: "1251655412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
-    "4566": { proc: "1251655300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" },
-    "5101": { proc: "1251655615" + "2026", contrato: null, modalidade: "REGISTRO DE PRECOS" },
-    "5102": { proc: "1251655620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
-    "5103": { proc: "1251655630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" }
+    "4812": { proc: "1251655000412" + "2026", contrato: { tipo: "02", num: "9140" }, modalidade: "PREGAO" },
+    "4566": { proc: "1251655000300" + "2026", contrato: { tipo: "02", num: "9155" }, modalidade: "PREGAO" },
+    "5101": { proc: "1251655000615" + "2026", contrato: null, modalidade: "REGISTRO DE PRECOS" },
+    "5102": { proc: "1251655000620" + "2026", contrato: { tipo: "02", num: "9170" }, modalidade: "PREGAO" },
+    "5103": { proc: "1251655000630" + "2026", contrato: { tipo: "02", num: "9180" }, modalidade: "PREGAO" },
+    // Modelo do relatorio SIAD "Relatorio de dados de especificacao" (39.21, contrato 009521970).
+    "7256852": { proc: "0250457000025" + "2026", contrato: { tipo: "02", num: "9521970" }, modalidade: "PREGAO" }
   };
   // Tabela Elemento/Item: exige especificacao SIAD?
-  var EXIGE_ESPEC = ["30.05", "30.16", "30.17", "37.01", "37.02", "39.18", "39.99"];
+  var EXIGE_ESPEC = ["30.05", "30.16", "30.17", "37.01", "37.02", "39.18", "39.21", "39.99"];
   // Anexo XIII do PARO: itens executados so na cota de Elemento/Item.
   var MARCADOS = ["30.23", "30.25", "30.26", "30.33", "30.34", "37.01", "37.02",
     "37.04", "37.05", "39.03", "39.12", "39.13", "39.15", "39.17", "39.18",
@@ -129,12 +132,12 @@
     ["cotaItem",   "9.9.8.0.2.03.02",     "D", "COTA A EMPENHAR - ELEMENTO/ITEM"]
   ];
   var SALDOS = { cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, inss: 0, outras: 0,
-    vpd: 6122500, credDisp: 12000000, empLiq: 1530000, liqPagar: 210000, pago: 4875000,
-    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 4500000 };
+    vpd: 6122500, credDisp: 16500000, empLiq: 1530000, liqPagar: 210000, pago: 4875000,
+    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 9000000 };
 
   function novoEstado() {
     return {
-      screen: "login", msg: "", msgErr: false, user: "", ue: "", ctx: {},
+      screen: "login", msg: "", msgErr: false, user: "", ue: "", ctx: {}, v19: true,
       contas: JSON.parse(JSON.stringify(SALDOS)),
       seqEmp: 862, seqOPg: 26, seqOPd: 29,
       emps: [
@@ -165,6 +168,7 @@
   function recupera() {
     try {
       var d = JSON.parse(localStorage.getItem(CHAVE) || "null");
+      if (d && d.contas && d.emps && !d.v19) { d.contas.cotaItem += 4500000; d.contas.credDisp += 4500000; d.v19 = true; }
       if (d && d.contas && d.emps) { S = d; S.screen = "login"; S.ctx = {}; S.user = ""; return true; }
     } catch (e) {}
     return false;
@@ -515,7 +519,7 @@
         L("Nome: ") + esc(c.nome || ""),
         L("Tipo Empenho: ") + f("tipo", 1)
       ]);
-      if (p.siad) l.push(L("Nr. Processo SIAD (Un/Seq/Ano): ") + f("pUn", 7) + " " + f("pSeq", 3) + " " + f("pAno", 4) +
+      if (p.siad) l.push(L("Nr. Processo SIAD (Un/Seq/Ano): ") + f("pUn", 7) + " " + f("pSeq", 6) + " " + f("pAno", 4) +
         " " + L("Nr. Espec. SIAD: ") + f("espec", 9));
       if (p.siafi) l.push(L("Numero Especificacao Siafi: ") + f("especSiafi", 7));
       l.push(esc(pad("", 52)) + L("Adiantamento: ") + c.adiant);
@@ -552,7 +556,7 @@
         if (!digits(v.pUn) || !digits(v.pSeq) || !digits(v.pAno) || !digits(v.espec)) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
         esp = ESPECS[String(parseInt(digits(v.espec), 10))];
         if (!esp) return erro("0141-ESPECIFICACAO SIAD NAO ENCONTRADA.");
-        var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000" + digits(v.pSeq)).slice(-3) + digits(v.pAno);
+        var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000000" + digits(v.pSeq)).slice(-6) + digits(v.pAno);
         if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
         if (esp.contrato && c.cSiad !== "S") return erro("0143-ESPECIFICACAO COM CONTRATO NO SIAD. INFORME 'S' EM CONTRATO SAIDA SIAD (PF3).");
         if (!esp.contrato && c.cSiad === "S") return erro("0144-ESPECIFICACAO SEM CONTRATO NO SIAD. INFORME 'N' EM CONTRATO SAIDA SIAD (PF3).");
@@ -815,8 +819,8 @@
     draw: function () {
       var W2 = 50;
       return box(SC.refG09.draw(), 12, 8, W2, [bl(W2, ["                    Informe:"]), bl(W2, [""]),
-        bl(W2, ["                            Numero    Seq.  Ano"]),
-        bl(W2, [" Nr. Processo Compra Siad: ", F("pUn", 7), "  ", F("pSeq", 3), "  ", F("pAno", 4)]),
+        bl(W2, ["                           Numero   Seq.    Ano"]),
+        bl(W2, [" Nr. Processo Compra Siad: ", F("pUn", 7), "  ", F("pSeq", 6), "  ", F("pAno", 4)]),
         bl(W2, [" Nr. Especificacao Siad : ", F("espec", 9)]), bl(W2, [""]),
         bl(W2, [" -------------------- PF3 --------------------"]), bl(W2, ["                      Volta"])]);
     },
@@ -824,7 +828,7 @@
       var e = findEmp(S.ctx.emp);
       var esp = ESPECS[String(parseInt(digits(v.espec) || "0", 10))];
       if (!esp) return erro("0141-ESPECIFICACAO SIAD NAO ENCONTRADA.");
-      var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000" + digits(v.pSeq)).slice(-3) + digits(v.pAno);
+      var procDig = ("0000000" + digits(v.pUn)).slice(-7) + ("000000" + digits(v.pSeq)).slice(-6) + digits(v.pAno);
       if (procDig !== esp.proc) return erro("0142-ESPECIFICACAO SIAD NAO PERTENCE AO PROCESSO INFORMADO.");
       if (e.espec && String(parseInt(digits(v.espec), 10)) !== e.espec) return erro("0144-ESPECIFICACAO DIFERENTE DA DO EMPENHO.");
       go("histPad");
