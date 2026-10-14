@@ -1455,13 +1455,33 @@ function ajustarContagens_(aba, linhaResumo, cab, ultima) {
   });
 }
 
-/** Insere uma etapa num bloco, depois da última etapa da mesma fase (ou da fase anterior). */
+/** Mesmo verbo e 2/3 das palavras: "Solitar relação de discentes" ≈ "Solicitar relação de discentes". */
+function parecida_(a, b) {
+  const pal = s => semAcento_(s).replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 3);
+  const A = pal(a), B = pal(b);
+  if (!A.length || !B.length || A[0].slice(0, 4) !== B[0].slice(0, 4)) return false;
+  const comuns = A.filter(w => B.some(x => x.slice(0, 5) === w.slice(0, 5))).length;
+  return comuns >= Math.ceil(A.length * 2 / 3);
+}
+
+/**
+ * Insere uma etapa num bloco. Posição: logo abaixo da etapa d.depoisDe (nome igual
+ * ou parecido; '' = no início do checklist); sem ela, no fim da fase d.fase.
+ */
 function inserirEtapa_(aba, linhaResumo, d) {
   const b = blocoDaTurma_(aba, linhaResumo);
-  const fase = String(d.fase || 'ANTES').toUpperCase();
+  let fase = String(d.fase || 'ANTES').toUpperCase();
   const ordem = f => { const i = ORDEM_FASES_.indexOf(f); return i < 0 ? 3 : i; };
-  let depois = b.cab;
-  b.etapas.forEach(e => { if (ordem(e.fase) <= ordem(fase)) depois = e.linha; });
+  let depois = null;
+  if (d.depoisDe === '') depois = b.cab;
+  else if (d.depoisDe) {
+    const alvo = b.etapas.find(e => semAcento_(e.nome) === semAcento_(d.depoisDe)) || b.etapas.find(e => parecida_(d.depoisDe, e.nome));
+    if (alvo) depois = alvo.linha;
+  }
+  if (depois === null) {
+    depois = b.cab;
+    b.etapas.forEach(e => { if (ordem(e.fase) <= ordem(fase)) depois = e.linha; });
+  }
   const modelo = b.etapas.length ? (b.etapas.find(e => e.linha === depois) || b.etapas[0]).linha : null;
 
   aba.insertRowAfter(depois);
@@ -1517,7 +1537,7 @@ function incluirEtapa(req) {
       const aba = abaOuErro_(ss, a.aba);
       conferir_(aba.getRange(a.linhaResumo, 1).getValue(), a.turma);
       const linha = inserirEtapa_(aba, a.linhaResumo, req);
-      historico_(ss, a.aba, linha, a.turma, nome, 'Etapa incluída', req.fase + ' · prazo ' + JSON.stringify(req.prazo || {}));
+      historico_(ss, a.aba, linha, a.turma, nome, 'Etapa incluída', req.fase + (req.depoisDe ? ' · abaixo de "' + req.depoisDe + '"' : '') + ' · prazo ' + JSON.stringify(req.prazo || {}));
       feitas.push(a.turma);
     });
     return { ok: true, turmas: feitas };
