@@ -70,6 +70,20 @@ ol.steps{margin:0;padding:10px 12px 10px 32px;font-size:.9rem;display:grid;gap:4
 .st.falta{color:#fff;background:var(--accent)}
 .sum{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .sum span{font-size:.82rem;color:var(--muted)}
+.flow{display:grid;gap:0}
+.stage{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px}
+.stage .t{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.stage .t b{font-size:.95rem}
+.stage .t small{color:var(--muted);font-family:var(--mono);font-size:.78rem}
+.acc{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:.88rem;align-items:baseline}
+.acc .code{font-size:.82rem;white-space:nowrap}
+.acc .lbl{min-width:0}
+.acc .lbl small{color:var(--muted)}
+.arrow{display:flex;align-items:center;gap:8px;padding:6px 0 6px 18px;color:var(--muted);font-size:.82rem}
+.arrow::before{content:"";width:2px;height:22px;background:var(--accent);border-radius:2px}
+.back{border-top:1px dashed var(--line);padding-top:6px;font-size:.84rem;color:var(--muted)}
+.back b{color:var(--var)}
+.tagx{font-size:.7rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 ul.falta{margin:0;padding:10px 12px 10px 30px;display:grid;gap:6px;font-size:.9rem}
 footer{margin-top:30px;color:var(--muted);font-size:.8rem}
 @media (max-width:440px){.row{grid-template-columns:1fr;gap:3px}}
@@ -89,7 +103,7 @@ html{scroll-behavior:smooth}
 
 <nav>
   <div class="chips">
-    <a href="#geral">Geral</a><a href="#roteiros">Roteiros</a><a href="#falta">O que falta</a><a href="#fontes">Fontes e contas</a><a href="#ticket">Ticket</a><a href="#diarias">Diárias</a><a href="#consumo">Consumo</a><a href="#contratos">Contratos</a><a href="#retencoes">Retenções</a><a href="#repasse">Repasse</a>
+    <a href="#geral">Geral</a><a href="#caminho">Caminho das contas</a><a href="#roteiros">Roteiros</a><a href="#falta">O que falta</a><a href="#fontes">Fontes e contas</a><a href="#ticket">Ticket</a><a href="#diarias">Diárias</a><a href="#consumo">Consumo</a><a href="#contratos">Contratos</a><a href="#retencoes">Retenções</a><a href="#repasse">Repasse</a>
   </div>
   <div class="search"><input id="q" type="search" placeholder="Buscar: 886, PRF, 39.21, Master Clean…" aria-label="Buscar na cola"></div>
 </nav>
@@ -117,6 +131,66 @@ html{scroll-behavior:smooth}
     <div class="row"><div class="k">Relatórios</div><div class="v"><span class="code">99</span></div></div>
     <div class="row"><div class="k">Assinatura da OP</div><div class="v"><span class="txt">Portal, com token PRODEMGE do ordenador</span></div></div>
   </div>
+</section>
+
+<section id="caminho">
+  <h2>Caminho das contas</h2>
+  <p class="lead">Para onde o valor anda a cada passo. Em cada passo, o valor sai da conta de cima e entra na de baixo. As contas 6 contam o orçamento; as contas 1 e 2 mostram o dinheiro e a dívida.</p>
+  <div class="flow">
+    <div class="stage">
+      <div class="t"><b>0 · Chega o crédito</b><small>descentralização / cota</small></div>
+      <div class="acc"><span class="code">6.2.2.1.1</span><span class="lbl">Crédito disponível <small>(pronto para empenhar)</small></span></div>
+    </div>
+    <div class="arrow">Empenho · 51 › 01</div>
+    <div class="stage">
+      <div class="t"><b>1 · Empenhado</b><small>orçamentária</small></div>
+      <div class="acc"><span class="code">6.2.2.1.3.01</span><span class="lbl">Empenhado a liquidar</span></div>
+      <div class="back"><b>Pode voltar:</b> anulação do empenho devolve o valor para 6.2.2.1.1 (disponível).</div>
+      <div class="back"><b>Fim do ano:</b> o que sobrar vira Restos a Pagar <b>não processados</b>, na 6.3.1.1.</div>
+    </div>
+    <div class="arrow">Liquidação · 51 › 04</div>
+    <div class="stage">
+      <div class="t"><b>2 · Liquidado</b><small>orçamentária + patrimonial</small></div>
+      <div class="acc"><span class="code">6.2.2.1.3.03</span><span class="lbl">Liquidado a pagar</span></div>
+      <span class="tagx">Ao mesmo tempo, na patrimonial</span>
+      <div class="acc"><span class="code">D 3.x</span><span class="lbl">VPD (despesa de serviço) <small>ou</small> 1.1.5.6.1.01 estoque <small>(material)</small></span></div>
+      <div class="acc"><span class="code">C 2.1.3.1.1.01</span><span class="lbl">Fornecedores a pagar <small>(valor líquido)</small></span></div>
+      <div class="acc"><span class="code">C 2.1.8.8.1.xx</span><span class="lbl">Retenções a recolher <small>(INSS, ISS, IRRF)</small></span></div>
+      <div class="back"><b>Pode voltar:</b> a anulação de liquidado (51 › 05) devolve o valor para 6.2.2.1.3.01.</div>
+      <div class="back"><b>Fim do ano:</b> vira Restos a Pagar <b>processados</b>, na 6.3.2.1.</div>
+    </div>
+    <div class="arrow">Repasse da DF · antes do pagamento</div>
+    <div class="stage">
+      <div class="t"><b>3 · Dinheiro na conta</b><small>financeiro</small></div>
+      <div class="acc"><span class="code">1.1.1.1.1.02</span><span class="lbl">Banco: conta da fonte</span></div>
+      <div class="acc"><span class="code">1.1.1.1.2.01.02</span><span class="lbl">CMI <small>(aplicação do saldo)</small></span></div>
+    </div>
+    <div class="arrow">Pagamento · 71</div>
+    <div class="stage">
+      <div class="t"><b>4 · Pago</b><small>fecha o ciclo</small></div>
+      <div class="acc"><span class="code">6.2.2.1.3.04</span><span class="lbl">Pago</span></div>
+      <span class="tagx">Na patrimonial</span>
+      <div class="acc"><span class="code">D 2.1.3.1.1.01</span><span class="lbl">Fornecedores baixa</span></div>
+      <div class="acc"><span class="code">C 1.1.1.1.1.02</span><span class="lbl">Banco diminui</span></div>
+      <div class="back">A guia de retenção baixa a 2.1.8.8.1.xx contra o mesmo banco.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <h3>Restos a pagar <small>empenhos de anos anteriores</small></h3>
+    <div class="row"><div class="k">Não processados a liquidar</div><div class="v"><span class="code">6.3.1.1</span></div></div>
+    <div class="row"><div class="k">Não processados em liquidação</div><div class="v"><span class="code">6.3.1.2</span></div></div>
+    <div class="row"><div class="k">Não processados liquidados a pagar</div><div class="v"><span class="code">6.3.1.3</span></div></div>
+    <div class="row"><div class="k">Processados a pagar</div><div class="v"><span class="code">6.3.2.1</span></div></div>
+    <div class="row"><div class="k">Cancelados</div><div class="v"><span class="txt">6.3.1.9 (anulação, inclusive pela regra dos 90 dias)</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Diárias <small>caminho próprio</small></h3>
+    <div class="row"><div class="k">Liquidou, ainda não pagou</div><div class="v"><span class="code">1.1.3.1.1.01.90</span></div></div>
+    <div class="row"><div class="k">Pagou, falta prestar contas</div><div class="v"><span class="code">1.1.3.1.1.01.01</span></div></div>
+    <div class="row"><div class="k">Prestou contas</div><div class="v"><span class="txt">a conta zera</span></div></div>
+  </div>
+  <p class="warn"><b>Conferência do RCC:</b> Fornecedores (2.1.3.1.1.01) = Liquidado a pagar (6.2.2.1.3.03) + RP liquidados a pagar (6.3.1.3 + 6.3.2.1). Em maio/2025: 106.257,56 + 5.503,12 = 111.760,68.</p>
 </section>
 
 <section id="roteiros">
