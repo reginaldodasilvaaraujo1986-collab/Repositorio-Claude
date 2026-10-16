@@ -1,0 +1,441 @@
+<title>Cola de Pagamento SOFi/CPE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: uma coluna estreita de "fichas" por linha de pagamento; código em mono com botão de copiar; o que varia fica tracejado. */
+:root{
+  --bg:#f3f4f1; --card:#ffffff; --fg:#1d2420; --muted:#5e6a63; --line:#d9ddd6;
+  --accent:#9b1c22; --accent-soft:#f6e4e3; --code-bg:#eef1ec; --var:#8a6a00; --var-bg:#fff7da;
+  --ok:#1f6b45;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141816; --card:#1c211e; --fg:#e7ebe6; --muted:#9aa59e; --line:#2e3531;
+  --accent:#e0676b; --accent-soft:#3a2122; --code-bg:#252b27; --var:#e7c45a; --var-bg:#332b10; --ok:#6fcf9b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141816; --card:#1c211e; --fg:#e7ebe6; --muted:#9aa59e; --line:#2e3531;
+  --accent:#e0676b; --accent-soft:#3a2122; --code-bg:#252b27; --var:#e7c45a; --var-bg:#332b10; --ok:#6fcf9b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-size:1.45rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+.sw.fix{background:var(--code-bg);border:1px solid var(--line)}
+.sw.var{background:var(--var-bg);border:1px dashed var(--var)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;margin-top:12px;border-bottom:1px solid var(--line)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips a{flex:0 0 auto;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.85rem;font-weight:500}
+.chips a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.search{margin-top:8px}
+.search input{width:100%;font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+section{margin-top:26px;scroll-margin-top:120px}
+section>h2{font-size:1.05rem;margin:0 0 4px;display:flex;align-items:baseline;gap:8px}
+section>h2 .tag{font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:600}
+section>.lead{margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.card+.card{margin-top:10px}
+.card h3{margin:0;padding:10px 12px;font-size:.92rem;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card h3 small{font-weight:400;color:var(--muted)}
+.row{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:10px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.card h3+.row{border-top:0}
+.row .k{color:var(--muted);font-size:.84rem;min-width:0}
+.row .v{min-width:0;display:flex;align-items:center;gap:6px;justify-content:space-between}
+.code{font-family:var(--mono);font-weight:500;background:var(--code-bg);border-radius:5px;padding:2px 7px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.txt{font-size:.9rem;min-width:0;overflow-wrap:anywhere}
+.row.var .v{background:var(--var-bg);border:1px dashed var(--var);border-radius:6px;padding:3px 8px;color:var(--var);font-size:.86rem;justify-content:flex-start}
+.row.var .v b{font-weight:600}
+button.cp{flex:0 0 auto;font:inherit;font-size:.75rem;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer}
+button.cp:hover{color:var(--fg);border-color:var(--muted)}
+button.cp.done{color:var(--ok);border-color:var(--ok)}
+.warn{margin:10px 0 0;padding:9px 12px;border-radius:8px;background:var(--accent-soft);font-size:.86rem}
+.warn b{color:var(--accent)}
+ol.steps{margin:0;padding:10px 12px 10px 32px;font-size:.9rem;display:grid;gap:4px}
+.empty{display:none;color:var(--muted);text-align:center;padding:30px 0}
+.hide{display:none!important}
+.rt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:start;padding:8px 12px;border-top:1px solid var(--line);font-size:.9rem}
+.card h3+.rt{border-top:0}
+.rt .n{font-family:var(--mono);color:var(--muted);font-size:.8rem;padding-top:2px}
+.rt .d{min-width:0;overflow-wrap:anywhere}
+.rt .d small{display:block;color:var(--muted);font-size:.8rem}
+.st{font-size:.72rem;font-weight:600;border-radius:999px;padding:2px 8px;white-space:nowrap;letter-spacing:.02em}
+.st.ok{color:var(--ok);border:1px solid var(--ok)}
+.st.var{color:var(--var);border:1px dashed var(--var);background:var(--var-bg)}
+.st.falta{color:#fff;background:var(--accent)}
+.sum{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.sum span{font-size:.82rem;color:var(--muted)}
+ul.falta{margin:0;padding:10px 12px 10px 30px;display:grid;gap:6px;font-size:.9rem}
+footer{margin-top:30px;color:var(--muted);font-size:.8rem}
+@media (max-width:440px){.row{grid-template-columns:1fr;gap:3px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Cola de Pagamento · SOFi/CPE</h1>
+  <p>Dados fixos para empenhar, liquidar e pagar no SIAFI-MG. Toque em <b>copiar</b> para levar o código.</p>
+  <div class="legend">
+    <span><i class="sw fix"></i>fixo: já preenchido</span>
+    <span><i class="sw var"></i>varia: pegar no caso</span>
+  </div>
+</header>
+
+<nav>
+  <div class="chips">
+    <a href="#geral">Geral</a><a href="#roteiros">Roteiros</a><a href="#falta">O que falta</a><a href="#fontes">Fontes e contas</a><a href="#ticket">Ticket</a><a href="#diarias">Diárias</a><a href="#consumo">Consumo</a><a href="#contratos">Contratos</a><a href="#retencoes">Retenções</a><a href="#repasse">Repasse</a>
+  </div>
+  <div class="search"><input id="q" type="search" placeholder="Buscar: 886, PRF, 39.21, Master Clean…" aria-label="Buscar na cola"></div>
+</nav>
+
+<section id="geral">
+  <h2>Identificação e navegação</h2>
+  <p class="lead">Vale para toda operação.</p>
+  <div class="card">
+    <h3>Unidade</h3>
+    <div class="row"><div class="k">UO</div><div class="v"><span class="code">1251</span></div></div>
+    <div class="row"><div class="k">UE CPE</div><div class="v"><span class="code">1250057</span></div></div>
+    <div class="row"><div class="k">UE CPE MAMB</div><div class="v"><span class="code">1250058</span></div></div>
+    <div class="row"><div class="k">UPG</div><div class="v"><span class="code">25</span></div></div>
+    <div class="row"><div class="k">Ordenador (matrícula)</div><div class="v"><span class="code">1305820</span></div></div>
+    <div class="row"><div class="k">Unidades atendidas</div><div class="v"><span class="txt">BPGd · 25º BPM MAmb · 24º BPMRv</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Navegação SIAFI-MG</h3>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">51 › 01</span></div></div>
+    <div class="row"><div class="k">Liquidação</div><div class="v"><span class="code">51 › 04</span></div></div>
+    <div class="row"><div class="k">Anular liquidado</div><div class="v"><span class="code">51 › 05</span></div></div>
+    <div class="row"><div class="k">Ordem de pagamento</div><div class="v"><span class="code">71</span></div></div>
+    <div class="row"><div class="k">Consultas</div><div class="v"><span class="code">95</span></div></div>
+    <div class="row"><div class="k">Saldo conta banco</div><div class="v"><span class="code">96 › 09</span></div></div>
+    <div class="row"><div class="k">Relatórios</div><div class="v"><span class="code">99</span></div></div>
+    <div class="row"><div class="k">Assinatura da OP</div><div class="v"><span class="txt">Portal, com token PRODEMGE do ordenador</span></div></div>
+  </div>
+</section>
+
+<section id="roteiros">
+  <h2>Roteiros: empenho, liquidação e pagamento</h2>
+  <p class="lead">Campo a campo, na ordem das telas.</p>
+  <div class="sum"><span class="st ok">na cola</span><span>dado fixo já guardado</span><span class="st var">varia</span><span>pegar no caso</span><span class="st falta">falta</span><span>levantar uma vez e guardar</span></div>
+
+  <div class="card">
+    <h3>1 · Empenho <small>nav. 51 › 01</small></h3>
+    <div class="rt"><span class="n">1</span><span class="d">Ano exercício <small>2026</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">2</span><span class="d">Unid. executora e UO <small>1250057 (ou 1250058) · 1251</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">3</span><span class="d">Programa de trabalho <small>conhecidos: 06.181.137.4366 e 06.181.701.2001. Falta saber qual vale para cada fonte/despesa</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">4</span><span class="d">Natureza e item <small>por linha de pagamento (ver Ticket, Diárias, Consumo, Contratos)</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">5</span><span class="d">Fonte <small>52.20, 73.10, 83.20, 60.20 ou 10</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">6</span><span class="d">IPU (Proc.) e IPE <small>espec. 7256852 mostra fonte 10 IPU 8; a DF usa 3900101 (IPU 1). Confirmar por fonte</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">7</span><span class="d">UPG <small>25</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">8</span><span class="d">CNPJ do credor <small>só o da BSC está guardado</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">9</span><span class="d">CPF do militar <small>diárias</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">10</span><span class="d">Tipo de empenho <small>ordinário, estimativo ou global, por contrato</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">11</span><span class="d">Processo e especificação SIAD <small>só a BSC está guardada</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">12</span><span class="d">Nº do contrato/convênio no SIAFI <small>só a BSC (02 / 9521970)</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">13</span><span class="d">Valor</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">14</span><span class="d">Ordenador <small>1305820</small></span><span class="st ok">na cola</span></div>
+  </div>
+
+  <div class="card">
+    <h3>2 · Liquidação <small>nav. 51 › 04</small></h3>
+    <div class="rt"><span class="n">1</span><span class="d">Ano / nº do empenho <small>por credor e fonte (ver Contratos)</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">2</span><span class="d">Especificação de conformidade SIAD <small>contratos; a do mês</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">3</span><span class="d">Credor da NF/fatura (CNPJ)</span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">4</span><span class="d">Ano/mês de competência</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">5</span><span class="d">Valor liquidado <small>bruto da NF, RAD ou fatura</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">6</span><span class="d">Retenções: tipo e código no SIAFI <small>INSS, ISS de cada município, IRRF</small></span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">7</span><span class="d">Retenções: base e valor <small>11% INSS; ISS conforme a prefeitura</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">8</span><span class="d">Multa contratual (S/N)</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">9</span><span class="d">Data prevista de pagamento</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">10</span><span class="d">Ordenador <small>1305820</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">11</span><span class="d">Depois: pedir repasse à DF <small>planilha por GMIFP (ver Repasse)</small></span><span class="st ok">na cola</span></div>
+  </div>
+
+  <div class="card">
+    <h3>3 · Pagamento <small>nav. 71</small></h3>
+    <div class="rt"><span class="n">1</span><span class="d">Unid. financeira de gasto <small>1250057</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">2</span><span class="d">GMI FP <small>o da fonte</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">3</span><span class="d">Conta a debitar <small>banco, agência e conta da fonte</small></span><span class="st ok">na cola</span></div>
+    <div class="rt"><span class="n">4</span><span class="d">Saldo na conta <small>conferir antes em 96 › 09</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">5</span><span class="d">CNPJ do credor</span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">6</span><span class="d">Conta a creditar (domicílio bancário do fornecedor)</span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">7</span><span class="d">Conta do militar <small>diárias</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">8</span><span class="d">Nº empenho e sequência da liquidação</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">9</span><span class="d">IRRF (S/N) e código de receita</span><span class="st falta">falta</span></div>
+    <div class="rt"><span class="n">10</span><span class="d">Código de barras <small>faturas e guias; título "Empenho" ou "Retenção"</small></span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">11</span><span class="d">Data do pagamento</span><span class="st var">varia</span></div>
+    <div class="rt"><span class="n">12</span><span class="d">Assinatura <small>portal + token PRODEMGE</small></span><span class="st ok">na cola</span></div>
+  </div>
+</section>
+
+<section id="falta">
+  <h2>O que falta levantar</h2>
+  <p class="lead">Levantar uma vez só. Depois disso, o pagamento fica só com o que varia.</p>
+  <div class="card">
+    <h3>Lista</h3>
+    <ul class="falta">
+      <li><b>CNPJ e conta bancária de cada credor fixo:</b> Ticket, COPASA, Master Clean, Tática, Paladir, Simpress, Elevadores Milênio, Elevtech. <small>Onde achar: tela do empenho no SIAFI (nav. 95) ou cadastro do credor.</small></li>
+      <li><b>Programa de trabalho</b> de cada fonte/despesa (4366 ou 2001, com a ação). <small>Onde: tela do empenho vigente.</small></li>
+      <li><b>IPU e IPE</b> de cada fonte (8 ou 1?). <small>Onde: empenho vigente ou DF.</small></li>
+      <li><b>Tipo de empenho</b> de cada contrato e de Ticket e água (estimativo, global ou ordinário).</li>
+      <li><b>Nº do contrato e do processo SIAD</b> de cada fornecedor.</li>
+      <li><b>Códigos de retenção no SIAFI:</b> INSS, ISS de cada município (BH, Gov. Valadares, Teófilo Otoni, Formiga) e código de receita do IRRF. <small>Onde: última liquidação com retenção de cada credor.</small></li>
+      <li><b>Empenhos 399, 470 e 825 do DER:</b> credor e objeto.</li>
+    </ul>
+  </div>
+  <p class="warn"><b>Atalho:</b> abra no SIAFI (nav. 95) um empenho e uma liquidação de cada credor e mande o print. Quase tudo da lista sai dessas duas telas.</p>
+</section>
+
+<section id="fontes">
+  <h2>Fontes e contas <span class="tag">GMIFP = 3900 + fonte + IPU</span></h2>
+  <p class="lead">A guia de retenção sai da mesma fonte da despesa.</p>
+
+  <div class="card">
+    <h3>SEMAD 52.20 <small>convênio</small></h3>
+    <div class="row"><div class="k">GMIFP</div><div class="v"><span class="code">3900522</span></div></div>
+    <div class="row"><div class="k">Banco</div><div class="v"><span class="code">999</span></div></div>
+    <div class="row"><div class="k">Agência</div><div class="v"><span class="code">09001-9</span></div></div>
+    <div class="row"><div class="k">Conta</div><div class="v"><span class="code">900158-6</span></div></div>
+    <div class="row"><div class="k">Paga</div><div class="v"><span class="txt">Ticket (718), diárias, Tática (983), Paladir (2472)</span></div></div>
+  </div>
+  <div class="card">
+    <h3>PRF 73.10 <small>convênio</small></h3>
+    <div class="row"><div class="k">GMIFP</div><div class="v"><span class="code">3900731</span></div></div>
+    <div class="row"><div class="k">Banco</div><div class="v"><span class="code">001</span></div></div>
+    <div class="row"><div class="k">Agência</div><div class="v"><span class="code">01615-2</span></div></div>
+    <div class="row"><div class="k">Conta</div><div class="v"><span class="code">22.085-X</span></div></div>
+    <div class="row"><div class="k">Paga</div><div class="v"><span class="txt">Ticket (862), Master Clean (886), Elevtech (2936), diárias do BPMRv</span></div></div>
+  </div>
+  <div class="card">
+    <h3>DER 83.20 <small>convênio</small></h3>
+    <div class="row"><div class="k">GMIFP</div><div class="v"><span class="code">3900832</span></div></div>
+    <div class="row"><div class="k">Banco</div><div class="v"><span class="code">999</span></div></div>
+    <div class="row"><div class="k">Agência</div><div class="v"><span class="code">09001-9</span></div></div>
+    <div class="row"><div class="k">Conta</div><div class="v"><span class="code">900.673-4</span></div></div>
+    <div class="row"><div class="k">Paga</div><div class="v"><span class="txt">COPASA (1080), Elevadores Milênio (1323), empenhos 399, 470, 825</span></div></div>
+  </div>
+  <div class="card">
+    <h3>PMMG 60.20 <small>fonte própria</small></h3>
+    <div class="row"><div class="k">GMIFP</div><div class="v"><span class="code">3900602</span></div></div>
+    <div class="row"><div class="k">Banco</div><div class="v"><span class="code">999</span></div></div>
+    <div class="row"><div class="k">Agência</div><div class="v"><span class="code">09001-9</span></div></div>
+    <div class="row"><div class="k">Conta</div><div class="v"><span class="code">900795-5</span></div></div>
+    <div class="row"><div class="k">Paga</div><div class="v"><span class="txt">Simpress 39.19 (318 e 322/2025), diárias 15.01</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Fonte 10 <small>Tesouro</small></h3>
+    <div class="row"><div class="k">GMIFP</div><div class="v"><span class="code">3900101</span></div></div>
+    <div class="row"><div class="k">Conta</div><div class="v"><span class="txt">Conta Única (cota financeira)</span></div></div>
+    <div class="row"><div class="k">Paga</div><div class="v"><span class="txt">Diárias, Simpress RP 2025, BSC LPR</span></div></div>
+  </div>
+  <p class="warn"><b>Conferir:</b> uma linha da planilha da PRF traz a agência como 016152-2. A forma certa deve ser 01615-2.</p>
+</section>
+
+<section id="ticket">
+  <h2>Ticket Log <span class="tag">3.3.90.39.43</span></h2>
+  <p class="lead">Um RAD por quinzena por batalhão; cada RAD vira uma liquidação.</p>
+  <div class="card">
+    <h3>Fixo</h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.43</span></div></div>
+    <div class="row"><div class="k">Credor</div><div class="v"><span class="txt">Ticket Gestão em Manutenção</span></div></div>
+    <div class="row"><div class="k">Empenho SEMAD 52.20</div><div class="v"><span class="code">718</span></div></div>
+    <div class="row"><div class="k">Empenho PRF 73.10</div><div class="v"><span class="code">862</span></div></div>
+    <div class="row"><div class="k">Batalhões</div><div class="v"><span class="txt">25º BPMAmb · 24º BPMRv</span></div></div>
+    <div class="row"><div class="k">Conferência do RAD</div><div class="v"><span class="txt">aprovado − ICMS desonerado − IRRF − ISS = líquido</span></div></div>
+    <div class="row"><div class="k">Taxa adm. observada</div><div class="v"><span class="code">7,9%</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Varia a cada RAD</h3>
+    <div class="row var"><div class="k">Valor</div><div class="v">total aprovado e líquido do RAD</div></div>
+    <div class="row var"><div class="k">Período</div><div class="v">quinzena (01–15 ou 16–fim)</div></div>
+    <div class="row var"><div class="k">ISS tomador</div><div class="v">valor e município de cada OS</div></div>
+    <div class="row var"><div class="k">Nota fiscal</div><div class="v">nº e data</div></div>
+  </div>
+</section>
+
+<section id="diarias">
+  <h2>Diárias de viagem <span class="tag">3.3.90.15.01</span></h2>
+  <p class="lead">BPGd, BPMAmb e BPMRv. Não tem retenção.</p>
+  <div class="card">
+    <h3>Fixo</h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339015.01</span></div></div>
+    <div class="row"><div class="k">Fonte comum</div><div class="v"><span class="txt">SEMAD 52.20 (3900522)</span></div></div>
+    <div class="row"><div class="k">Fonte BPMRv</div><div class="v"><span class="txt">PRF 73.10 (3900731)</span></div></div>
+    <div class="row"><div class="k">Outras fontes</div><div class="v"><span class="txt">PMMG 60.20 (3900602) · Fonte 10 (3900101)</span></div></div>
+    <div class="row"><div class="k">A conceder</div><div class="v"><span class="code">1.1.3.1.1.01.90</span></div></div>
+    <div class="row"><div class="k">Concedida</div><div class="v"><span class="code">1.1.3.1.1.01.01</span></div></div>
+    <div class="row"><div class="k">Repasse</div><div class="v"><span class="txt">total por GMIFP · credor "DIVERSOS"</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Varia a cada militar</h3>
+    <div class="row var"><div class="k">Militar</div><div class="v"><b>CPF</b>&nbsp;e nome</div></div>
+    <div class="row var"><div class="k">Conta do militar</div><div class="v">banco, agência e conta</div></div>
+    <div class="row var"><div class="k">Empenho</div><div class="v">nº do empenho da diária</div></div>
+    <div class="row var"><div class="k">Viagem</div><div class="v">ordem de viagem, período, destino, valor</div></div>
+    <div class="row var"><div class="k">Unidade</div><div class="v">BPGd, BPMAmb ou BPMRv (define a fonte)</div></div>
+  </div>
+</section>
+
+<section id="consumo">
+  <h2>Faturas de consumo</h2>
+  <p class="lead">Pagar antes do vencimento: atraso vira encargo (39.26).</p>
+  <div class="card">
+    <h3>Água <small>COPASA</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.13</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">DER 83.20 (3900832)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">1080</span></div></div>
+    <div class="row"><div class="k">Pagamento</div><div class="v"><span class="txt">OP por código de barras · título "Empenho"</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Luz <small>CEMIG, só as faturas pontuais</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.12</span></div></div>
+    <div class="row"><div class="k">Regra</div><div class="v"><span class="txt">A CEMIG da PM é paga por setor centralizado. Antes de pagar, confirme que a fatura não está lá.</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Varia a cada fatura</h3>
+    <div class="row var"><div class="k">Código de barras</div><div class="v">linha digitável da fatura</div></div>
+    <div class="row var"><div class="k">Valor e vencimento</div><div class="v">da fatura do mês</div></div>
+    <div class="row var"><div class="k">Instalação</div><div class="v">nº da matrícula/instalação e unidade</div></div>
+  </div>
+</section>
+
+<section id="contratos">
+  <h2>Contratos das unidades</h2>
+  <p class="lead">Passam pelo SIAD antes: especificação de conformidade efetivada. Anulação sempre antes da nova conformidade.</p>
+  <div class="card">
+    <h3>Master Clean <small>limpeza</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339037.01</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">PRF 73.10 (3900731)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">886</span></div></div>
+    <div class="row"><div class="k">Retenções</div><div class="v"><span class="txt">INSS 11% · ISS · IRRF</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Tática <small>limpeza</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339037.01</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">SEMAD 52.20 (3900522)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">983</span></div></div>
+    <div class="row"><div class="k">Retenções</div><div class="v"><span class="txt">INSS 11% · ISS · IRRF</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Paladir <small>eventos</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.55</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">SEMAD 52.20 (3900522)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">2472</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Simpress <small>locação de equipamentos</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.19</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">PMMG 60.20 (3900602) e Fonte 10 (3900101)</span></div></div>
+    <div class="row"><div class="k">Empenhos</div><div class="v"><span class="code">318/2025</span></div></div>
+    <div class="row"><div class="k"></div><div class="v"><span class="code">322/2025</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Elevadores Milênio <small>manutenção</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.21</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">DER 83.20 (3900832)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">1323</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Elevtech <small>manutenção</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.21</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">PRF 73.10 (3900731)</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="code">2936</span></div></div>
+  </div>
+  <div class="card">
+    <h3>BSC <small>videomonitoramento LPR</small></h3>
+    <div class="row"><div class="k">Elemento-item</div><div class="v"><span class="code">339039.21</span></div></div>
+    <div class="row"><div class="k">Fonte</div><div class="v"><span class="txt">Fonte 10 (3900101)</span></div></div>
+    <div class="row"><div class="k">CNPJ</div><div class="v"><span class="code">17.676.389/0001-92</span></div></div>
+    <div class="row"><div class="k">Especificação SIAD</div><div class="v"><span class="code">7256852</span></div></div>
+    <div class="row"><div class="k">Contrato (tipo/nº)</div><div class="v"><span class="code">02 / 9521970</span></div></div>
+    <div class="row"><div class="k">Programa de trabalho</div><div class="v"><span class="code">06.181.137.4366.0001</span></div></div>
+    <div class="row"><div class="k">Fonte / IPU / IPE</div><div class="v"><span class="code">10 / 8 / 1</span></div></div>
+    <div class="row"><div class="k">Empenho</div><div class="v"><span class="txt">a empenhar (R$ 37.400,00)</span></div></div>
+  </div>
+  <div class="card">
+    <h3>Varia a cada nota</h3>
+    <div class="row var"><div class="k">Nota fiscal</div><div class="v">nº, data, competência e valor bruto</div></div>
+    <div class="row var"><div class="k">Conformidade SIAD</div><div class="v">nº da especificação do mês</div></div>
+    <div class="row var"><div class="k">Bases de retenção</div><div class="v">mão de obra (INSS) e serviço (ISS) na NF</div></div>
+  </div>
+</section>
+
+<section id="retencoes">
+  <h2>Retenções e guias</h2>
+  <p class="lead">Guia paga pela OP com código de barras, título "Retenção", na mesma fonte da despesa.</p>
+  <div class="card">
+    <h3>Regras</h3>
+    <div class="row"><div class="k">IRRF material</div><div class="v"><span class="code">1,2%</span></div></div>
+    <div class="row"><div class="k">IRRF serviço</div><div class="v"><span class="code">4,8%</span></div></div>
+    <div class="row"><div class="k">IRRF: quando</div><div class="v"><span class="txt">na OP, sobre o bruto</span></div></div>
+    <div class="row"><div class="k">INSS cessão m.o.</div><div class="v"><span class="code">11%</span></div></div>
+    <div class="row"><div class="k">INSS e ISS: quando</div><div class="v"><span class="txt">na liquidação</span></div></div>
+    <div class="row"><div class="k">INSS vence</div><div class="v"><span class="txt">dia 20 do mês seguinte</span></div></div>
+    <div class="row"><div class="k">ISS vence</div><div class="v"><span class="txt">conforme cada prefeitura (BH, Gov. Valadares, Teófilo Otoni, Formiga)</span></div></div>
+  </div>
+  <p class="warn"><b>A confirmar:</b> o código de receita do IRRF de cada caso e se a EFD-Reinf é enviada pela DF de forma centralizada.</p>
+</section>
+
+<section id="repasse">
+  <h2>Planilha de repasse à DF</h2>
+  <p class="lead">Depois da liquidação (diárias e adiantamentos podem ir antes). Uma linha por empenho.</p>
+  <div class="card">
+    <h3>Colunas, em ordem</h3>
+    <ol class="steps">
+      <li>UE: <span class="code">1250057</span></li>
+      <li>GMIFP: o da fonte (ver Fontes)</li>
+      <li>Elemento-item, ex.: <span class="code">339037.01</span></li>
+      <li><b>Nº do empenho</b>: nunca em branco</li>
+      <li>Ano: <span class="code">2026</span></li>
+      <li><b>Data da liquidação</b>: dd/mm/aaaa, nunca em branco</li>
+      <li>Banco, agência e conta: os da fonte</li>
+      <li>Credor (diárias: "DIVERSOS")</li>
+      <li>Valor das retenções</li>
+      <li>Valor principal</li>
+    </ol>
+  </div>
+  <p class="warn"><b>Erros já vistos:</b> empenho "863...A", data 06/15/2026 (formato americano), quatro empenhos numa linha só e coluna "VALOR TOTAL" no lugar de "VALOR PRINCIPAL".</p>
+</section>
+
+<p class="empty" id="empty">Nada encontrado. Tente o número do empenho, a fonte ou o elemento.</p>
+
+<footer>SOFi/CPE · dados das planilhas e relatórios de 2026. Atualize quando mudar empenho, conta ou fonte.</footer>
+</div>
+
+<script>
+// botões de copiar em todo código fixo
+document.querySelectorAll('.row:not(.var) .v').forEach(function(v){
+  var c=v.querySelector('.code'); if(!c) return;
+  var b=document.createElement('button'); b.className='cp'; b.type='button'; b.textContent='copiar';
+  b.setAttribute('aria-label','Copiar '+c.textContent);
+  b.addEventListener('click',function(){
+    var t=c.textContent.trim();
+    function ok(){b.textContent='copiado';b.classList.add('done');setTimeout(function(){b.textContent='copiar';b.classList.remove('done')},1400)}
+    function fallback(){var r=document.createRange();r.selectNodeContents(c);var s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='selecionado'}
+    try{navigator.clipboard.writeText(t).then(ok,fallback)}catch(e){fallback()}
+  });
+  v.appendChild(b);
+});
+// busca
+var q=document.getElementById('q'), empty=document.getElementById('empty');
+function norm(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.\s]/g,'')}
+q.addEventListener('input',function(){
+  var t=norm(q.value), any=false;
+  document.querySelectorAll('section').forEach(function(sec){
+    var secHit=false;
+    sec.querySelectorAll('.card').forEach(function(card){
+      var hit=!t||norm(card.textContent).indexOf(t)>-1;
+      card.classList.toggle('hide',!hit); if(hit) secHit=true;
+    });
+    sec.querySelectorAll('.warn').forEach(function(w){w.classList.toggle('hide',!!t&&norm(w.textContent).indexOf(t)<0)});
+    sec.classList.toggle('hide',!secHit); if(secHit) any=true;
+  });
+  empty.style.display=any?'none':'block';
+});
+</script>
