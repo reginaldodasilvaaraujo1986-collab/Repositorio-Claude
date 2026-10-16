@@ -22,7 +22,7 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 |---|---|---|---|---|---|
 | SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 | Ticket (emp. 718), diárias, limpeza Tática (983), eventos Paladir (2472) |
 | PMMG 60.20 | 3900602 | 999 | 09001-9 | 900795-5 | Simpress 39.19 (318 e 322/2025), diárias 15.01 |
-| PRF 73.10 | 3900731 | a confirmar | a confirmar | a confirmar | Ticket (emp. 862), Master Clean (886), Elevtech (2936) |
+| PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (conferir: uma linha da planilha traz 016152-2) | 22.085-X | Ticket (emp. 862), Master Clean (886), Elevtech (2936), diárias do BPMRv |
 | DER 83.20 | 3900832 | a confirmar | a confirmar | a confirmar | Água COPASA (emp. 1080), Elevadores Milênio (1323) |
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
 
