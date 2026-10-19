@@ -80,7 +80,10 @@
     "77888999000181": { nome: "LIMPA BEM SERVICOS LTDA", banco: "104", ag: "1111-2", cc: "60708-9" },
     "29979036000140": { nome: "INSTITUTO NACIONAL DO SEGURO SOCIAL" },
     "18715383000140": { nome: "MUNICIPIO DE BELO HORIZONTE" },
-    "17676389000192": { nome: "BSC SEGURANCA ELETRONICA E TECNOLOGIA LTDA", banco: "001", ag: "0001-9", cc: "10000-1" }
+    "17676389000192": { nome: "BSC SEGURANCA ELETRONICA E TECNOLOGIA LTDA", banco: "001", ag: "0001-9", cc: "10000-1" },
+    // Credores dos 3 eventos do roteiro (ficticios): gerenciadora de frota e concessionaria de agua.
+    "12345678000195": { nome: "GERENCIADORA DE FROTA TREINO LTDA", banco: "237", ag: "2001-0", cc: "45678-9" },
+    "23456789000195": { nome: "CIA DE SANEAMENTO TREINO", banco: "001", ag: "1615-2", cc: "90000-3" }
   };
   // Especificacoes SIAD que a "integracao" devolve ao SIAFI.
   var ESPECS = {
@@ -93,7 +96,11 @@
     "7256852": { proc: "0250457000025" + "2026", contrato: { tipo: "02", num: "9521970" }, modalidade: "PREGAO",
       // Dotacao orcamentaria do relatorio: UO 1251, 06 181 137 4366 0001, 3.3.90.39 item 21, F 10, IPU 8, IPG 1.
       dot: { pa: "4366", ca: "0001", nat: "339039", item: "21", fonte: "10", proc: "8", ipe: "1" },
-      cnpj: "17676389000192", valor: 3740000 }
+      cnpj: "17676389000192", valor: 3740000 },
+    // Evento 1 do roteiro: contrato de limpeza (ficticio), 37.01, fonte 73 (PRF 73.10), IPU 1.
+    "7300101": { proc: "0250457000040" + "2026", contrato: { tipo: "02", num: "9600001" }, modalidade: "PREGAO",
+      dot: { pa: "2001", ca: "0001", nat: "339037", item: "01", fonte: "73", proc: "1", ipe: "1" },
+      cnpj: "77888999000181", valor: 6000000 }
   };
   // Tabela Elemento/Item: exige especificacao SIAD?
   var EXIGE_ESPEC = ["30.05", "30.16", "30.17", "37.01", "37.02", "39.18", "39.21", "39.99"];
@@ -140,23 +147,19 @@
     ["cotaGlobal", "9.9.8.0.2.03.01",     "D", "COTA A EMPENHAR - GLOBAL (GMIFP)"],
     ["cotaItem",   "9.9.8.0.2.03.02",     "D", "COTA A EMPENHAR - ELEMENTO/ITEM"]
   ];
-  var SALDOS = { cota: 4000000, estoque: 1865040, fornec: 210000, irrf: 0, inss: 0, outras: 0,
-    vpd: 6122500, credDisp: 16500000, empLiq: 1530000, liqPagar: 210000, pago: 4875000,
-    ddr1: 9500000, ddr2: 1530000, ddr3: 210000, ddr4: 4875000, cotaGlobal: 3800000, cotaItem: 9000000 };
+  // Saldos iniciais: so o necessario para os 3 eventos do roteiro.
+  // Credito = 60.000 (limpeza) + 90.000 (Ticket) + 6.000 (agua). Financeiro = o que sera liquidado:
+  // 20.000 + 28.560 + 487,35. Depois de tudo pago, sobra no banco exatamente o IRRF retido.
+  var SALDOS = { cota: 4904735, estoque: 0, fornec: 0, irrf: 0, inss: 0, outras: 0,
+    vpd: 0, credDisp: 15600000, empLiq: 0, liqPagar: 0, pago: 0,
+    ddr1: 15600000, ddr2: 0, ddr3: 0, ddr4: 0, cotaGlobal: 0, cotaItem: 15600000 };
 
   function novoEstado() {
     return {
       screen: "login", msg: "", msgErr: false, user: "", ue: "", ctx: {}, v19: true,
       contas: JSON.parse(JSON.stringify(SALDOS)),
-      seqEmp: 862, seqOPg: 26, seqOPd: 29,
-      emps: [
-        empBase("845", "33444555000181", "339030", "17", "E", 1530000),
-        (function () {
-          var e = empBase("851", "44555666000181", "339039", "99", "O", 210000);
-          e.liqs.push({ sq: 1, bruto: 210000, ret: [], liquido: 210000 });
-          return e;
-        })()
-      ]
+      seqEmp: 862, seqOPg: 26, seqOPd: 29, diario: [], retPend: [],
+      emps: []
     };
   }
   function empBase(num, cnpj, nat, item, tipo, valor) {
@@ -166,7 +169,7 @@
   }
 
   var S = novoEstado();
-  var CHAVE = "siafi-treino-v3";
+  var CHAVE = "siafi-treino-v4";
   function salva() {
     try {
       var c = JSON.parse(JSON.stringify(S));
@@ -435,6 +438,8 @@
     if (n === "91") return go("m91"), true;
     if (n === "92") return go("mSaldo"), true;
     if (n === "95") return go("m95"), true;
+    if (n === "93") { S.ctx = { contabEmp: "", pg: 0, back: "m08" }; return go("consContab"), true; }
+    if (n === "08" || n === "80") return go("m08"), true;
     if (n === "05" || n === "50") return go("m05"), true;
     if (n === "07" || n === "70") return go("m07"), true;
     if (n === "09" || n === "90") return go("m09"), true;
@@ -456,6 +461,7 @@
       if (o === "05" || o === "5") return go("m05");
       if (o === "07" || o === "7") return go("m07");
       if (o === "09" || o === "9") return go("m09");
+      if (o === "08" || o === "8") return go("m08");
       if (o) return erro("0009-SUBSISTEMA NAO DISPONIVEL NO TREINAMENTO.");
       erro("0001-INFORME A OPCAO OU A NAVEGACAO.");
     },
@@ -743,7 +749,7 @@
         fim === "refConf" ? "0017-TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR." : "TECLE PF5 PARA CONFIRMAR OU PF2 PARA ANULAR");
     },
     pf2: function () { go(S.ctx.hist.tipo === "OP" ? "m71" : "m51", "0013-REGISTRO ANULADO."); },
-    pf3: function () { go(S.ctx.hist.tipo === "EMP" || S.ctx.hist.tipo === "REF" ? "histPad" : (S.ctx.hist.tipo === "LIQ" ? "liqG14" : (S.ctx.hist.fim === "opCBResumo" ? "opCBReg" : "opEK03"))); }
+    pf3: function () { go(S.ctx.hist.tipo === "EMP" || S.ctx.hist.tipo === "REF" ? "histPad" : (S.ctx.hist.tipo === "LIQ" ? "liqG14" : (S.ctx.hist.fim === "opCBResumo" ? (S.ctx.modo === "emp" ? "opCBEmp" : "opCBReg") : "opEK03"))); }
   };
 
   // ---- Confirmacao do empenho
@@ -1360,6 +1366,24 @@
     },
     pf3: function () { go("subs"); }
   };
+  // ---- 08 Movimentacao Contabil (treino): pesquisa de contas e lancamentos pela navegacao
+  SC.m08 = {
+    pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
+    draw: function () {
+      return menu("NFCAE008", "VFCAE008", "Movimentacao Contabil", "", ["01-Saldo Contabil (pesquisa de contas)   nav. 92",
+        "02-Lancamentos Contabeis - Diario         nav. 93", "03-Lancamentos Contabeis por Empenho     nav. 95 op. 12"]);
+    },
+    enter: function (v) {
+      if (navegar(digits(v.nav))) return;
+      var o = digits(v.opcao);
+      if (o === "01" || o === "1") return go("mSaldo");
+      if (o === "02" || o === "2") { S.ctx = { contabEmp: "", pg: 0, back: "m08" }; return go("consContab"); }
+      if (o === "03" || o === "3") { S.ctx = { cons: "12" }; return go("popCons95"); }
+      if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
+      erro("0001-INFORME A OPCAO.");
+    },
+    pf3: function () { go("subs"); }
+  };
   // ---- 09 Consulta/Relatorio > 01 Tabela (citado nas notas dos manuais)
   var ELEM = {
     "30.05": { d: "MATERIAL PARA ESCRITORIO", espec: "S", adiant: "N", lic: "S", nit: "N" },
@@ -1627,7 +1651,7 @@
     },
     pf7: function () { S.ctx.pg = Math.max(0, (S.ctx.pg || 0) - 1); say(""); },
     pf8: function () { S.ctx.pg = (S.ctx.pg || 0) + 1; say(""); },
-    pf3: function () { var b = S.ctx.back || "m09"; if (b === "m09") S.ctx = {}; go(b); }
+    pf3: function () { var b = S.ctx.back || "m09"; if (b === "m09" || b === "m08") S.ctx = {}; go(b); }
   };
 
   // ---- 71 > 01 > Por Codigo de Barras > Outros Convenios > Retencao (recolhimento)
@@ -1671,8 +1695,9 @@
     enter: function (v) {
       var n = []; for (var i = 0; i < CONV.length; i++) if ((v["cv" + i] || "").toUpperCase() === "X") n.push(i);
       if (n.length !== 1) return erro("0005-MARQUE 'X' EM UMA OPCAO.");
+      if (n[0] === 0) { S.ctx.modo = "emp"; return go("popCBEmp"); }
       if (n[0] !== 2) return erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
-      go("popCBRet");
+      S.ctx.modo = "ret"; go("popCBRet");
     },
     pf3: function () { go("popCBCred"); }
   };
@@ -1697,11 +1722,35 @@
     pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
     pf3: function () { go("popCBConv"); }
   };
+  SC.popCBEmp = {
+    pf: { 3: "Volta" },
+    draw: function () {
+      var W2 = 40;
+      return box(SC.popCBConv.draw(), 38, 11, W2, [bl(W2, ["              Empenho"]),
+        bl(W2, [" Ano Exercicio:      2026"]), bl(W2, [" Unid. Executora:    " + S.ue]),
+        bl(W2, [" Unid. Orcamentaria: ", F("uo", 4)]), bl(W2, [" CNPJ/Credor:        " + S.ctx.cnpj]),
+        bl(W2, [" Nr. Empenho:        ", F("ne", 7)]), bl(W2, [" Ordenador Despesa:  ", F("ord", 7)]),
+        bl(W2, [" ---------Enter---PF3---PF6------"]), bl(W2, ["                Volta U.O."])]);
+    },
+    enter: function (v) {
+      var uo = digits(v.uo), ord = digits(v.ord);
+      if (!uo || !digits(v.ne) || !ord) return erro("0004-CAMPO DE PREENCHIMENTO OBRIGATORIO.");
+      if (!UOS[uo]) return erro("0016-UNIDADE ORCAMENTARIA NAO CADASTRADA. TECLE PF6 PARA SELECIONAR.");
+      if (!ORDS[ord]) return erro("0024-ORDENADOR DE DESPESA NAO CADASTRADO PARA A UNIDADE.");
+      var e = findEmp(v.ne);
+      if (!e || e.uo !== uo) return erro("0041-EMPENHO NAO CADASTRADO PARA A UNIDADE.");
+      if (e.cnpj !== S.ctx.cnpj) return erro("0049-EMPENHO " + e.num + " NAO PERTENCE AO CREDOR INFORMADO.");
+      if (saldoPagar(e) <= 0) return erro("0051-EMPENHO " + e.num + " SEM SALDO LIQUIDADO A PAGAR.");
+      S.ctx.uo = uo; S.ctx.ord = ord; S.ctx.emp = e.num; S.ctx.gmi = gmiDe(e); S.ctx.fp = e.fonte + e.proc; go("popCBBarras");
+    },
+    pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
+    pf3: function () { go("popCBConv"); }
+  };
   SC.popCBBarras = {
     pf: { 3: "Volta" },
     draw: function () {
       var W2 = 64;
-      return box(SC.popCBConv.draw(), 10, 12, W2, [bl(W2, ["            Codigo de Barras - Pagamento de Tributos"]),
+      return box(SC.popCBConv.draw(), 10, 12, W2, [bl(W2, [S.ctx.modo === "emp" ? "            Codigo de Barras - Fatura / Concessionaria" : "            Codigo de Barras - Pagamento de Tributos"]),
         bl(W2, [" Credor:"]), bl(W2, [" " + fmtCnpj(S.ctx.cnpj) + " - " + CREDORES[S.ctx.cnpj].nome]), bl(W2, [""]),
         bl(W2, [" Codigo de Barras:"]),
         bl(W2, [" ", F("b1", 11), " ", F("d1", 1), " ", F("b2", 11), " ", F("d2", 1), " ", F("b3", 11), " ", F("d3", 1), " ", F("b4", 11), " ", F("d4", 1)]),
@@ -1717,14 +1766,14 @@
       if (cod.charAt(0) !== "8") return erro("0162-CODIGO DE BARRAS NAO E DE ARRECADACAO (DEVE INICIAR COM 8).");
       S.ctx.barra = b.map(function (x, i) { return x + " " + d[i]; }).join(" ");
       S.ctx.vlBarra = parseInt(cod.slice(4, 15), 10);
-      go("opCBReg");
+      go(S.ctx.modo === "emp" ? "opCBEmp" : "opCBReg");
     },
-    pf3: function () { go("popCBRet"); }
+    pf3: function () { go(S.ctx.modo === "emp" ? "popCBEmp" : "popCBRet"); }
   };
   function cabCB(code, vcode, title) {
     var cr = CREDORES[S.ctx.cnpj];
     return [esc(row(code, "Estado de Minas Gerais", "PRODEMGE")), esc(row(vcode, "S I A F I - MG", hojeStr())),
-      esc(row(S.user, title, hora())), esc(row("", "Pagamento por Codigo de Barra - Retencao", "GAS3")),
+      esc(row(S.user, title, hora())), esc(row("", "Pagamento por Codigo de Barra - " + (S.ctx.modo === "emp" ? "Empenho" : "Retencao"), "GAS3")),
       L("Ano Exercicio: ") + "2026 " + L("GMI FP: ") + S.ctx.gmi + " " + S.ctx.fp,
       L("Unid. Executora:    ") + esc(S.ue + " - " + UES[S.ue]), L("Unid. Orcamentaria: ") + esc(S.ctx.uo + " - PMMG"),
       L("Credor NF/Fatura: ") + esc(fmtCnpj(S.ctx.cnpj) + " - " + cr.nome)];
@@ -1771,6 +1820,33 @@
     },
     pf3: function () { go("popCBBarras"); }
   };
+  SC.opCBEmp = {
+    pf: { 3: "Volta", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var c = S.ctx, e = findEmp(c.emp);
+      var l = cabCB("NFCAEK34", "VFCAEK34", "Registrar Ordem de Pagamento Bancaria");
+      l.push(L("Conta Debitar:   ") + f("cu", 1) + " " + L("Conta Unica"),
+        "                 " + f("ob", 1) + " " + L("Banco: ") + f("bB", 3) + " " + L("Agencia: ") + f("bA", 5) + " - " + f("bAd", 1) +
+          " " + L("Conta: ") + f("bC", 6) + " - " + f("bCd", 1), "",
+        "  " + L("Ano/Nr. Empenho: ") + "2026-" + ("0000000" + c.emp).slice(-7) + "      " + L("Vl. Cod. Barra: ") + esc(lpad(brl(c.vlBarra), 15)),
+        "                              " + L("Saldo a Pagar:  ") + esc(lpad(brl(saldoPagar(e)), 15)), "",
+        L("Ordenador Despesa: ") + esc(c.ord + " - " + ORDS[c.ord]));
+      return l;
+    },
+    enter: function (v) {
+      var c = S.ctx, e = findEmp(c.emp), up = function (x) { return (x || "").toUpperCase(); };
+      var cu = up(v.cu) === "X", ob = up(v.ob) === "X";
+      if (cu === ob) return erro("0033-MARQUE 'X' EM CONTA UNICA OU NO BANCO A DEBITAR.");
+      if (ob && (!digits(v.bB) || !digits(v.bA) || !digits(v.bC))) return erro("0034-INFORME BANCO, AGENCIA E CONTA A DEBITAR.");
+      if (c.vlBarra > saldoPagar(e)) return erro("0166-VALOR DO CODIGO DE BARRAS MAIOR QUE O SALDO A PAGAR DO EMPENHO.");
+      c.vR = 0; c.extra = [];
+      c.conta = cu ? "Conta Unica" : "Banco: " + digits(v.bB) + " Agencia: " + digits(v.bA) + "-" + digits(v.bAd) + " Conta: " + digits(v.bC) + "-" + digits(v.bCd);
+      c.hist = { tipo: "OP", titulo: "Ordem de Pagamento Bancaria", padraoFixo: 1, padraoTxt: "REGISTRO ORDEM PAGAMENTO BANCARIA",
+        ref: "PAGAMENTO REFERENTE A", fim: "opCBResumo" };
+      go("histRef");
+    },
+    pf3: function () { go("popCBBarras"); }
+  };
   SC.opCBResumo = {
     pf: { 2: "Anula", 3: "Volta", 5: "Conf", 9: "MenuP", 12: "Fim" },
     draw: function () {
@@ -1780,7 +1856,7 @@
       var tx = (c.extra || []).filter(function (x) { return x[0] === "taxa"; })[0], mu = (c.extra || []).filter(function (x) { return x[0] === "multa"; })[0];
       l.push(L("Conta Debitada:   ") + esc(c.conta), L("Codigo de Barra:  ") + esc(c.barra),
         L("Nr. Empenho Multa: ") + (mu ? mu[1] : "") + "   " + L("Nr. Empenho Taxa: ") + (tx ? tx[1] : ""), "",
-        "                    " + L("Total Retencao: ") + esc(lpad(brl(c.vR), 15)),
+        "                    " + L(c.modo === "emp" ? "Empenho:        " : "Total Retencao: ") + esc(lpad(c.modo === "emp" ? "2026-" + c.emp : brl(c.vR), 15)),
         "                    " + L("Vl. Multa:      ") + esc(lpad(mu ? brl(mu[2]) : "", 15)),
         "                    " + L("Vl. Taxa Exped.:") + esc(lpad(tx ? brl(tx[2]) : "", 15)),
         "                    " + L("Vl. Ordem Pagto:") + esc(lpad(brl(c.vlBarra), 15)), "",
@@ -1798,6 +1874,7 @@
         if (emps.indexOf(r.emp) < 0) emps.push(r.emp); LANC.desc = "RECOLHIMENTO DE RETENCAO (GUIA)";
         mv(r.ev === 0 ? "inss" : "outras", -x);
       });
+      if (c.modo === "emp") { c.extra = [["emp", c.emp, c.vlBarra]]; LANC.desc = "PAGAMENTO DE FATURA (COD. BARRAS)"; }
       (c.extra || []).forEach(function (x) {
         var e = findEmp(x[1]), bruto = Math.round(x[2] * liquidado(e) / liqNet(e));
         if (emps.indexOf(e.num) < 0) emps.push(e.num);
