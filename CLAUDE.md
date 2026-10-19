@@ -20,9 +20,9 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 
 | Fonte | GMIFP | Banco | Agência | Conta | Paga hoje |
 |---|---|---|---|---|---|
-| SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 | Ticket (emp. 718), diárias, limpeza Tática (983), eventos Paladir (2472) |
+| SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 | Ticket (emp. 718), diárias, eventos Paladir (2472) |
 | PMMG 60.20 | 3900602 | 999 | 09001-9 | 900795-5 | Simpress 39.19 (318 e 322/2025), diárias 15.01 |
-| PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (conferir: uma linha da planilha traz 016152-2) | 22.085-X | Ticket (emp. 862), Master Clean (886), Elevtech (2936), diárias do BPMRv |
+| PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (conferir: uma linha da planilha traz 016152-2) | 22.085-X | Ticket (emp. 862), limpeza Tática (emp. 863, 339037.01, PT 06.181.137.4374.0001, IPU 1, IPE 0, proc. SIAD 250457/21/2025), Master Clean (886), Elevtech (2936), diárias do BPMRv |
 | DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
 
@@ -48,6 +48,9 @@ Sempre que o usuário informar uma conta nova, atualize esta tabela.
 - Contratos passam antes pelo SIAD (especificação de conformidade efetivada)
 
 ## Retenções
+
+- Exemplo real (Tática, emp. 863, liq. 6, competência 09/2026): bruto 16.768,71 · INSS 11% 1.844,56 · ISS 5% 838,44 · líquido 14.085,71
+- INSS retido: 2.1.8.8.1.03 · ISS: 2.1.8.8.1.88 (aux.: ano/CNPJ prefeitura/GMIFP) · IRRF: 2.1.8.8.1.01 (credor Estado de MG 18.715.615/0001-60)
 
 - IRRF na OP sobre o bruto: 1,2% material, 4,8% serviço
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
