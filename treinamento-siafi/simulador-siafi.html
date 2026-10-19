@@ -223,7 +223,18 @@
   function totalEmp(e) { return e.empenhado + e.reforcos.reduce(function (a, r) { return a + r.valor; }, 0); }
   function saldoLiq(e) { return totalEmp(e) - liquidado(e); }
   function saldoPagar(e) { return liqNet(e) - e.pagoNet; }
-  function mv(id, d) { S.contas[id] += d; }
+  // Diario contabil do treino: cada documento grava as contas que movimentou.
+  var LANC = null;
+  function abreLanc(doc, desc, emp) { LANC = { data: hojeStr(), doc: doc, desc: desc, emp: emp || "", mov: {} }; }
+  function fechaLanc() {
+    if (LANC) {
+      var m = Object.keys(LANC.mov).filter(function (k) { return LANC.mov[k]; });
+      if (m.length) (S.diario = S.diario || []).push({ data: LANC.data, doc: LANC.doc, desc: LANC.desc, emp: LANC.emp,
+        mov: m.map(function (k) { return [k, LANC.mov[k]]; }) });
+    }
+    LANC = null;
+  }
+  function mv(id, d) { S.contas[id] += d; if (LANC) LANC.mov[id] = (LANC.mov[id] || 0) + d; }
 
   // ===================================================== montagem da tela
   var W = 80;
@@ -795,7 +806,9 @@
     e.uo = d.uo; e.prog = d.prog; e.fonte = d.fonte; e.proc = d.proc; e.ipe = d.ipe; e.ord = d.ord;
     e.espec = d.espec; e.procSiad = d.procSiad; e.cota = d.cota; e.hist = S.ctx.hist.texto; e.data = hojeStr();
     S.emps.push(e);
+    abreLanc("NE " + e.num, "EMPENHO", e.num);
     mv(d.cota, -d.valor); mv("credDisp", -d.valor); mv("empLiq", d.valor); mv("ddr1", -d.valor); mv("ddr2", d.valor);
+    fechaLanc();
     S.ctx.done = { lines: telaEmpenho(d, { num: e.num, v: "VFCAEG0C" }), back: "m51" };
     go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
   }
@@ -918,7 +931,9 @@
     pf5: function () {
       var e = findEmp(S.ctx.emp), r = S.ctx.ref, ct = e.cota || "cotaGlobal";
       e.reforcos.push({ sq: e.reforcos.length + 1, valor: r.valor, data: hojeStr() });
+      abreLanc("NE " + e.num + " RF" + e.reforcos.length, "REFORCO DE EMPENHO", e.num);
       mv(ct, -r.valor); mv("credDisp", -r.valor); mv("empLiq", r.valor); mv("ddr1", -r.valor); mv("ddr2", r.valor);
+      fechaLanc();
       S.ctx.done = { lines: telaReforco(e, { sq: e.reforcos.length }).concat([L("Valor do Reforco: ") + esc(brl(r.valor)),
         L("Ord. Despesa: ") + esc(r.ord + " - " + ORDS[r.ord])]), back: "m51" };
       go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
@@ -1074,6 +1089,7 @@
       var e = findEmp(S.ctx.emp), l = S.ctx.liq, rt = retTotal(l), liq = l.valor - rt;
       var sq = e.liqs.length + 1;
       e.liqs.push({ sq: sq, bruto: l.valor, ret: l.rets, liquido: liq, comp: l.comp, dtPrev: l.dtPrev, hist: S.ctx.hist.texto, data: hojeStr() });
+      abreLanc("NE " + e.num + " LQ" + sq, "LIQUIDACAO", e.num);
       mv("empLiq", -l.valor); mv("liqPagar", l.valor); mv("ddr2", -l.valor); mv("ddr3", l.valor);
       mv(e.nat.slice(4, 6) === "30" ? "estoque" : "vpd", l.valor);
       mv("fornec", liq);
@@ -1082,6 +1098,7 @@
         (S.retPend = S.retPend || []).push({ cnpj: r.cnpj, ev: r.ev, valor: r.valor, saldo: r.valor,
           gmi: gmiDe(e), fp: e.fonte + e.proc, emp: e.num });
       });
+      fechaLanc();
       S.ctx.done = { lines: telaLiqConf(e, l, { sq: sq, saldo: saldoLiq(e) + l.valor }), back: "m51" };
       go("feito", "REGISTRO EFETUADO, TECLE ENTER PARA ENVIAR PARA A ASSINATURA DIGITAL");
     },
@@ -1312,8 +1329,10 @@
         if (it.vb === saldoPagar(e)) bruto = liquidado(e) - e.pagoBruto;
         e.pagoNet += it.vb; e.pagoBruto += bruto;
         (e.pags = e.pags || []).push({ data: hojeStr(), valor: it.vb, doc: String(S.seqOPd) });
+        abreLanc("OP " + S.seqOPd, "ORDEM DE PAGAMENTO" + (it.irrf ? " C/ IRRF" : ""), e.num);
         mv("liqPagar", -bruto); mv("pago", bruto); mv("ddr3", -bruto); mv("ddr4", bruto);
         mv("fornec", -it.vb); mv("irrf", it.irrf); mv("cota", -(it.vb - it.irrf));
+        fechaLanc();
       });
       c.reg = { glob: String(S.seqOPg), docs: docs };
       say("0011-REGISTRO EFETUADO.");
@@ -1327,13 +1346,14 @@
   SC.m09 = {
     pf: { 1: "Ajuda", 3: "Volta", 12: "Fim" },
     draw: function () {
-      return menu("NFCAE009", "VFCAE009", "Consulta / Relatorio", "", ["01-Tabela", "02-Saldo Contabil", "05-Movimentacao da Despesa"]);
+      return menu("NFCAE009", "VFCAE009", "Consulta / Relatorio", "", ["01-Tabela", "02-Saldo Contabil", "03-Lancamentos Contabeis (Diario)", "05-Movimentacao da Despesa"]);
     },
     enter: function (v) {
       if (navegar(digits(v.nav))) return;
       var o = digits(v.opcao);
       if (o === "01" || o === "1") return go("m91");
       if (o === "02" || o === "2") return go("mSaldo");
+      if (o === "03" || o === "3") { S.ctx = { contabEmp: "", pg: 0, back: "m09" }; return go("consContab"); }
       if (o === "05" || o === "5") return go("m95");
       if (o) return erro("0009-MODULO NAO DISPONIVEL NO TREINAMENTO.");
       erro("0001-INFORME A OPCAO.");
@@ -1488,7 +1508,7 @@
   var M95 = ["01-Extrato de Empenho", "02-Resumo de Empenho", "03-Saldo Liquidado a Pagar (Orcamento Corrente)",
     "04-Empenhos Emitidos", "05-Extrato de Restos a Pagar", "06-Resumo de Restos a Pagar", "07-Saldo de Restos a Pagar",
     "08-Retencao/Consignacao/Depositos", "09-Pagamentos Por Credor", "10-Saldo a Pagar - Folha de Pessoal",
-    "11-Saldo a Pagar - Contratos Administrativos / Estagiarios"];
+    "11-Saldo a Pagar - Contratos Administrativos / Estagiarios", "12-Lancamentos Contabeis do Empenho"];
   function m95base() {
     var l = head("NFCAE095", "VFCAE095", "Consulta / Relatorio", "Movimentacao da Despesa");
     l.push(esc(pad("", 70) + "Pag.: 1/2"));
@@ -1505,7 +1525,7 @@
       var o = ("0" + digits(v.opcao)).slice(-2), a = digits(v.acao);
       if (!digits(v.opcao)) return erro("0001-INFORME A OPCAO.");
       if (a !== "1") return a === "2" ? erro("0008-VERIFIQUE A IMPRESSORA.") : erro("0004-INFORME A ACAO.");
-      if (o === "01" || o === "02") { S.ctx = { cons: o }; return go("popCons95"); }
+      if (o === "01" || o === "02" || o === "12") { S.ctx = { cons: o }; return go("popCons95"); }
       erro("0009-OPCAO NAO DISPONIVEL NO TREINAMENTO.");
     },
     pf3: function () { go("m09"); }
@@ -1524,7 +1544,9 @@
       if (!UOS[uo]) return erro("0016-UNIDADE ORCAMENTARIA NAO CADASTRADA. TECLE PF6 PARA SELECIONAR.");
       var e = findEmp(v.ne);
       if (!e || e.uo !== uo) return erro("0041-EMPENHO NAO CADASTRADO PARA A UNIDADE.");
-      S.ctx.emp = e.num; go(S.ctx.cons === "02" ? "consResumo" : "consExtrato");
+      S.ctx.emp = e.num;
+      if (S.ctx.cons === "12") { S.ctx.contabEmp = e.num; S.ctx.pg = 0; S.ctx.back = "popCons95"; return go("consContab"); }
+      go(S.ctx.cons === "02" ? "consResumo" : "consExtrato");
     },
     pf6: function () { setVal("uo", "1251"); say("0020-UNIDADE ORCAMENTARIA SELECIONADA: 1251."); },
     pf3: function () { go("m95"); }
@@ -1549,7 +1571,8 @@
     pf3: function () { go("popCons95"); }
   };
   SC.consExtrato = {
-    pf: { 1: "Ajuda", 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 10: "Info", 11: "Prox", 12: "Fim" },
+    pf: { 1: "Ajuda", 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 10: "Contab", 11: "Prox", 12: "Fim" },
+    pf10: function () { S.ctx.contabEmp = S.ctx.emp; S.ctx.pg = 0; S.ctx.back = "consExtrato"; go("consContab"); },
     draw: function () {
       var e = findEmp(S.ctx.emp), cr = CREDORES[e.cnpj];
       var l = [esc(row("NFCAEQ24", "Estado de Minas Gerais", "PRODEMGE")), esc(row("VFCAEQ24", "S I A F I - MG", hojeStr())),
@@ -1568,6 +1591,43 @@
         .map(function (x) { return bl(W2, [" " + pad(x[0], 24) + lpad(brl(x[1]), 13)]); }));
     },
     pf3: function () { go("popCons95"); }
+  };
+
+  // ---- Lancamentos contabeis por documento (modelo do treino): D/C de cada conta movimentada
+  function natDe(id) { for (var i = 0; i < ACCTS.length; i++) if (ACCTS[i][0] === id) return ACCTS[i]; return [id, id, "D", id]; }
+  function linhasContab(filtro) {
+    var out = [];
+    (S.diario || []).filter(function (x) { return !filtro || ("," + x.emp + ",").indexOf("," + filtro + ",") >= 0; })
+      .forEach(function (x) {
+        out.push({ cab: true, t: pad(x.data, 11) + pad(x.doc, 14) + x.desc });
+        var dl = [], cl = [];
+        x.mov.forEach(function (m) {
+          var a = natDe(m[0]), dc = (m[1] > 0) === (a[2] === "D") ? "D" : "C";
+          (dc === "D" ? dl : cl).push("   " + dc + "  " + pad(a[1], 22) + pad(a[3], 34) + lpad(brl(Math.abs(m[1])), 15));
+        });
+        dl.concat(cl).forEach(function (t) { out.push({ t: t }); });
+      });
+    return out;
+  }
+  var CONTAB_PG = 13;
+  SC.consContab = {
+    pf: { 3: "Volta", 7: "-Pag", 8: "+Pag", 9: "MenuP", 12: "Fim" },
+    draw: function () {
+      var f0 = S.ctx.contabEmp || "", lin = linhasContab(f0), np = Math.max(1, Math.ceil(lin.length / CONTAB_PG));
+      S.ctx.pg = Math.min(S.ctx.pg || 0, np - 1);
+      var l = head("NFCAE093", "VFCAE093", "Consulta / Relatorio", "Lancamentos Contabeis");
+      l.push(L(f0 ? "Ano/Nr. Empenho: " : "Diario: ") + esc(f0 ? "2026-" + ("0000000" + f0).slice(-7) : "todos os documentos do treino") +
+        esc(pad("", 20) + "Pag.: " + (S.ctx.pg + 1) + "/" + np));
+      l.push(L("   D/C Conta                 Descricao                                    Valor"));
+      if (!lin.length) l.push("", esc("  0091-NENHUM LANCAMENTO. REGISTRE UM EMPENHO, LIQUIDACAO OU OP NESTE TREINO."));
+      lin.slice(S.ctx.pg * CONTAB_PG, (S.ctx.pg + 1) * CONTAB_PG).forEach(function (x) { l.push(x.cab ? B(x.t) : esc(x.t)); });
+      while (l.length < 22) l.push("");
+      l.push(L("  D = debito  C = credito   |   classe 6: orcamento   8: DDR   9: cota"));
+      return l;
+    },
+    pf7: function () { S.ctx.pg = Math.max(0, (S.ctx.pg || 0) - 1); say(""); },
+    pf8: function () { S.ctx.pg = (S.ctx.pg || 0) + 1; say(""); },
+    pf3: function () { var b = S.ctx.back || "m09"; if (b === "m09") S.ctx = {}; go(b); }
   };
 
   // ---- 71 > 01 > Por Codigo de Barras > Outros Convenios > Retencao (recolhimento)
@@ -1730,20 +1790,25 @@
     pf5: function () {
       var c = S.ctx;
       if (c.doc) return;
-      var rest = c.vR;
+      var rest = c.vR, emps = [];
+      abreLanc("OP " + (S.seqOPd + 1), "PAGAMENTO POR CODIGO DE BARRAS", "");
       (S.retPend || []).forEach(function (r) {
         if (!rest || r.cnpj !== c.cnpj || r.gmi !== c.gmi || r.fp !== c.fp || !r.saldo) return;
         var x = Math.min(r.saldo, rest); r.saldo -= x; rest -= x;
+        if (emps.indexOf(r.emp) < 0) emps.push(r.emp); LANC.desc = "RECOLHIMENTO DE RETENCAO (GUIA)";
         mv(r.ev === 0 ? "inss" : "outras", -x);
       });
       (c.extra || []).forEach(function (x) {
         var e = findEmp(x[1]), bruto = Math.round(x[2] * liquidado(e) / liqNet(e));
+        if (emps.indexOf(e.num) < 0) emps.push(e.num);
         e.pagoNet += x[2]; e.pagoBruto += bruto;
         (e.pags = e.pags || []).push({ data: hojeStr(), valor: x[2], doc: "" });
         mv("liqPagar", -bruto); mv("pago", bruto); mv("ddr3", -bruto); mv("ddr4", bruto); mv("fornec", -x[2]);
       });
       mv("cota", -c.vlBarra);
       S.seqOPd += 1; c.doc = String(S.seqOPd);
+      if (LANC) LANC.emp = emps.join(",");
+      fechaLanc();
       say("0011-REGISTRO EFETUADO.");
     },
     enter: function () { if (S.ctx.doc) go("m71"); },
