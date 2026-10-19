@@ -1,0 +1,387 @@
+<title>Mapa da SOFi/CPE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: carta-mapa em grade 3x3 com o núcleo SOFi no centro. Cada tema desce em níveis: tema › cartão › detalhe, cada nível menor, como numa carta topográfica com ampliações. */
+:root{
+  --paper:#eef0ec; --grid:#dde1db; --card:#ffffff; --ink:#1b2320; --muted:#56625c; --line:#c4cbc3;
+  --red:#a3171f; --red-soft:#f4e1df; --steel:#2f5d73; --steel-soft:#e3edf1; --amber:#8a6400; --amber-soft:#fbf1d6;
+  --bar:#1b2320; --bar-fg:#f2f4f1;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#121715; --grid:#1b231f; --card:#1a211e; --ink:#e8ece8; --muted:#9ba7a0; --line:#36423c;
+  --red:#e2656b; --red-soft:#3a2224; --steel:#82b6cd; --steel-soft:#1c2c34; --amber:#e6c25a; --amber-soft:#332a10;
+  --bar:#e8ece8; --bar-fg:#121715; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#121715; --grid:#1b231f; --card:#1a211e; --ink:#e8ece8; --muted:#9ba7a0; --line:#36423c;
+  --red:#e2656b; --red-soft:#3a2224; --steel:#82b6cd; --steel-soft:#1c2c34; --amber:#e6c25a; --amber-soft:#332a10;
+  --bar:#e8ece8; --bar-fg:#121715; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);overflow:hidden}
+#stage{position:relative;width:100%;height:100%;overflow:hidden;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform 1s cubic-bezier(.65,0,.25,1)}
+svg#links{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+svg#links path{fill:none;stroke:var(--red);stroke-width:10;stroke-dasharray:4 26;stroke-linecap:round;opacity:.55}
+
+.core{position:absolute;width:760px;height:760px;border-radius:50%;background:var(--red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;box-shadow:0 0 0 40px var(--red-soft)}
+.core b{font-family:var(--display);font-size:250px;line-height:.85}
+.core span{font-size:40px;line-height:1.25;opacity:.92;margin-top:20px;max-width:560px}
+
+.node{display:flex;flex-direction:column;align-items:center}
+.d1{position:absolute;gap:100px}
+.d2{gap:46px}
+.d3{gap:40px}
+.kids{display:flex;gap:56px;align-items:flex-start;justify-content:center;position:relative}
+.d2>.kids,.d3>.kids{zoom:.42;display:grid;grid-template-columns:repeat(2,560px);gap:40px;padding-top:26px;border-top:6px dotted var(--line)}
+.d2>.kids.one,.d3>.kids.one{grid-template-columns:560px}
+.box{cursor:zoom-in}
+.box:focus-visible{outline:5px solid var(--amber);outline-offset:6px}
+.d1>.box{font-family:var(--display);font-weight:700;font-size:150px;line-height:.95;color:#fff;background:var(--steel);padding:30px 70px 38px;border-radius:30px;text-align:center;white-space:nowrap}
+.d1>.box small{display:block;font-family:var(--sans);font-weight:500;font-size:40px;line-height:1.2;opacity:.9;margin-top:10px;white-space:normal}
+.d1>.box .n{font-family:var(--mono);font-size:44px;opacity:.75;display:block;margin-bottom:6px}
+.d2>.box,.d3>.box,.d4>.box{width:620px;background:var(--card);border:3px solid var(--line);border-radius:18px;padding:24px 28px 26px;font-size:22px;line-height:1.45}
+.d3>.box,.d4>.box{width:560px}
+.d3>.box{border-color:color-mix(in srgb,var(--steel) 45%,var(--line))}
+.box.on{border-color:var(--red)!important;cursor:default}
+.box:hover{outline:4px solid var(--amber);outline-offset:6px}
+.box.on:hover{outline:none}
+.leaf>.box{cursor:default}
+.box h3{font-family:var(--display);font-size:50px;line-height:1;margin:0 0 6px;text-wrap:balance}
+.d3>.box h3,.d4>.box h3{font-size:44px}
+.tag{font-family:var(--mono);font-size:17px;color:var(--red);letter-spacing:.04em;text-transform:uppercase;display:flex;justify-content:space-between;gap:10px}
+.tag em{font-style:normal;color:var(--steel)}
+.box p{margin:8px 0 10px;color:var(--muted)}
+.rows{display:grid;gap:8px;margin-top:10px}
+.r{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;align-items:baseline;padding:9px 12px;border-radius:10px;background:var(--steel-soft)}
+.r .c{font-family:var(--mono);font-size:18px;color:var(--steel);white-space:nowrap}
+.r small{display:block;color:var(--muted);font-size:18px;line-height:1.35}
+.r.w{background:var(--amber-soft)} .r.w .c{color:var(--amber)}
+.dc{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin-top:10px;font-size:19px}
+.dc b{font-family:var(--mono);font-size:17px;padding:2px 8px;border-radius:6px;text-align:center}
+.dc b.D{background:var(--steel);color:#fff} .dc b.C{background:var(--red);color:#fff} .dc b.O{background:var(--muted);color:#fff}
+.dc span{font-family:var(--mono);font-size:17px;line-height:1.5}
+.dc span i{font-family:var(--sans);font-style:normal;color:var(--muted);font-size:17px}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;font-variant-numeric:tabular-nums;margin:8px 0 6px;font-size:21px}
+.calc span:nth-child(even){text-align:right;font-family:var(--mono);font-size:19px}
+.calc .t{font-weight:600;border-top:2px solid var(--ink);padding-top:4px}
+.note{margin-top:12px;font-size:18px;color:var(--muted);border-left:5px solid var(--red);padding-left:12px}
+.more{margin-top:12px;font-size:16px;color:var(--steel);font-weight:600}
+.q{display:inline-block;font-size:15px;font-weight:600;color:var(--amber);border:2px dashed var(--amber);border-radius:999px;padding:0 10px;margin-left:4px;vertical-align:2px}
+
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+#crumb{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;justify-content:center;pointer-events:none;z-index:5}
+#crumb span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#crumb b{color:var(--ink);font-weight:600}
+#bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:4px;background:var(--bar);color:var(--bar-fg);border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:5;max-width:calc(100% - 32px)}
+#bar button{font:inherit;font-size:14px;font-weight:600;border:0;background:transparent;color:inherit;padding:8px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+#bar button:hover{background:rgba(127,127,127,.25)}
+#bar button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+#pos{font-family:var(--mono);font-size:13px;padding:0 4px;min-width:56px;text-align:center}
+@media (prefers-reduced-motion:reduce){#world{transition:none}}
+</style>
+
+<div id="stage" aria-label="Mapa da SOFi/CPE">
+  <div id="world">
+    <svg id="links" aria-hidden="true"></svg>
+    <div class="core" id="core" role="button" tabindex="0" aria-label="Visão geral">
+      <b>SOFi</b><span>Seção de Orçamento e Finanças · CPE · UE 1250057</span>
+    </div>
+  </div>
+</div>
+<div id="crumb"><span id="crumbTxt"></span></div>
+<nav id="bar" aria-label="Navegação">
+  <button type="button" id="up" aria-label="Voltar um nível">↑ Voltar</button>
+  <button type="button" id="prev" aria-label="Anterior">◀</button>
+  <span id="pos"></span>
+  <button type="button" id="next" aria-label="Próximo">▶</button>
+  <button type="button" id="home">Geral</button>
+</nav>
+
+<script>
+// ---------- helpers de conteúdo ----------
+function R(c,t,s,w){return '<div class="r'+(w?' w':'')+'"><span class="c">'+c+'</span><span>'+t+(s?'<small>'+s+'</small>':'')+'</span></div>'}
+function rows(){return '<div class="rows">'+[].join.call(arguments,'')+'</div>'}
+function DC(list){return '<div class="dc">'+list.map(function(x){return '<b class="'+x[0]+'">'+(x[0]==='O'?'6.x':x[0])+'</b><span>'+x[1]+(x[2]?' <i>'+x[2]+'</i>':'')+'</span>'}).join('')+'</div>'}
+function P(t){return '<p>'+t+'</p>'}
+function N(t){return '<div class="note">'+t+'</div>'}
+function CALC(l){return '<div class="calc">'+l.map(function(x){return '<span'+(x[2]?' class="t"':'')+'>'+x[0]+'</span><span'+(x[2]?' class="t"':'')+'>'+x[1]+'</span>'}).join('')+'</div>'}
+var Q='<span class="q">confirmar</span>';
+
+// ---------- conteúdo ----------
+var TREE=[
+{t:'Ticket Log',s:'manutenção de frota · 39.43',c:[
+  {t:'Como funciona',b:P('A gerenciadora fecha um RAD por quinzena para cada batalhão. Cada RAD vira uma liquidação.')+rows(R('RAD','BPGd, BPM MAmb e BPMRv','chegam por volta dos dias 4 e 21'),R('empenho','estimativo, anual','718, 862 e 825')),c:[
+    {t:'O que é o RAD',b:P('Relatório quinzenal que a gerenciadora (GoodManager) fecha por batalhão.')+rows(R('OS','ordens de serviço aprovadas'),R('valores','peças, serviços, taxa de administração'),R('descontos','ICMS desonerado, IRRF e ISS'))},
+    {t:'Conferência',b:P('Duas contas precisam fechar antes de liquidar:')+rows(R('1','aprovado − ICMS − IRRF − ISS = líquido'),R('2','peças + serviços + taxa adm. = aprovado'))+N('Taxa de administração observada: 7,9% do aprovado.')},
+    {t:'RADs de agosto/2026',b:rows(R('25º BPMAmb','16 a 31/08 · 13 OS','aprovado 60.063,97 · líquido 58.326,72 · ISS 134,02'),R('24º BPMRv','01 a 15/08 · 48 OS','aprovado 168.942,62 · líquido 162.590,57 · ISS 376,60'))},
+    {t:'Empenhos e fontes',b:rows(R('718','SEMAD 52.20','capa do processo: RAD do BPRv'),R('862','PRF 73.10'),R('825','RAD do BPGd','aparece também na planilha do DER 83.20'))+N('Confirmar qual empenho e fonte cada batalhão usa.')},
+    {t:'CMI',b:P('Depois de cada liquidação, a SOFi manda a nota de empenho e o relatório ao CMI, que distribui o custo por viatura e centro de custo.')}
+  ]},
+  {t:'Caminho nas contas',b:P('RAD real: 25º BPMAmb, 16 a 31/08/2026.')+CALC([['Total aprovado','60.063,97'],['− ICMS desonerado + IRRF','1.603,23'],['− ISS tomador','134,02'],['Líquido à Ticket','58.326,72',1]]),c:[
+    {t:'1 · Empenho estimativo',b:P('Em janeiro, no valor previsto para o ano. Nav. 51 › 01, tipo estimativo.')+DC([['O','6.2.2.1.1 → 6.2.2.1.3.01','disponível vira empenhado a liquidar']])+N('Se o saldo acabar antes de dezembro: reforço do empenho.')},
+    {t:'2 · Liquidação',b:P('Nav. 51 › 04. Valor = aprovado sem o ICMS desonerado. Uma retenção de ISS para cada prefeitura das OS.')+DC([['O','6.2.2.1.3.01 → 6.2.2.1.3.03'],['D','VPD manutenção de frota'],['C','2.1.3.1.1.01','fornecedores'],['C','2.1.8.8.1.xx','ISS a recolher']])},
+    {t:'3 · Repasse',b:P('Planilha da DF pelo GMIFP da fonte do empenho: principal + retenções. O dinheiro cai na conta da fonte.')+DC([['D','1.1.1.1.1.02','banco da fonte']])},
+    {t:'4 · OP à Ticket',b:P('Nav. 71, por credor, com IRRF = S. Paga o líquido.')+DC([['D','2.1.3.1.1.01','fornecedores baixa'],['C','1.1.1.1.1.02','banco: 58.326,72'],['C','2.1.8.8.1.xx','IRRF a recolher']])},
+    {t:'5 · Guias',b:P('Uma guia de ISS por município (código de barras, título "Retenção") e o IRRF por DARF, tudo da mesma conta.')+DC([['D','2.1.8.8.1.xx','retenções zeram'],['C','1.1.1.1.1.02','banco'],['O','6.2.2.1.3.03 → 6.2.2.1.3.04','pago']])}
+  ]},
+  {t:'Cuidados',b:rows(R('saldo','do estimativo a cada RAD'),R('ICMS','nunca é pago'),R('ISS','uma guia por município'),R('IRRF','sem controle na planilha','',1)),c:[
+    {t:'Saldo do estimativo',b:P('A cada RAD, conferir quanto sobra no empenho. Sem saldo o RAD não liquida e a quinzena atrasa. Pedir o reforço com antecedência.')},
+    {t:'ICMS desonerado',b:P('É desconto. Se alguém liquidar o total aprovado, sobra um saldo a pagar que nunca será pago e aparece no RCC.')},
+    {t:'ISS de várias cidades',b:P('Cada OS feita em outra cidade gera ISS daquele município, com prazo próprio.')+N('Atrasos já geraram R$ 235,50 de encargos (39.26).')},
+    {t:'IRRF sem controle',b:P('As abas "Ticket Log" e "Retenções IR Ticketlog" da planilha de acompanhamento estão vazias. Registrar CNPJ, IRRF e valor da nota de cada RAD.')}
+  ]}
+]},
+{t:'Diárias',s:'viagem de militar · 15.01 · sem retenção',c:[
+  {t:'Fluxo',b:P('Da ordem de viagem à prestação de contas, em seis passos.'),c:[
+    {t:'1 · Ordem de viagem',b:P('A unidade (BPGd, BPM MAmb ou BPMRv) envia a ordem de viagem do militar.')},
+    {t:'2 · Empenho',b:rows(R('15.01','diária militar'),R('credor','CPF do militar'),R('fonte','a da unidade','SEMAD, PRF (BPMRv), 60.20 ou 10'))},
+    {t:'3 · Liquidação',b:P('A diária é devida. Fica registrada como "a conceder" até o pagamento.')},
+    {t:'4 · Repasse',b:P('Pode ir o total por GMIFP, com credor "DIVERSOS". Nunca sem número de empenho e data da liquidação.')},
+    {t:'5 · Pagamento',b:P('OP para a conta do militar. Banco, agência e conta variam a cada militar.')},
+    {t:'6 · Prestação de contas',b:P('O militar volta e entrega o relatório de viagem. A SOFi confere e arquiva.')}
+  ]},
+  {t:'Caminho nas contas',b:P('Exemplo: militar do BPMRv, 3 dias, R$ 450,00, fonte PRF 73.10.'),c:[
+    {t:'1 · Empenho',b:DC([['O','6.2.2.1.1 → 6.2.2.1.3.01','450']])},
+    {t:'2 · Liquidação',b:DC([['O','6.2.2.1.3.01 → 6.2.2.1.3.03'],['D','1.1.3.1.1.01.90','diária a conceder'],['C','obrigação a pagar','conta '+'a conferir no balancete']])},
+    {t:'3 · Repasse',b:DC([['D','1.1.1.1.1.02','banco PRF 22.085-X +450']])},
+    {t:'4 · Pagamento',b:DC([['O','6.2.2.1.3.03 → 6.2.2.1.3.04'],['C','1.1.1.1.1.02','banco −450'],['D','1.1.3.1.1.01.01','concedida'],['C','1.1.3.1.1.01.90','a conceder zera']])},
+    {t:'5 · Prestação de contas',b:DC([['D','VPD diárias'],['C','1.1.3.1.1.01.01','concedida zera']])+N('Se o militar devolver parte, só o restante vira despesa.')},
+    {t:'Variações',b:rows(R('cancelou','antes de pagar: anula liquidação e empenho'),R('devolveu','banco recebe; .01 baixa'),R('virou o ano','liquidado vira RP processado'))}
+  ]},
+  {t:'Números de 2026',b:rows(R('BPMRv','525 viagens · R$ 555 mil'),R('MAmb','494 viagens · R$ 658 mil'),R('pendente','R$ 31.866,02 desde 14/08','',1)),c:[
+    {t:'BPMRv',b:rows(R('viagens','525'),R('valor','R$ 555.425,54'),R('prazo','9 dias','mediana do empenho ao pagamento'),R('atrasos','6 casos acima de 40 dias','máximo 95',1))},
+    {t:'BPM MAmb',b:rows(R('viagens','494'),R('valor','R$ 657.849,99'),R('prazo','13 dias','mediana'),R('atrasos','3 casos acima de 40 dias','máximo 72',1))},
+    {t:'Pendências',b:rows(R('liquidado','R$ 31.866,02 sem pagamento','desde 14/08, na SEMAD',1),R('repasse','pedido de R$ 20.000','menor que o pendente',1))},
+    {t:'Controle',b:rows(R('planilha','parada em julho','',1),R('BPGd','sem aba própria','',1),R('arquivo','coluna vazia em 2026','',1),R('datas','5 liquidações antes do empenho','erro de digitação',1))}
+  ]}
+]},
+{t:'Contratos',s:'SIAD antes do SIAFI · INSS, ISS e IRRF',c:[
+  {t:'SIAD e SIAFI',b:P('Toda nota de contrato passa pelo SIAD antes de chegar ao SIAFI.'),c:[
+    {t:'1 · Atesto',b:P('O gestor do contrato confere o serviço e atesta a nota fiscal.')},
+    {t:'2 · Conformidade',b:P('O setor de compras gera no SIAD a especificação de conformidade da nota.')},
+    {t:'3 · Efetivação',b:P('A SOFi efetiva no SIAFI: liquidação na nav. 51 › 04, com as retenções.')},
+    {t:'4 · Correção',b:P('Errou? Anula o liquidado (51 › 05) e só depois gera a nova conformidade.')+N('Master Clean (886): R$ 4.057,53 em anulações aguardando efetivação.')}
+  ]},
+  {t:'Caminho nas contas',b:P('Exemplo: NF da Master Clean de R$ 10.000, empenho 886, PRF 73.10.')+CALC([['INSS 11%','1.100,00'],['ISS (ex.: 5%)','500,00'],['IRRF (ex.: 4,8%)','480,00'],['Líquido à empresa','7.920,00',1]]),c:[
+    {t:'1 · Liquidação',b:P('Liquida 10.000 com INSS e ISS.')+DC([['O','6.2.2.1.3.01 → 6.2.2.1.3.03'],['D','VPD serviços de limpeza','10.000'],['C','2.1.3.1.1.01','fornecedores 8.900'],['C','2.1.8.8.1.xx','INSS 1.100 · ISS 500']])},
+    {t:'2 · Repasse',b:P('Planilha: retenções 1.600 e principal 8.400, GMIFP 3900731.')+DC([['D','1.1.1.1.1.02','banco PRF']])},
+    {t:'3 · OP',b:P('Paga 7.920 à empresa, com IRRF de 480 retido na OP.')+DC([['D','2.1.3.1.1.01','8.900'],['C','1.1.1.1.1.02','7.920'],['C','2.1.8.8.1.xx','IRRF 480']])},
+    {t:'4 · Guias',b:P('INSS até o dia 20, ISS no prazo da prefeitura, IRRF por DARF. Todas da conta PRF.')+DC([['D','2.1.8.8.1.xx','2.080'],['C','1.1.1.1.1.02','2.080'],['O','6.2.2.1.3.03 → 6.2.2.1.3.04','10.000 pago']])}
+  ]},
+  {t:'Contratos e empenhos',b:rows(R('886','Master Clean'),R('983','Tática'),R('2472','Paladir'),R('318/322','Simpress'),R('1323 · 2936','elevadores'),R('7256852','BSC (SIAD)')),c:[
+    {t:'Master Clean',b:rows(R('37.01','limpeza'),R('fonte','PRF 73.10'),R('empenho','886'),R('retenções','INSS 11% · ISS · IRRF'))},
+    {t:'Tática',b:rows(R('37.01','limpeza'),R('fonte','SEMAD 52.20'),R('empenho','983'),R('retenções','INSS 11% · ISS · IRRF'))},
+    {t:'Paladir',b:rows(R('39.55','eventos'),R('fonte','SEMAD 52.20'),R('empenho','2472'))},
+    {t:'Simpress',b:rows(R('39.19','locação de equipamentos'),R('fonte','60.20 e fonte 10','RP 2025'),R('empenhos','318 e 322/2025'),R('CNPJ','07.432.517/0001-07'))},
+    {t:'Elevadores',b:rows(R('39.21','manutenção'),R('Milênio','DER 83.20 · empenho 1323'),R('Elevtech','PRF 73.10 · empenho 2936'))},
+    {t:'BSC',b:rows(R('39.21','videomonitoramento LPR'),R('CNPJ','17.676.389/0001-92'),R('SIAD','especificação 7256852'),R('dotação','06.181.137.4366.0001 · fonte 10'),R('valor','R$ 37.400,00 a empenhar'))}
+  ]}
+]},
+{t:'Água e luz',s:'faturas de consumo · vencimento manda',c:[
+  {t:'Água COPASA',b:rows(R('39.13','água e esgoto'),R('1080','empenho estimativo · DER 83.20')),c:[
+    {t:'Empenho 1080',b:P('Estimativo, feito em janeiro, na fonte DER 83.20 (GMIFP 3900832, conta 900.673-4).')},
+    {t:'Faturas de outubro',b:rows(R('02/10','R$ 110,89 liquidado'),R('05/10','R$ 9,70 liquidado'))}
+  ]},
+  {t:'Luz CEMIG',b:P('A CEMIG da PM é paga por um setor centralizado. A SOFi só paga faturas pontuais.'),c:[
+    {t:'Regra',b:P('Antes de pagar, confirmar que a fatura não está na lista do setor centralizado. Assim não se paga duas vezes.')},
+    {t:'Ficha da instalação',b:rows(R('onde','unidade e cidade'),R('nº','instalação'),R('quando','vencimento'),R('como','empenho 39.12 e fonte'))+N('Falta levantar quais faturas CEMIG ficaram com a SOFi.')}
+  ]},
+  {t:'Caminho nas contas',b:P('Igual para água e luz.'),c:[
+    {t:'1 · Empenho',b:P('Estimativo em janeiro.')+DC([['O','6.2.2.1.1 → 6.2.2.1.3.01']])},
+    {t:'2 · Atesto',b:P('A fatura chega e a unidade confirma o consumo.')},
+    {t:'3 · Liquidação',b:DC([['O','6.2.2.1.3.01 → 6.2.2.1.3.03'],['D','VPD água/energia'],['C','2.1.3.1.1.01','fornecedores']])},
+    {t:'4 · Pagamento',b:P('OP por código de barras, título "Empenho", antes do vencimento.')+DC([['D','2.1.3.1.1.01'],['C','1.1.1.1.1.02','banco'],['O','6.2.2.1.3.03 → 6.2.2.1.3.04']])+N('Depois do vencimento, juros e multa viram despesa nova no 39.26.')}
+  ]}
+]},
+{t:'Retenções',s:'dinheiro da Receita e das prefeituras',c:[
+  {t:'Regras',b:rows(R('IRRF','1,2% / 4,8% na OP'),R('INSS','11% · dia 20'),R('ISS','por prefeitura')),c:[
+    {t:'IRRF',b:rows(R('1,2%','material'),R('4,8%','serviço'),R('quando','na OP, sobre o bruto'),R('código','de receita a levantar','',1))},
+    {t:'INSS',b:rows(R('11%','cessão de mão de obra (limpeza)'),R('quando','na liquidação'),R('vence','dia 20 do mês seguinte'))},
+    {t:'ISS',b:rows(R('quando','na liquidação'),R('alíquota','a de cada prefeitura'),R('cidades','BH, Gov. Valadares, Teófilo Otoni, Formiga'))},
+    {t:'Guia',b:P('Sai da mesma fonte da despesa. OP por código de barras, título "Retenção".')},
+    {t:'EFD-Reinf',b:P('Declaração mensal das retenções federais (dia 15). Confirmar com a DF se o envio é centralizado; a SOFi garante que a retenção está certa no SIAFI.')}
+  ]},
+  {t:'Caminho nas contas',b:P('A retenção nasce na liquidação ou na OP e morre na guia.'),c:[
+    {t:'1 · Nasce na liquidação',b:P('INSS e ISS.')+DC([['C','2.1.8.8.1.xx','retenção a recolher']])},
+    {t:'2 · Nasce na OP',b:P('IRRF.')+DC([['D','2.1.3.1.1.01','parte do fornecedor'],['C','2.1.8.8.1.xx','IRRF a recolher']])},
+    {t:'3 · Morre na guia',b:DC([['D','2.1.8.8.1.xx','zera'],['C','1.1.1.1.1.02','banco da fonte']])},
+    {t:'Qual conta é qual',b:P('No RCC aparecem a 2.1.8.8.1.01, a .03 (paga por DARF, segundo a 2ª RPM) e a .88.')+N('Confirmar no razão do balancete qual é INSS, ISS e IRRF.')}
+  ]},
+  {t:'Onde perde dinheiro',b:rows(R('.03','dobrou em 4 meses','',1),R('39.26','R$ 235,50 de encargos','',1)),c:[
+    {t:'Retenção crescendo',b:rows(R('março','R$ 5.111,14'),R('julho','R$ 10.789,37','2.1.8.8.1.03',1))},
+    {t:'Encargos',b:P('R$ 235,50 pagos a BH, Gov. Valadares, Teófilo Otoni e Formiga. Provável ISS pago com atraso.')},
+    {t:'1250058 sem cota',b:rows(R('cota','R$ 50,78'),R('retenções','R$ 499,87','',1))},
+    {t:'IRRF solto',b:P('FNSP: R$ 22.848 (empenho 7/2024) sem vínculo. Achar a OP de origem.')}
+  ]}
+]},
+{t:'Fontes e repasse',s:'cada fonte paga só o que é dela',c:[
+  {t:'Fontes e contas',b:P('GMIFP = 3900 + fonte + IPU.'),c:[
+    {t:'SEMAD 52.20',b:rows(R('GMIFP','3900522'),R('conta','999 · 09001-9 · 900158-6'),R('paga','Ticket 718, diárias, Tática, Paladir'))},
+    {t:'PRF 73.10',b:rows(R('GMIFP','3900731'),R('conta','001 · 01615-2 · 22.085-X'),R('paga','Ticket 862, Master Clean, Elevtech, diárias BPMRv'))},
+    {t:'DER 83.20',b:rows(R('GMIFP','3900832'),R('conta','999 · 09001-9 · 900.673-4'),R('paga','COPASA 1080, Milênio 1323, empenhos 399, 470, 825'))},
+    {t:'PMMG 60.20',b:rows(R('GMIFP','3900602'),R('conta','999 · 09001-9 · 900795-5'),R('paga','Simpress, diárias'))},
+    {t:'Fonte 10',b:rows(R('GMIFP','3900101'),R('conta','Conta Única'),R('paga','diárias, Simpress RP, BSC'))},
+    {t:'IPU e IPE',b:P('IPU: de onde veio e como pode ser usado o recurso; é o último dígito do GMIFP.')+N('Espec. 7256852 traz fonte 10 IPU 8; a DF usa 3900101 (IPU 1). Confirmar.')}
+  ]},
+  {t:'Planilha de repasse',b:P('Depois de liquidar, pede-se o financeiro à DF.'),c:[
+    {t:'Quando',b:P('Depois da liquidação. Diárias e adiantamentos podem ir antes.')},
+    {t:'Colunas',b:P('UE · GMIFP · elemento-item · nº empenho · ano · data da liquidação · banco · agência · conta · credor · retenções · principal.')},
+    {t:'Uma linha por empenho',b:P('Cada empenho com a data da sua liquidação. Diárias podem ir pelo total, credor "DIVERSOS".')},
+    {t:'Nunca em branco',b:P('Número do empenho e data da liquidação (dd/mm/aaaa). Sem eles a DF devolve.')}
+  ]},
+  {t:'Erros já vistos',b:rows(R('PRF','fora da programação','',1),R('datas','formato americano','',1)),c:[
+    {t:'PRF 73.10',b:rows(R('R$ 122.047,79','fora da programação da DF de 08/10','',1),R('agência','016152-2 numa linha (certo: 01615-2)','',1))},
+    {t:'Empenho errado',b:rows(R('limpeza','"863...A"','',1),R('60.20','campo vazio','',1))},
+    {t:'Data',b:P('06/15/2026 na planilha do DER. O certo é 15/06/2026.')},
+    {t:'Linha misturada',b:P('DER: quatro empenhos e dois elementos numa linha só, com "VALOR TOTAL" no lugar de "VALOR PRINCIPAL".')}
+  ]}
+]},
+{t:'Mapa das contas',s:'onde cada valor está no balancete',c:[
+  {t:'Orçamento (classe 6)',b:P('Conta o orçamento: quanto ainda pode gastar e em que fase está cada gasto.'),c:[
+    {t:'6.2.2.1.1',b:P('Crédito disponível: pronto para empenhar. Julho: R$ 135.159,17.')},
+    {t:'6.2.2.1.3.01',b:P('Empenhado a liquidar. Julho: R$ 3.110.714,15. Anulação do empenho devolve ao disponível.')},
+    {t:'6.2.2.1.3.03',b:P('Liquidado a pagar. Julho: R$ 67.238,30. Anulação de liquidado (51 › 05) devolve ao 3.01.')},
+    {t:'6.2.2.1.3.04',b:P('Pago. Fecha o ciclo.')}
+  ]},
+  {t:'Dinheiro e dívidas',b:P('Classes 1 e 2: o que a UE tem e o que deve.'),c:[
+    {t:'Banco e CMI',b:rows(R('1.1.1.1.1.02','banco','julho: 132.371,99'),R('1.1.1.1.2.01.02','CMI','julho: 74.871,73'))},
+    {t:'Diárias',b:rows(R('.01.90','a conceder (liquidadas)','julho: 1.130,00'),R('.01.01','concedidas (pagas)','julho: 0,00'))},
+    {t:'Almoxarifado',b:rows(R('1.1.5.6.1.01','estoque','julho: 9.172.931,99 · confere com o RMA'))},
+    {t:'Fornecedores',b:rows(R('2.1.3.1.1.01','a pagar','julho: 67.333,39'))},
+    {t:'Retenções',b:rows(R('2.1.8.8.1.01','','julho: 1.228,84'),R('2.1.8.8.1.03','','julho: 10.789,37'),R('2.1.8.8.1.88','','julho: 185,85'))}
+  ]},
+  {t:'Restos a pagar',b:P('Empenhos de anos anteriores.'),c:[
+    {t:'Não processados',b:rows(R('6.3.1.1','a liquidar','julho: 764.474,75'),R('6.3.1.3','liquidados a pagar','julho: 95,09'))},
+    {t:'Processados',b:rows(R('6.3.2.1','liquidados no ano anterior, a pagar'))},
+    {t:'Cancelados',b:P('6.3.1.9. Empenho com 90 dias sem movimento é anulado (Dec. 37.924/96).')}
+  ]}
+]},
+{t:'RCC e calendário',s:'conferir, explicar, cumprir prazo',c:[
+  {t:'Conferências do RCC',b:P('O que precisa fechar antes de assinar.'),c:[
+    {t:'Fornecedores',b:P('2.1.3.1.1.01 = 6.2.2.1.3.03 + RP liquidados.')+CALC([['liquidado a pagar','67.238,30'],['RP liquidados','95,09'],['fornecedores (julho)','67.333,39',1]])},
+    {t:'Depreciação',b:P('1.2.3.1.1.88.01 = 1.2.3.1.1.99.02. Julho: 26.142,61 nas duas.')},
+    {t:'Caixa × obrigações',b:CALC([['banco + CMI + aplicação','208.286,78'],['fornecedores + retenções','79.537,45'],['sem obrigação','128.749,33',1]])+N('Explicar a sobra.')},
+    {t:'Texto do relatório',b:rows(R('cabeçalho','Anexo I Ofício 069.2/2021-DF/2'),R('frase','documentos assinados digitalmente'),R('1250058','informar a situação'))}
+  ]},
+  {t:'Julho/2026: a explicar',b:P('Todo saldo diferente de zero precisa de nota. O de julho saiu todo "Não há".'),c:[
+    {t:'Caixa',b:P('Nota: recursos para liquidações e retenções do mês seguinte; o que não tiver uso será recolhido à DF.')},
+    {t:'Retenções',b:P('Nota: retenções do mês, a recolher por DARF até a data do vencimento.')},
+    {t:'Empenhos',b:P('Nota: contratos e estimativos vigentes aguardando entrega; RP sem movimento serão anulados.')},
+    {t:'Obras',b:P('R$ 10,83 mi. Nota: obras em andamento ou a encerrar, aguardando baixa no portal de imóveis. Confirmar a situação.')}
+  ]},
+  {t:'Calendário',b:P('Três relógios: vencimentos, quinzena do Ticket e mês fiscal.'),c:[
+    {t:'Todo dia',b:P('Faturas a vencer em 5 dias · conformidades do SIAD · OPs e guias para o ordenador assinar.')},
+    {t:'Toda segunda',b:P('Liquidado a pagar × saldo de cada fonte (96 › 09). Pedir repasse onde faltar.')},
+    {t:'No mês',b:rows(R('dia 4 e 21','RADs do Ticket'),R('dia 15','EFD-Reinf'),R('dia 20','INSS'),R('início','balancete + RMA → RCC'))},
+    {t:'No ano',b:rows(R('janeiro','empenhos estimativos'),R('dezembro','anular saldos, inscrever RP, zerar diárias a conceder'))}
+  ]}
+]}
+];
+
+// ---------- render ----------
+(function(){
+  var stage=document.getElementById('stage'), world=document.getElementById('world'), svg=document.getElementById('links'), core=document.getElementById('core');
+  var crumb=document.getElementById('crumbTxt'), posEl=document.getElementById('pos');
+  var ALL={t:'SOFi',c:TREE,depth:0,el:core,box:core}, flat=[ALL], cur=0, scale=1;
+
+  function build(n,depth,parent,idx){
+    n.depth=depth; n.parent=parent;
+    var w=document.createElement('div'); w.className='node d'+depth+(n.c?'':' leaf');
+    var b=document.createElement('div'); b.className='box'; b.tabIndex=0;
+    if(depth===1){ b.innerHTML='<span class="n">0'+(idx+1)+'</span>'+n.t+'<small>'+n.s+'</small>'; }
+    else{
+      var path=[]; for(var p=parent;p&&p.depth>0;p=p.parent) path.unshift(p.t);
+      b.innerHTML='<div class="tag"><span>'+path.join(' › ')+'</span>'+(n.c?'<em>'+n.c.length+' detalhes ▸</em>':'')+'</div><h3>'+n.t+'</h3>'+(n.b||'');
+    }
+    w.appendChild(b); n.el=w; n.box=b; flat.push(n);
+    if(n.c){
+      var k=document.createElement('div'); k.className='kids'+(n.c.length===1?' one':'');
+      n.c.forEach(function(ch,i){k.appendChild(build(ch,depth+1,n,i))});
+      w.appendChild(k);
+    }
+    b.addEventListener('click',function(e){e.stopPropagation(); toward(n)});
+    b.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toward(n)}});
+    return w;
+  }
+  TREE.forEach(function(n,i){ ALL.c[i].parent=ALL; world.appendChild(build(n,1,ALL,i)) });
+  TREE.forEach(function(n){n.parent=ALL});
+
+  var cells=[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]], GAP=320;
+  function layout(){
+    world.style.transition='none'; world.style.transform='none';
+    var sz=TREE.map(function(n){return {w:n.el.offsetWidth,h:n.el.offsetHeight}});
+    var colW=[0,0,0], rowH=[0,0,0];
+    TREE.forEach(function(n,i){var p=cells[i]; colW[p[0]]=Math.max(colW[p[0]],sz[i].w); rowH[p[1]]=Math.max(rowH[p[1]],sz[i].h)});
+    colW[1]=Math.max(colW[1],900); rowH[1]=Math.max(rowH[1],900);
+    var colX=[0,colW[0]+GAP,colW[0]+colW[1]+2*GAP], rowY=[0,rowH[0]+GAP,rowH[0]+rowH[1]+2*GAP];
+    var W=colX[2]+colW[2], H=rowY[2]+rowH[2];
+    world.style.width=W+'px'; world.style.height=H+'px';
+    var cx=colX[1]+colW[1]/2, cy=rowY[1]+rowH[1]/2;
+    core.style.left=(cx-380)+'px'; core.style.top=(cy-380)+'px';
+    TREE.forEach(function(n,i){
+      var p=cells[i], w=sz[i].w, h=sz[i].h;
+      n.el.style.left=(colX[p[0]]+(colW[p[0]]-w)/2)+'px';
+      n.el.style.top=(rowY[p[1]]+(p[1]===0?rowH[0]-h:(p[1]===2?0:(rowH[1]-h)/2)))+'px';
+    });
+    var wr=world.getBoundingClientRect();
+    function rel(el){var r=el.getBoundingClientRect(); return {x:r.left-wr.left,y:r.top-wr.top,w:r.width,h:r.height}}
+    flat.forEach(function(n){ n.rect = n===ALL ? {x:0,y:0,w:W,h:H} : (n.c ? rel(n.el) : rel(n.box)); n.brect = n===ALL? null : rel(n.box); });
+    var d='';
+    TREE.forEach(function(n){var b=n.brect, hx=b.x+b.w/2, hy=b.y+b.h/2, mx=(cx+hx)/2, my=(cy+hy)/2;
+      d+='M'+cx+' '+cy+' Q'+(mx+(hy-cy)*0.15)+' '+(my-(hx-cx)*0.15)+' '+hx+' '+hy+' '});
+    svg.setAttribute('width',W); svg.setAttribute('height',H); svg.innerHTML='<path d="'+d+'"/>';
+  }
+  function fit(r,pad){
+    var vw=stage.clientWidth, vh=stage.clientHeight-110;
+    var s=Math.min(vw/(r.w+pad*2), vh/(r.h+pad*2)); s=Math.min(s,1.5);
+    var tx=vw/2-(r.x+r.w/2)*s, ty=46+vh/2-(r.y+r.h/2)*s;
+    world.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')'; scale=s;
+  }
+  function go(i,instant){
+    cur=(i+flat.length)%flat.length; var n=flat[cur];
+    document.querySelectorAll('.box.on').forEach(function(b){b.classList.remove('on')});
+    if(n.depth>=2) n.box.classList.add('on');
+    if(instant) world.style.transition='none'; else world.style.transition='';
+    var pad = n===ALL?60 : Math.max(n.rect.w,n.rect.h)*0.04;
+    fit(n.rect,pad);
+    var path=[]; for(var p=n;p&&p!==ALL;p=p.parent) path.unshift(p.t);
+    crumb.innerHTML= n===ALL ? '<b>SOFi</b> · toque em um tema para ampliar' : 'SOFi › '+path.slice(0,-1).map(function(x){return x+' › '}).join('')+'<b>'+path[path.length-1]+'</b>';
+    posEl.textContent=(cur+1)+'/'+flat.length;
+  }
+  function toward(n){
+    // desce um nível de cada vez, a partir de onde está
+    var chain=[]; for(var p=n;p;p=p.parent) chain.unshift(p);
+    var c=flat[cur], k=chain.indexOf(c);
+    var target = (k>=0 && k<chain.length-1) ? chain[k+1] : (k===chain.length-1 ? n : n);
+    if(k<0){ // fora do ramo atual: sobe até o ancestral comum e desce um
+      var anc=c; while(anc && chain.indexOf(anc)<0) anc=anc.parent;
+      var j=chain.indexOf(anc); target=chain[Math.min(j+1,chain.length-1)];
+    }
+    go(flat.indexOf(target));
+  }
+  function up(){ var n=flat[cur]; if(n.parent) go(flat.indexOf(n.parent)); else go(0) }
+  core.addEventListener('click',function(e){e.stopPropagation();go(0)});
+  core.addEventListener('keydown',function(e){if(e.key==='Enter')go(0)});
+  stage.addEventListener('click',function(){ if(cur!==0) up() });
+  document.getElementById('up').onclick=up;
+  document.getElementById('prev').onclick=function(){go(cur-1)};
+  document.getElementById('next').onclick=function(){go(cur+1)};
+  document.getElementById('home').onclick=function(){go(0)};
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='BUTTON') return;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();go(cur+1)}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(cur-1)}
+    else if(e.key==='Escape'||e.key==='ArrowUp'||e.key==='Backspace'){e.preventDefault();up()}
+    else if(e.key==='Home'){go(0)}
+  });
+  function init(){layout(); go(cur,true); void world.offsetWidth; world.style.transition='';}
+  var t; window.addEventListener('resize',function(){clearTimeout(t);t=setTimeout(function(){init()},150)});
+  init();
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(init);
+})();
+</script>
