@@ -40,6 +40,17 @@ Sempre que o usuário informar uma conta nova, atualize esta tabela.
 - 39.43 manutenção de frota (Ticket Log, RAD quinzenal)
 - 39.55 eventos
 
+## Dotação (PARO 2026, Anexo VII e VIII)
+
+Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item · fonte · IPU (Proc.) · IPE
+
+- 1251 PMMG · 06 Segurança Pública · 181 Policiamento · 137 Polícia Ostensiva
+- Ações: 4374 Policiamento Especializado (IAG 0) · 4366 Estruturação e Modernização (IAG 1, projeto estratégico)
+- Fontes: 10 recursos ordinários · 52 taxa de fiscalização ambiental (SEMAD) · 60 diretamente arrecadados · 73 acordos de cooperação com a União (PRF) · 83 multas de trânsito/FUNTRANS (DER)
+- IPU: 1 execução direta · 2 recebidos de outra UO p/ livre utilização · 8 emendas parlamentares
+- IPE do SIAFI coincide com o IAG do PARO nos casos vistos (limpeza 4374 → 0; BSC 4366 → 1)
+- Exemplos: limpeza 1251 · 06 181 137 4374 0001 · 339037 · 01 · 73 · 1 · 0 / BSC 1251 · 06 181 137 4366 0001 · 339039 · 21 · 10 · 8 · 1
+
 ## Roteiro no SIAFI-MG
 
 - Empenho / liquidação / anulação: nav. 51 › 01 (empenho), 51 › 04 (liquidação), 51 › 05 (anulação de liquidado)
