@@ -55,7 +55,8 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 
 - 9.9.8.0.2.03.01 Cota descentralizada a empenhar (GMIFP): saldo de ORÇAMENTO que ainda dá para empenhar (saldo devedor = disponível; empenho/reforço lança a crédito e reduz). Não é dinheiro em banco (banco: 96 › 09).
   - Nível auxiliar 11: tipo crédito / UO / programa de trabalho / natureza / fonte / IPU / IPE
-  - Ex. limpeza PRF: aux. 1125106181137437400013390397310 (tela traz 30 dígitos; parece faltar um "7" entre 37 e 73) · out/2026: saldo ant. 288.415,88 − emp. 3325 21.319,74 − reforços 123 (250.000,00) e 124 (0,08) = 17.096,06 D
+  - Auxiliar (31 dígitos): 1 · 1251 · 06181137 · 4374 · 0001 · natureza (6) · fonte (2) · IPU · IPE. Ex.: 1125106181137437400013390397310 = 339039 · 73 · 1 · 0 (serviços PJ, PRF) · out/2026: 288.415,88 − emp. 3325 21.319,74 − reforços 123 (250.000,00) e 124 (0,08) = 17.096,06 D
+  - Linhas da UE 1250057 em 20/10/2026 (total 363.213,42 D): 4365 339015 60·2·0 672,00 · 4374 339015 52·2·0 6.062,96 · 339015 73·1·0 23.987,82 · 339030 73·1·0 1.500,00 · 339037 73·1·0 52.778,73 · 339039 52·2·0 12,29 · 339039 73·1·0 14.765,06 · 339040 73·1·0 6.008,92 · 449052 73·1·0 257.425,64
 
 ## Roteiro no SIAFI-MG
 
