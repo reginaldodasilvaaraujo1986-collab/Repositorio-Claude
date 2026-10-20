@@ -68,6 +68,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Pagamento: nav. 71 (OP por credor; guias por código de barras, título bancário Empenho ou Retenção)
 - Consultas: 95; saldo de conta banco: 96 › 09; relatórios: 99
 - Contratos passam antes pelo SIAD (especificação de conformidade efetivada)
+- Empenho fonte 73 (PRF): janela "Contrato/Convênio" — Saída (opcional): tipo 2/1 contrato de serviço + nº do contrato SIAD (ex. 9523324) · Entrada: tipo 11 (acordo/mútua coop. téc.) nº 9210809 → Enter → PF6 (Sel). Erro "G0B-número contrato/convênio inexistente" = número digitado errado
 
 ## Retenções
 
