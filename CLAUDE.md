@@ -57,6 +57,9 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
   - Nível auxiliar 11: tipo crédito / UO / programa de trabalho / natureza / fonte / IPU / IPE
   - Auxiliar (31 dígitos): 1 · 1251 · 06181137 · 4374 · 0001 · natureza (6) · fonte (2) · IPU · IPE. Ex.: 1125106181137437400013390397310 = 339039 · 73 · 1 · 0 (serviços PJ, PRF) · out/2026: 288.415,88 − emp. 3325 21.319,74 − reforços 123 (250.000,00) e 124 (0,08) = 17.096,06 D
   - Linhas da UE 1250057 em 20/10/2026 (total 363.213,42 D): 4365 339015 60·2·0 672,00 · 4374 339015 52·2·0 6.062,96 · 339015 73·1·0 23.987,82 · 339030 73·1·0 1.500,00 · 339037 73·1·0 52.778,73 · 339039 52·2·0 12,29 · 339039 73·1·0 14.765,06 · 339040 73·1·0 6.008,92 · 449052 73·1·0 257.425,64
+- 6.2.2.1.1 Crédito disponível (natureza só 3390/4490, sem elemento). 20/10/2026: 366.180,36 C = cota .01 363.213,42 + cota .02 466,94 + 2.500,00 sem cota (custeio PRF 3390·73)
+- 9.9.8.0.2.03.02 Cota a empenhar elemento/item (itens controlados, ex. 39.19). 20/10/2026: 339039.19 fonte 60·2·0 → 4374 319,83 e 2060 (saúde, 10 302 135) 147,11
+- Para empenhar: conferir .01 (por elemento) OU .02 (se o item for controlado)
 
 ## Roteiro no SIAFI-MG
 
