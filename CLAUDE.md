@@ -60,6 +60,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - 6.2.2.1.1 Crédito disponível (natureza só 3390/4490, sem elemento). 20/10/2026: 366.180,36 C = cota .01 363.213,42 + cota .02 466,94 + 2.500,00 sem cota (custeio PRF 3390·73)
 - 9.9.8.0.2.03.02 Cota a empenhar elemento/item (itens controlados, ex. 39.19). 20/10/2026: 339039.19 fonte 60·2·0 → 4374 319,83 e 2060 (saúde, 10 302 135) 147,11
 - Para empenhar: conferir .01 (por elemento) OU .02 (se o item for controlado)
+- Repasse de cota (LCP 1282, transação RCOD/RCODUFG; ex. doc 6279 de 02/10/2026, diárias 4365 339015 fonte 60, origem UE 1250005 DRH PMMG): na origem 6.2.2.1.1 ↔ 6.2.2.2.9.02 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03; no CPE 5.2.2.2.9.02 ↔ 6.2.2.1.1 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03 (conta par da cota = 9.9.8.0.2.06.03; lados D/C a confirmar na coluna à direita). 6.2.2.1.1 usa nível auxiliar 19 (sem elemento); 9.9.8.0.2.03.01 usa nível 11
 
 ## Roteiro no SIAFI-MG
 
