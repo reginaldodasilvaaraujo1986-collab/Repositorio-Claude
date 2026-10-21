@@ -11,6 +11,7 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | UE CPE | 1250057 |
 | UE CPE MAMB | 1250058 |
 | UPG | 25 |
+| Unidade financiadora | 2091 (informada pelo usuário em 21/10/2026; confirmar a qual fonte/situação se aplica) |
 | Ordenador (matrícula) | 1305820 |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
 
