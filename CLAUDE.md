@@ -26,7 +26,7 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 | DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
 
-Unidade financiadora no EMPENHO (51 › 01): fonte 83.20 (DER) → 4381 · fonte 60.20 (PMMG) → 4031 · 2091 → fonte a confirmar (provável 73.10 PRF)
+Unidade financiadora no EMPENHO (51 › 01): fonte 83.20 (DER) → 4381 · fonte 60.20 (PMMG) → 4031 · fonte 52.20 (SEMAD) → 2091
 
 Sempre que o usuário informar uma conta nova, atualize esta tabela.
 
