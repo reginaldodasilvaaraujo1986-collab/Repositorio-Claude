@@ -11,7 +11,6 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | UE CPE | 1250057 |
 | UE CPE MAMB | 1250058 |
 | UPG | 25 |
-| Unidade financiadora | 2091 (informada pelo usuário em 21/10/2026; confirmar a qual fonte/situação se aplica) |
 | Ordenador (matrícula) | 1305820 |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
 
@@ -26,6 +25,8 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 | PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (conferir: uma linha da planilha traz 016152-2) | 22.085-X | Ticket (emp. 862), limpeza Tática (emp. 863, 339037.01, PT 06.181.137.4374.0001, IPU 1, IPE 0, proc. SIAD 250457/21/2025), Master Clean (886), Elevtech (2936), diárias do BPMRv; contrato/convênio de ENTRADA no empenho: tipo 11 (acordo/mútua coop. téc.) nº 9210809 |
 | DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
+
+Unidade financiadora no EMPENHO (51 › 01): fonte 83.20 (DER) → 4381 · fonte 60.20 (PMMG) → 4031 · 2091 → fonte a confirmar (provável 73.10 PRF)
 
 Sempre que o usuário informar uma conta nova, atualize esta tabela.
 
