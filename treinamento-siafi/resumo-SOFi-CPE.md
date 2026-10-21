@@ -57,6 +57,19 @@ GMIFP = 3900 + fonte (2 dígitos) + IPU (1 dígito).
 | 39.43 | manutenção de frota (Ticket Log) |
 | 39.55 | eventos |
 
+**Despesas da fonte 73.10 (PRF) — pesquisar saldo de empenho**
+
+| Elemento/item | Despesa |
+|---|---|
+| 37.01 | conservação/limpeza |
+| 39.19 | reprografia |
+| 39.21 | manutenção da usina fotovoltaica |
+| 39.22 | manutenção da plataforma elevatória |
+| 39.52 | estagiários |
+| 39.43 | Ticket Log BPMRv |
+| 40.04 | internet |
+| 47.07 | taxa de resíduos sólidos |
+
 **Item 30 frequente no CPE:** 30.05, 30.16, 30.17, 30.19, 30.20, 30.22, 30.23, 30.25. O CPE não compra fardas, alimentos nem ração.
 
 ## 4. Dotação orçamentária

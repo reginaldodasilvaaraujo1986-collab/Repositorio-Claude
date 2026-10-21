@@ -40,6 +40,9 @@ Sempre que o usuário informar uma conta nova, atualize esta tabela.
 - 39.43 manutenção de frota (Ticket Log, RAD quinzenal)
 - 39.55 eventos
 
+Despesas da fonte 73.10 (PRF) para pesquisar saldo de empenho (lista da SOFi, out/2026):
+37.01 conservação/limpeza · 39.19 reprografia · 39.21 manutenção usina fotovoltaica · 39.22 manutenção plataforma elevatória · 39.52 estagiários · 39.43 Ticket Log BPMRv · 40.04 internet · 47.07 taxa de resíduos sólidos
+
 ## Dotação (PARO 2026, Anexo VII e VIII)
 
 Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item · fonte · IPU (Proc.) · IPE
