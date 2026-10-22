@@ -23,8 +23,10 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 | SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 (SIAFI: "PMMG X FEAM FTE 52.2", tipo CITTV conta interna) | Ticket (emp. 718), diárias, eventos Paladir (2472) |
 | PMMG 60.20 | 3900602 | 999 | 09001-9 | 900795-5 (SIAFI: "Recurso Fundo Especial do Poder Judiciário subst a FT 10", tipo CITTV) | Simpress 39.19 (318 e 322/2025), diárias 15.01 |
 | PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (confirmado na 96›09) | 22.085-X (SIAFI: 000000022085 X, tipo CMUTV) | Ticket (emp. 862), limpeza Tática (emp. 863, 339037.01, PT 06.181.137.4374.0001, IPU 1, IPE 0, proc. SIAD 250457/21/2025), Master Clean (886), Elevtech (2936), diárias do BPMRv; contrato/convênio de ENTRADA no empenho: tipo 11 (acordo/mútua coop. téc.) nº 9210809 |
-| DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
+| DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 (SIAFI: "Convênio DEER/MG - 30.019/21", tipo CITTV) | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
+
+Saldos 96›09 em 22/10/2026: PRF 174.868,20 (sem aplicação) · SEMAD 209.926,42 · fonte 60 4.836,05 · DER 2.568,37
 
 Unidade financiadora no EMPENHO (51 › 01): fonte 83.20 (DER) → 4381 · fonte 60.20 (PMMG) → 4031 · fonte 52.20 (SEMAD) → 2091
 
