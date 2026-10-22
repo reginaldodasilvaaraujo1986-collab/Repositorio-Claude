@@ -76,6 +76,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Empenho / liquidação / anulação: nav. 51 › 01 (empenho), 51 › 04 (liquidação), 51 › 05 (anulação de liquidado)
 - Pagamento: nav. 71 (OP por credor; guias por código de barras, título bancário Empenho ou Retenção)
 - Consultas: 95; saldo de conta banco: 96 › 09; relatórios: 99
+- Menu 95 (Movimentação da Despesa, ação 1 consultar / 2 imprimir): 01 extrato de empenho · 02 resumo de empenho · 03 saldo liquidado a pagar (orçamento corrente) · 04 empenhos emitidos · 05 extrato RP · 06 resumo RP · 07 saldo RP/folha exerc. anteriores · 08 retenção/consignação/depósitos · 09 pagamentos por credor · 10 saldo a pagar folha · 11 saldo a pagar contratos administrativos/estagiários (pág. 1/2)
 - Contratos passam antes pelo SIAD (especificação de conformidade efetivada)
 - Empenho fonte 73 (PRF): janela "Contrato/Convênio" — Saída (opcional): tipo 2/1 contrato de serviço + nº do contrato SIAD (ex. 9523324) · Entrada: tipo 11 (acordo/mútua coop. téc.) nº 9210809 → Enter → PF6 (Sel). Erro "G0B-número contrato/convênio inexistente" = número digitado errado
 
