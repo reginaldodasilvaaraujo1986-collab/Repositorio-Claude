@@ -20,7 +20,7 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 
 | Fonte | GMIFP | Banco | Agência | Conta | Paga hoje |
 |---|---|---|---|---|---|
-| SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 (SIAFI: "PMMG X FEAM FTE 52.2", tipo CITTV conta interna) | Ticket (emp. 718; credor CNPJ 08.273.364/0001-57, maior saldo em Fornecedores), diárias, eventos Paladir (2472) |
+| SEMAD 52.20 | 3900522 | 999 | 09001-9 | 900158-6 (SIAFI: "PMMG X FEAM FTE 52.2", tipo CITTV conta interna) | Ticket (emp. 718; credor CNPJ 08.273.364/0001-57 — atenção: em 22/10 o liquidado a pagar da Ticket, 229.064,56, está todo na 339039.43 fonte 73; conferir se o 718 é SEMAD ou PRF), diárias, eventos Paladir (2472) |
 | PMMG 60.20 | 3900602 | 999 | 09001-9 | 900795-5 (SIAFI: "Recurso Fundo Especial do Poder Judiciário subst a FT 10", tipo CITTV) | Simpress 39.19 (318 e 322/2025), diárias 15.01 |
 | PRF 73.10 | 3900731 | 001 (Banco do Brasil) | 01615-2 (confirmado na 96›09) | 22.085-X (SIAFI: 000000022085 X, tipo CMUTV) | Ticket (emp. 862), limpeza Tática (emp. 863, 339037.01, PT 06.181.137.4374.0001, IPU 1, IPE 0, proc. SIAD 250457/21/2025), Master Clean (886), Elevtech (2936), diárias do BPMRv; contrato/convênio de ENTRADA no empenho: tipo 11 (acordo/mútua coop. téc.) nº 9210809 |
 | DER 83.20 | 3900832 | 999 | 09001-9 | 900.673-4 (SIAFI: "Convênio DEER/MG - 30.019/21", tipo CITTV) | Água COPASA (emp. 1080), Elevadores Milênio (1323), empenhos 399, 470 e 825 (39.13/39.21) |
@@ -67,6 +67,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - 6.2.2.1.1 Crédito disponível (natureza só 3390/4490, sem elemento). 20/10/2026: 366.180,36 C = cota .01 363.213,42 + cota .02 466,94 + 2.500,00 sem cota (custeio PRF 3390·73)
 - 9.9.8.0.2.03.02 Cota a empenhar elemento/item (itens controlados, ex. 39.19). 20/10/2026: 339039.19 fonte 60·2·0 → 4374 319,83 e 2060 (saúde, 10 302 135) 147,11
 - 6.2.2.1.3.04 Crédito empenhado liquidado PAGO (auxiliar até o ITEM: …natureza(6) item(2) fonte(2) IPU IPE). Pago 2026 até 22/10: 5.275.506,03 — diárias 15.01 52,5% · Ticket 39.43 21,8% (1.150.563,66) · limpeza 37.01 11,4% · eventos 39.55 5,7% · estagiários 39.52 3,7% · água 39.13 1,7% · demais <1%. Por fonte: 73 51,1% · 52 31,8% · 83 11,6% · 60 5,4% · 10 0,1%
+- 6.2.2.1.3.03 Liquidado a pagar em 22/10/2026: 261.007,42 — 339039.43 fonte 73 (Ticket) 229.064,56 (87,8%) · 4366 449052.07 fonte 10 24.331,88 (capital; não aparece em 2.1.3.1.1.01) · 39.13 DER 3.330,09 · 40.04 PRF 1.916,66 · 39.12 DER 1.299,42 · 15.01 SEMAD 822,00 · 39.26 242,81. Fornecedores 237.345,65 = 261.007,42 − 24.331,88 + 670,11 (RP 2025)
 - Para empenhar: conferir .01 (por elemento) OU .02 (se o item for controlado)
 - Repasse de cota (LCP 1282, transação RCOD/RCODUFG; ex. doc 6279 de 02/10/2026, diárias 4365 339015 fonte 60, origem UE 1250005 DRH PMMG): na origem 6.2.2.1.1 ↔ 6.2.2.2.9.02 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03; no CPE 5.2.2.2.9.02 ↔ 6.2.2.1.1 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03 (conta par da cota = 9.9.8.0.2.06.03; lados D/C a confirmar na coluna à direita). 6.2.2.1.1 usa nível auxiliar 19 (sem elemento); 9.9.8.0.2.03.01 usa nível 11
 
