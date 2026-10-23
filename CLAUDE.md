@@ -92,6 +92,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - IRRF na OP sobre o bruto: 1,2% material, 4,8% serviço
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
 - INSS vence dia 20; ISS conforme cada prefeitura
+- SIAFI aceita no máximo 5 prefeituras (ISS) por liquidação: com mais, dividir a nota em 2+ especificações/liquidações (ex. Ticket BPMRV 1ª quinz. out/2026: 7 municípios → espec. 125.377,19 + 100.000,00). ISS BPMRV: BH 494,77 · Formiga 163,00 · Frutal 78,57 · Almenara 48,78 · Contagem 19,29 · Teófilo Otoni 14,55 · Pedra Azul 1,92
 - EFD-Reinf: confirmar com a DF se o envio é centralizado
 - A guia de retenção sai da mesma fonte da despesa
 
