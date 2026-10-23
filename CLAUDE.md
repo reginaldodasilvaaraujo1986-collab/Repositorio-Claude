@@ -44,6 +44,8 @@ Sempre que o usuário informar uma conta nova, atualize esta tabela.
 - 39.43 manutenção de frota (Ticket Log, RAD quinzenal)
 - 39.55 eventos
 
+Nota da Ticket (NFS-e Campo Bom/RS, quinzenal): pág. 2 "Informações adicionais" traz BASE (unidade → empenho: 25º BPM MAmb = SEMAD 718; BPMRv = PRF 862), CONTRATO 9422290, período das transações e o "VALOR A SER LIQUIDADO NO PORTAL" (= bruto da liquidação). Retenções informadas na nota: ISSQN dos estabelecimentos + IRRF serviço 4,8% (cód. 6190) + IRRF peça 1,2% (cód. 6147); líquido = duplicata. Ex. NFS-e 48777033 (01–15/10/2026, 25º BPM MAmb): liquidar 80.252,89 − ISS 237,80 − IR serv. 336,09 − IR peça 248,11 = 79.430,89 (venc. 16/11/2026)
+
 Despesas da fonte 73.10 (PRF) para pesquisar saldo de empenho (lista da SOFi, out/2026):
 37.01 conservação/limpeza · 39.19 reprografia · 39.21 manutenção usina fotovoltaica · 39.22 manutenção plataforma elevatória · 39.52 estagiários · 39.43 Ticket Log BPMRv · 40.04 internet · 47.07 taxa de resíduos sólidos
 
