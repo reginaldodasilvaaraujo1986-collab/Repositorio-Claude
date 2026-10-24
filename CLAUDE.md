@@ -106,5 +106,6 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 ## Regras
 
 - Empenho 90 dias sem movimento é anulado (Dec. 37.924/96)
+- Sempre que citar conta contábil (respostas e quizzes), trazer número + nome (ex.: 2.1.8.8.1.03 – INSS retido)
 - Não reproduzir nomes de pessoas reais dos documentos
 - Simulador de treino: senha sempre "TREINO"; nunca pedir senha real
