@@ -12,6 +12,8 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | UE CPE MAMB | 1250058 |
 | UPG | 25 |
 | Ordenador (matrícula) | 1305820 |
+| UE da DF (repasse financeiro) | 1250002 – Dir. de Finanças PMMG |
+| UE da DRH (repasse de cota de diárias) | 1250005 |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
 
 ## Fontes e contas para pagamento
@@ -73,8 +75,9 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - 6.2.2.1.3.04 Crédito empenhado liquidado PAGO (auxiliar até o ITEM: …natureza(6) item(2) fonte(2) IPU IPE). Pago 2026 até 22/10: 5.275.506,03 — diárias 15.01 52,5% · Ticket 39.43 21,8% (1.150.563,66) · limpeza 37.01 11,4% · eventos 39.55 5,7% · estagiários 39.52 3,7% · água 39.13 1,7% · demais <1%. Por fonte: 73 51,1% · 52 31,8% · 83 11,6% · 60 5,4% · 10 0,1%
 - 6.2.2.1.3.03 Liquidado a pagar em 22/10/2026: 261.007,42 — 339039.43 fonte 73 (Ticket) 229.064,56 (87,8%) · 4366 449052.07 fonte 10 24.331,88 (capital; não aparece em 2.1.3.1.1.01) · 39.13 DER 3.330,09 · 40.04 PRF 1.916,66 · 39.12 DER 1.299,42 · 15.01 SEMAD 822,00 · 39.26 242,81. Fornecedores 237.345,65 = 261.007,42 − 24.331,88 + 670,11 (RP 2025)
 - 1.1.1.1.1.02 Bancos conta movimento: só a conta BB da PRF (aux. 03·001·01615-2·000000022085X·2017·11·9210809 = banco/agência/conta + convênio entrada tipo 11 nº 9210809). 26/10/2026: 99.206,24 D. As contas internas 999 (fontes 52, 60, 83) não aparecem aqui
-- 1.1.1.1.2.01.02 Contas de movimentação interna – CMI/CIT: contas internas banco 999 (aux. 16·999·09001-9·conta). 26/10/2026: 900158-6 SEMAD 200.541,96 · 900673-4 DER 3.553,12 · 900747-6 (não identificada) 11,44 · 900795-5 fonte 60 2.288,84 = 206.395,36 D
+- 1.1.1.1.2.01.02 Contas de movimentação interna – CMI/CIT: contas internas banco 999 (aux. 16·999·09001-9·conta). 26/10/2026: 900158-6 SEMAD 200.541,96 · 900673-4 DER 3.553,12 · 900747-6 (fonte a identificar; repasse DF doc 6811 em 19/10 = 340,20 pago na OP 4287 com IRRF 4,8%; sobra antiga 11,44) 11,44 · 900795-5 fonte 60 2.288,84 = 206.395,36 D
 - 1.1.1.1.2.02.01.01.01 Cota financeira a utilizar: só fonte 10 (Conta Única), aux. ano/UO/GMIFP/elemento-item. 26/10/2026: 1.048,73 D (sobras 2025: geral 241,78 · 37.01 801,28 · 39.19 5,67)
+- Repasse financeiro da DF (doc tipo "Descentralização de recursos conta movimento bancária da unidade", origem UE 1250002): LCP 661 descentralização escritural cota financeira – CITTV + LCP 2474 descentralização de recursos liberados unidade tesouraria; entra a D na 1.1.1.1.2.01.02
 - Para empenhar: conferir .01 (por elemento) OU .02 (se o item for controlado)
 - Repasse de cota (LCP 1282, transação RCOD/RCODUFG; ex. doc 6279 de 02/10/2026, diárias 4365 339015 fonte 60, origem UE 1250005 DRH PMMG): na origem 6.2.2.1.1 ↔ 6.2.2.2.9.02 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03; no CPE 5.2.2.2.9.02 ↔ 6.2.2.1.1 e 9.9.8.0.2.03.01 ↔ 9.9.8.0.2.06.03 (conta par da cota = 9.9.8.0.2.06.03; lados D/C a confirmar na coluna à direita). 6.2.2.1.1 usa nível auxiliar 19 (sem elemento); 9.9.8.0.2.03.01 usa nível 11
 
