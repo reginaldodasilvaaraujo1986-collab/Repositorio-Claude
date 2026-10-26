@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cola de Contas SOFi/CPE</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+@page { size: A4; margin: 10mm; }
+:root{ --ink:#14202e; --ink2:#55606f; --line:#d5dbe3; --accent:#1f4f8a; --soft:#eef3f9; --d:#1d7a4a; --c:#a3471f;
+  --sans:"IBM Plex Sans",Arial,sans-serif; --mono:"IBM Plex Mono",Consolas,monospace; }
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);color:var(--ink);font-size:8.9pt;line-height:1.28;background:#fff}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--accent);padding-bottom:4px;margin-bottom:7px}
+h1{font-size:15pt;margin:0;letter-spacing:.01em}
+.sub{color:var(--ink2);font-size:8pt}
+h2{font-size:9.5pt;margin:8px 0 4px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+table{width:100%;border-collapse:collapse}
+th{background:var(--soft);text-align:left;font-size:7.6pt;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);padding:3px 5px;border-bottom:1px solid var(--line)}
+td{padding:2.6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.grp td{background:#f7f9fc;font-weight:700;font-size:7.8pt;color:var(--accent);padding-top:4px}
+.t{font-family:var(--mono);font-weight:600;display:inline-block;width:14px;text-align:center;border-radius:3px;color:#fff}
+.t.D{background:var(--d)} .t.C{background:var(--c)}
+.cols{display:grid;grid-template-columns:1fr;gap:2px}
+.box{border:1px solid var(--line);border-radius:6px;padding:5px 8px;columns:2;column-gap:14px}
+.box p{margin:2px 0}
+.mono{font-family:var(--mono)}
+.foot{margin-top:6px;color:var(--ink2);font-size:7.2pt;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Cola de Contas · SOFi/CPE</h1><div class="sub">UO 1251 PMMG · UE 1250057 CPE · Módulo Contábil e SIAFI-MG</div></div>
+  <div class="sub">Regra: a letra do tipo de saldo é a que <b>aumenta</b> a conta · <span class="t D">D</span> devedora · <span class="t C">C</span> credora</div>
+</header>
+
+<h2>Contas contábeis mais usadas</h2>
+<table>
+<tr><th style="width:21%">Conta</th><th style="width:31%">Nome</th><th style="width:5%">Saldo</th><th>Para que serve / como mexe</th></tr>
+<tr class="grp"><td colspan="4">Dinheiro</td></tr>
+<tr><td class="n">1.1.1.1.1.02</td><td>Bancos conta movimento</td><td><span class="t D">D</span></td><td>conta do BB da PRF (22.085-X). Repasse entra D · OP sai C</td></tr>
+<tr><td class="n">1.1.1.1.2.01.02</td><td>Contas de movimentação interna – CMI/CIT</td><td><span class="t D">D</span></td><td>contas internas 999 (SEMAD, fonte 60, DER). Repasse DF entra D · OP sai C</td></tr>
+<tr><td class="n">1.1.1.1.2.02.01.01.01</td><td>Cota financeira a utilizar</td><td><span class="t D">D</span></td><td>só fonte 10 (Conta Única), por GMIFP/elemento-item</td></tr>
+<tr class="grp"><td colspan="4">Bens</td></tr>
+<tr><td class="n">1.1.5.6.1.01</td><td>Almoxarifado</td><td><span class="t D">D</span></td><td>material de consumo (30.xx) em estoque · confere com o RMA</td></tr>
+<tr><td class="n">1.2.3.1.1.01</td><td>Bens móveis</td><td><span class="t D">D</span></td><td>patrimônio · confere com o inventário</td></tr>
+<tr class="grp"><td colspan="4">O que o CPE deve</td></tr>
+<tr><td class="n">2.1.3.1.1.01</td><td>Fornecedores e contas a pagar</td><td><span class="t C">C</span></td><td>liquidado e não pago · aux. ano + CNPJ/CPF · nasce na liquidação (C), baixa na OP (D)</td></tr>
+<tr><td class="n">2.1.8.8.1.03</td><td>INSS retido</td><td><span class="t C">C</span></td><td>cessão de mão de obra 11% · vence dia 20 do mês seguinte à competência</td></tr>
+<tr><td class="n">2.1.8.8.1.88</td><td>ISS retido (outros valores restituíveis)</td><td><span class="t C">C</span></td><td>aux. ano + CNPJ prefeitura + GMIFP · vencimento de cada prefeitura</td></tr>
+<tr><td class="n">2.1.8.8.1.01</td><td>IRRF retido</td><td><span class="t C">C</span></td><td>4,8% serviço · 1,2% material · credor Estado de MG 18.715.615/0001-60</td></tr>
+<tr class="grp"><td colspan="4">Orçamento: posso empenhar?</td></tr>
+<tr><td class="n">6.2.2.1.1</td><td>Crédito disponível</td><td><span class="t C">C</span></td><td>orçamento livre, por grupo (3390/4490) · nível aux. 19</td></tr>
+<tr><td class="n">9.9.8.0.2.03.01</td><td>Cota a empenhar – GMIFP</td><td><span class="t D">D</span></td><td>liberado para empenhar, por elemento · repasse D · empenho/reforço C</td></tr>
+<tr><td class="n">9.9.8.0.2.03.02</td><td>Cota a empenhar – elemento/item</td><td><span class="t D">D</span></td><td>itens controlados (ex.: 39.19) · se não está na .01, olhe aqui</td></tr>
+<tr class="grp"><td colspan="4">Execução: em que fase está?</td></tr>
+<tr><td class="n">6.2.2.1.3.01</td><td>Empenhado a liquidar</td><td><span class="t C">C</span></td><td>saldo dos empenhos (falta nota/fatura)</td></tr>
+<tr><td class="n">6.2.2.1.3.03</td><td>Liquidado a pagar</td><td><span class="t C">C</span></td><td>abre até o item · deve bater com Fornecedores (+ capital)</td></tr>
+<tr><td class="n">6.2.2.1.3.04</td><td>Pago</td><td><span class="t C">C</span></td><td>tudo o que foi pago no ano, por item e fonte</td></tr>
+</table>
+
+<div class="cols">
+<div>
+<h2>Contas bancárias por fonte</h2>
+<table>
+<tr><th style="width:21%">Fonte</th><th style="width:14%">GMIFP</th><th style="width:40%">Banco · Agência · Conta</th><th>Unid. financiadora (empenho)</th></tr>
+<tr><td><b>52</b> SEMAD</td><td class="n">3900522</td><td class="mono">999 · 09001-9 · 900158-6</td><td class="mono">2091</td></tr>
+<tr><td><b>60</b> PMMG</td><td class="n">3900602</td><td class="mono">999 · 09001-9 · 900795-5</td><td class="mono">4031</td></tr>
+<tr><td><b>73</b> PRF</td><td class="n">3900731</td><td class="mono">001 · 01615-2 · 22085-X</td><td class="mono">—</td></tr>
+<tr><td><b>83</b> DER</td><td class="n">3900832</td><td class="mono">999 · 09001-9 · 900673-4</td><td class="mono">4381</td></tr>
+<tr><td><b>10</b> Ordinários</td><td class="n">3900101</td><td>Conta Única</td><td class="mono">—</td></tr>
+</table>
+<p class="sub" style="margin:3px 0 0">GMIFP = 3900 + fonte + IPU · PRF no empenho: convênio de entrada tipo 11 nº 9210809</p>
+</div>
+<div>
+<h2>Onde consultar</h2>
+<div class="box">
+<p><b class="mono">96 › 09</b> saldo da conta (linha "No mês", coluna Débito = entrou)</p>
+<p><b class="mono">95 › 02</b> resumo do empenho (empenhado, liquidado, saldo)</p>
+<p><b class="mono">51 › 01</b> empenho · <b class="mono">51 › 04</b> liquidação · <b class="mono">51 › 05</b> anulação</p>
+<p><b class="mono">71</b> OP (título Empenho) e guias (título Retenção)</p>
+<p><b>Web:</b> Saldo analítico → <b>Extrato</b> → <b>Lanc</b> (contas D/C) · <b>Detalhes</b> (empenho)</p>
+<p><b>Quem mandou:</b> UE 1250002 = DF (dinheiro) · 1250005 = DRH (cota de diárias)</p>
+</div>
+</div>
+</div>
+
+<div class="foot"><span>Uso interno · treinamento SOFi/CPE</span><span>Atualizado em 26/10/2026</span></div>
+</body>
+</html>
