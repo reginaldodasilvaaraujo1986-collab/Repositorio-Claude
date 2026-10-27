@@ -14,6 +14,7 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | Ordenador (matrícula) | 1305820 |
 | UE da DF (repasse financeiro) | 1250002 – Dir. de Finanças PMMG |
 | UE da DRH (repasse de cota de diárias) | 1250005 |
+| Crédito/cota orçamentária (pedido) | PM6 (informado pelo usuário em 27/10/2026); diárias vêm da DRH |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
 
 ## Fontes e contas para pagamento
