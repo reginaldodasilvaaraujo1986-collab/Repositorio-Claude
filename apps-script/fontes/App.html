@@ -603,15 +603,10 @@
     relogio: svgIco('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>')
   };
 
-  /** Contagem regressiva até o início (dias : horas : min), atualizada a cada minuto. */
-  function regressiva(iso) {
-    const ms = Math.max(0, dt(iso) - Date.now());
-    const d = Math.floor(ms / DIA), h = Math.floor(ms % DIA / 3600000), m = Math.floor(ms % 3600000 / 60000);
-    return [[d, 'dias'], [h, 'horas'], [m, 'min']].map(([n, l]) => '<span class="cr-u"><b>' + pad(n) + '</b><i>' + l + '</i></span>').join('<span class="cr-s">:</span>');
-  }
   function kpiProxima(t) {
+    const n = dias(t.inicio);
     return '<div class="card kpi com-ico click kpi-prox" data-turma="' + t.id + '"><div class="k-ico">' + ICONES.relogio + '</div><div class="k-tx">' +
-      '<div class="label">Próxima turma em</div><div class="cr" data-regressiva="' + t.inicio + '">' + regressiva(t.inicio) + '</div>' +
+      '<div class="label">Próxima turma em</div><div class="value">' + n + '<small>' + (n === 1 ? 'dia' : 'dias') + '</small></div>' +
       '<div class="foot">' + esc(nomeCurto(t)) + ' · ' + fmt(t.inicio) + '</div></div></div>';
   }
 
@@ -831,7 +826,7 @@
     const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
     const barras = '<div class="ub">' + arr.map(([k, v]) =>
       '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
-      '<b>' + v + '</b><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 2) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
+      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
     return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
   }
 
@@ -1957,7 +1952,6 @@
 
   carregar(false);
   setInterval(atualizarSync, 30000);
-  setInterval(() => { $$('[data-regressiva]').forEach(el => { el.innerHTML = regressiva(el.dataset.regressiva); }); }, 60000);
 
   // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
   if (ROTACAO_MS) setInterval(() => {

@@ -857,21 +857,16 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .k-tx { min-width: 0; flex: 1; }
 .kpi.com-ico .ring { right: 14px; }
 .kpi.com-ico:has(.ring) .k-tx { padding-right: 46px; }
-/* contagem regressiva */
-.cr { display: flex; align-items: flex-start; gap: 4px; margin-top: 3px; }
-.cr-u { display: flex; flex-direction: column; align-items: center; }
-.cr-u b { font: 800 25px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); }
-.cr-u i { font: 600 9px var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); margin-top: 2px; }
-.cr-s { font: 700 20px/1 var(--mono); color: var(--ink-3); padding-top: 1px; }
-/* cursados por unidade: barras verticais */
-.ub { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 14px; padding: 4px 6px 0; }
-.ub-c { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
-.ub-c > b { font: 800 16px var(--mono); color: var(--ink-2); }
+/* cursados por unidade: barras verticais arredondadas, com trilho */
+.ub { flex: 1; min-height: 0; display: flex; align-items: stretch; justify-content: space-around; gap: 18px; padding: 2px 8px 0; }
+.ub-c { flex: 1; max-width: 86px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.ub-c > b { font: 800 18px/1 var(--sans); color: var(--ink); letter-spacing: -.02em; }
+.ub-c > small { font: 600 10.5px var(--mono); color: var(--ink-3); margin-bottom: 6px; }
 .ub-c.top > b { color: var(--accent); }
-.ub-b { flex: 1; width: 100%; max-width: 74px; display: flex; align-items: flex-end; border-bottom: 1px solid var(--line); }
-.ub-b i { display: block; width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--surface-3), color-mix(in srgb, var(--surface-3) 60%, var(--surface))); }
-.ub-c.top .ub-b i { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 75%, #fff), var(--accent)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
-.ub-c em { font: 700 11px var(--sans); font-style: normal; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.ub-b { flex: 1; width: 44px; display: flex; align-items: flex-end; border-radius: 14px; background: repeating-linear-gradient(0deg, var(--surface-2) 0 10px, var(--surface) 10px 12px); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.ub-b i { display: block; width: 100%; border-radius: 14px; background: linear-gradient(180deg, #9aa4b8, #6b7489); }
+.ub-c.top .ub-b i { background: linear-gradient(180deg, #ffb07a, var(--accent)); box-shadow: 0 -6px 18px color-mix(in srgb, var(--accent) 40%, transparent); }
+.ub-c em { font: 700 10.5px var(--sans); font-style: normal; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; margin-top: 8px; }
 /* treinamentos do mês: linha do tempo */
 .fit.rmap { display: flex; flex-direction: column; padding: 8px 14px 0 10px; }
 .rm-it { display: grid; grid-template-columns: 74px 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 46px; flex: none; position: relative; cursor: default; }
@@ -891,7 +886,6 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .kpi.com-ico .label { letter-spacing: .06em; }
 @media (max-width: 1400px) and (min-width: 861px) {
   .kpi.com-ico .k-ico { display: none; }
-  .cr-u b { font-size: 21px; } .cr-s { font-size: 17px; }
 }
 </style>
 </head>
@@ -1570,15 +1564,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     relogio: svgIco('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>')
   };
 
-  /** Contagem regressiva até o início (dias : horas : min), atualizada a cada minuto. */
-  function regressiva(iso) {
-    const ms = Math.max(0, dt(iso) - Date.now());
-    const d = Math.floor(ms / DIA), h = Math.floor(ms % DIA / 3600000), m = Math.floor(ms % 3600000 / 60000);
-    return [[d, 'dias'], [h, 'horas'], [m, 'min']].map(([n, l]) => '<span class="cr-u"><b>' + pad(n) + '</b><i>' + l + '</i></span>').join('<span class="cr-s">:</span>');
-  }
   function kpiProxima(t) {
+    const n = dias(t.inicio);
     return '<div class="card kpi com-ico click kpi-prox" data-turma="' + t.id + '"><div class="k-ico">' + ICONES.relogio + '</div><div class="k-tx">' +
-      '<div class="label">Próxima turma em</div><div class="cr" data-regressiva="' + t.inicio + '">' + regressiva(t.inicio) + '</div>' +
+      '<div class="label">Próxima turma em</div><div class="value">' + n + '<small>' + (n === 1 ? 'dia' : 'dias') + '</small></div>' +
       '<div class="foot">' + esc(nomeCurto(t)) + ' · ' + fmt(t.inicio) + '</div></div></div>';
   }
 
@@ -1798,7 +1787,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
     const barras = '<div class="ub">' + arr.map(([k, v]) =>
       '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
-      '<b>' + v + '</b><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 2) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
+      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
     return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
   }
 
@@ -2924,7 +2913,6 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
   carregar(false);
   setInterval(atualizarSync, 30000);
-  setInterval(() => { $$('[data-regressiva]').forEach(el => { el.innerHTML = regressiva(el.dataset.regressiva); }); }, 60000);
 
   // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
   if (ROTACAO_MS) setInterval(() => {
