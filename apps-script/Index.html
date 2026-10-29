@@ -887,6 +887,42 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 @media (max-width: 1400px) and (min-width: 861px) {
   .kpi.com-ico .k-ico { display: none; }
 }
+
+/* ================================================================== */
+/* Estilo AET · grafite nos destaques (versão B2 + topo dos cartões)   */
+/* ================================================================== */
+:root[data-estilo="aet"] { --grafite: #1c2028; --grafite-2: #262b35; --laranja-claro: #ff8a55; }
+/* cartões do topo: faixa grafite com o título, ícone grafite */
+[data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico { position: relative; overflow: hidden; padding-top: 42px; }
+[data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico .label { position: absolute; left: 0; right: 0; top: 0; height: 30px; display: flex; align-items: center; padding: 0 16px;
+  background: var(--grafite); color: #fff; letter-spacing: .1em; }
+[data-estilo="aet"] .g-kpi.k-turmas .kpi .k-ico { background: var(--grafite); border-color: var(--grafite); color: var(--laranja-claro); }
+[data-estilo="aet"] .g-kpi.k-turmas .kpi.danger .k-ico { color: #ff6a6f; }
+/* títulos de todos os cartões da visão geral em grafite */
+[data-estilo="aet"] .geral-main .card.panel { overflow: hidden; padding-top: 0; }
+[data-estilo="aet"] .geral-main .card.panel > .card-head { background: var(--grafite); margin: 0 -16px 12px; padding: 11px 16px; }
+[data-estilo="aet"] .geral-main .card.flush.panel > .card-head { margin: 0; }
+[data-estilo="aet"] .geral-main .card.panel > .card-head h2 { color: #fff; }
+[data-estilo="aet"] .geral-main .card.panel > .card-head .meta, [data-estilo="aet"] .geral-main .card.panel > .card-head .cal-ano { color: var(--laranja-claro); }
+[data-estilo="aet"] .geral-main .card.panel > .card-head .pager { color: #b3b8c6; }
+[data-estilo="aet"] .geral-main .card.panel > .card-head .pager button { background: var(--grafite-2); border-color: #3a4050; color: #fff; }
+[data-estilo="aet"] .geral-main .card.panel > .card-head .pager .dots i { background: #3a4050; } [data-estilo="aet"] .geral-main .card.panel > .card-head .pager .dots i.on { background: var(--accent); }
+[data-estilo="aet"] .tr-card .tr-mes { background: var(--grafite); color: #fff; }
+[data-estilo="aet"] .tr-card .tr-mes span { color: var(--laranja-claro); }
+/* dias da semana e datas em grafite */
+[data-estilo="aet"] .cal-h { background: var(--grafite-2); color: var(--laranja-claro); border-color: #323846; }
+[data-estilo="aet"] .prox .dbloco:not(.exec) { background: var(--grafite); }
+[data-estilo="aet"] .prox .dbloco:not(.exec) b, [data-estilo="aet"] .prox .dbloco:not(.exec) i { color: #fff; }
+[data-estilo="aet"] .prox .dbloco:not(.exec) span { color: var(--laranja-claro); }
+[data-estilo="aet"] .rm-d { background: var(--grafite); color: var(--laranja-claro); }
+[data-estilo="aet"] .pz .dbloco.late { background: var(--grafite); }
+[data-estilo="aet"] .pz .dbloco.late b { color: #ff6a6f; } [data-estilo="aet"] .pz .dbloco.late span { color: #fff; }
+@media (max-height: 760px) and (min-width: 861px) {
+  [data-estilo="aet"] .geral-main .card.panel > .card-head { margin: 0 -13px 10px; padding: 9px 13px; }
+  [data-estilo="aet"] .geral-main .card.flush.panel > .card-head { margin: 0; }
+  [data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico { padding-top: 36px; }
+  [data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico .label { height: 26px; padding: 0 13px; }
+}
 </style>
 </head>
 <body>
@@ -1784,11 +1820,11 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (S.f.unidade) Object.keys(m).forEach(k => { if (k !== S.f.unidade) delete m[k]; });
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
-    const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
-    const barras = '<div class="ub">' + arr.map(([k, v]) =>
-      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
-      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
-    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
+    const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
+    return painel({
+      titulo: 'Cursados por unidade', meta: total + ' militares', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
+      html: donut(seg, total, 'cursados')
+    });
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */
