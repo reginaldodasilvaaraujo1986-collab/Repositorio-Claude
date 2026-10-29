@@ -201,7 +201,7 @@
     S._cursosCor = null;
     recalcular();
     montarFiltros();
-    $('#brandTitle').textContent = 'AET / CPE · ' + anoRef();
+    $('#brandSub').textContent = 'Controle de Cursos · ' + anoRef();
     S.ano = anoRef();
     montarSeletorAno();
     $('#sheetLink').href = d.url || '#';
@@ -823,11 +823,11 @@
     if (S.f.unidade) Object.keys(m).forEach(k => { if (k !== S.f.unidade) delete m[k]; });
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
-    const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
-    return painel({
-      titulo: 'Cursados por unidade', meta: total + ' militares', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
-      html: donut(seg, total, 'cursados')
-    });
+    const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
+    const barras = '<div class="ub">' + arr.map(([k, v]) =>
+      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
+      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
+    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */

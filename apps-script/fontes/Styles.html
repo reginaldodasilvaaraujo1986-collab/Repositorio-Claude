@@ -882,12 +882,15 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 /* Estilo AET · grafite nos destaques (versão B2 + topo dos cartões)   */
 /* ================================================================== */
 :root[data-estilo="aet"] { --grafite: #1c2028; --grafite-2: #262b35; --laranja-claro: #ff8a55; }
-/* cartões do topo: faixa grafite com o título, ícone grafite */
-[data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico { position: relative; overflow: hidden; padding-top: 42px; }
-[data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico .label { position: absolute; left: 0; right: 0; top: 0; height: 30px; display: flex; align-items: center; padding: 0 16px;
-  background: var(--grafite); color: #fff; letter-spacing: .1em; }
+/* cartões do topo: linha grafite no alto, ícone grafite */
+[data-estilo="aet"] .g-kpi.k-turmas .kpi { box-shadow: inset 0 4px 0 var(--grafite), var(--shadow); }
+[data-estilo="aet"] .g-kpi.k-turmas .kpi .label { color: var(--grafite); }
 [data-estilo="aet"] .g-kpi.k-turmas .kpi .k-ico { background: var(--grafite); border-color: var(--grafite); color: var(--laranja-claro); }
 [data-estilo="aet"] .g-kpi.k-turmas .kpi.danger .k-ico { color: #ff6a6f; }
+/* rodapés dos cartões em grafite */
+[data-estilo="aet"] .geral-main .more { background: var(--grafite); color: var(--laranja-claro); border-top-color: var(--grafite); }
+[data-estilo="aet"] .geral-main .more:hover { background: var(--grafite-2); }
+[data-estilo="aet"] .geral-main .tr-fonte { background: var(--grafite); color: #8e94a6; border-top-color: var(--grafite); }
 /* títulos de todos os cartões da visão geral em grafite */
 [data-estilo="aet"] .geral-main .card.panel { overflow: hidden; padding-top: 0; }
 [data-estilo="aet"] .geral-main .card.panel > .card-head { background: var(--grafite); margin: 0 -16px 12px; padding: 11px 16px; }
@@ -910,7 +913,19 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 @media (max-height: 760px) and (min-width: 861px) {
   [data-estilo="aet"] .geral-main .card.panel > .card-head { margin: 0 -13px 10px; padding: 9px 13px; }
   [data-estilo="aet"] .geral-main .card.flush.panel > .card-head { margin: 0; }
-  [data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico { padding-top: 36px; }
-  [data-estilo="aet"] .g-kpi.k-turmas .kpi.com-ico .label { height: 26px; padding: 0 13px; }
 }
+
+/* marca maior (emblema + CPE) e botões da lateral com contorno */
+.brand-emblema { width: 62px; }
+[data-estilo="aet"] .brand-title { font: 800 22px/1 var(--sans); letter-spacing: .08em; }
+[data-estilo="aet"] .brand-sub { margin-top: 4px; white-space: normal; line-height: 1.3; }
+[data-estilo="aet"] .nav { gap: 6px; }
+[data-estilo="aet"] .nav button { border: 1px solid #2c313c; background: rgba(255,255,255,.02); padding: 9px 12px; }
+[data-estilo="aet"] .nav button:hover { border-color: #3a4050; background: rgba(255,255,255,.05); }
+[data-estilo="aet"] .nav button.active { border-color: #f15a22; box-shadow: 0 0 0 1px rgba(241,90,34,.25), 0 4px 14px rgba(241,90,34,.18); }
+[data-estilo="aet"] .foot-actions .ghost, [data-estilo="aet"] .sel-estilo, [data-estilo="aet"] .sel-ano { border: 1px solid #3a4050; }
+[data-estilo="aet"] .foot-actions .ghost:hover { border-color: #f15a22; }
+[data-estilo="aet"] .filters select, [data-estilo="aet"] .ghost.small { border-color: #cfd3dc; }
+[data-estilo="aet"] .filters select:hover, [data-estilo="aet"] .ghost.small:hover { border-color: #f15a22; }
+@media (max-width: 1240px) and (min-width: 861px) { .brand-emblema { width: 44px; } }
 </style>
