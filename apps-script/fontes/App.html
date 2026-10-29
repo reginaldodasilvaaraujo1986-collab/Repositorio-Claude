@@ -201,7 +201,7 @@
     S._cursosCor = null;
     recalcular();
     montarFiltros();
-    $('#brandSub').textContent = 'AET/CPE · ' + anoRef();
+    $('#brandTitle').textContent = 'AET / CPE · ' + anoRef();
     S.ano = anoRef();
     montarSeletorAno();
     $('#sheetLink').href = d.url || '#';
@@ -1711,7 +1711,7 @@
     const h = (location.hash.match(/estilo=(\w+)/) || [])[1];
     let e = h;
     if (!e) { try { e = localStorage.getItem('painel-estilo'); } catch (x) { /* sem storage */ } }
-    document.documentElement.setAttribute('data-estilo', e || 'classico');
+    document.documentElement.setAttribute('data-estilo', e || 'aet');
   }
   aplicarEstilo();
 
@@ -1841,16 +1841,16 @@
   $('#btnRefresh').addEventListener('click', () => carregar(true));
   $('#btnCsv').addEventListener('click', exportarCsv);
   $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-  $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'classico';
+  $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'aet';
   $('#selEstilo').addEventListener('change', ev => {
     const e = ev.target.value;
     document.documentElement.setAttribute('data-estilo', e);
     try { localStorage.setItem('painel-estilo', e); } catch (x) { /* sem storage */ }
     if (e === 'clean') aplicarTema('light'); // o Clean é claro; o Comando já é escuro
-    $('#btnTheme').style.display = e === 'classico' ? '' : 'none';
+    $('#btnTheme').style.display = e === 'classico' || e === 'aet' ? '' : 'none';
     paginarTudo($('#view'));
   });
-  $('#btnTheme').style.display = $('#selEstilo').value === 'classico' ? '' : 'none';
+  $('#btnTheme').style.display = /^(classico|aet)$/.test($('#selEstilo').value) ? '' : 'none';
   $('#menuBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
   $$('#nav button').forEach(b => { b.title = b.textContent.trim(); });
 

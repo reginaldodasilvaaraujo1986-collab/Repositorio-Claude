@@ -796,4 +796,47 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .cal-bar.enc { opacity: .5; }
 .cal-bar.exec { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--s-exec); }
 .legend .dim { color: var(--ink-3); }
+
+/* emblema PMMG · CPE (sempre visível no canto superior) */
+.brand-emblema { width: 48px; height: auto; flex: none; background: #fff; border-radius: 10px; padding: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.brand { gap: 10px; } .brand-title, .brand-sub { white-space: nowrap; }
+@media (max-width: 1240px) and (min-width: 861px) { .brand-emblema { width: 40px; } }
+
+/* ================================================================== */
+/* ESTILO "AET": conteúdo claro, destaque laranja, lateral escura      */
+/* ================================================================== */
+:root[data-estilo="aet"]:not([data-theme="dark"]) {
+  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #eceef2; --ink: #161a22; --ink-2: #4b5263; --ink-3: #8a90a0;
+  --line: #e6e8ee; --accent: #f15a22; --accent-soft: #ffeee5;
+  --s-plan: #3c6db0; --s-plan-bg: #e5edf9; --s-exec: #c98a00; --s-exec-bg: #fff3d6; --s-enc: #2f9e66; --s-enc-bg: #ddf3e8;
+  --danger: #e5484d; --danger-bg: #fde8e8; --warn: #c98a00; --warn-bg: #fff3d6;
+  --c1: #3c6db0; --c2: #f15a22; --c3: #2f9e66; --c4: #8a4fb5; --c5: #c98a00; --c6: #1f8f99;
+  --shadow: 0 1px 2px rgba(20,25,40,.04), 0 6px 18px rgba(20,25,40,.05);
+}
+:root[data-estilo="aet"] { --side: #14161c; --side-ink: #eceef3; --side-ink-2: #8e94a6; --serif: 'Inter', system-ui, sans-serif; --r: 12px; }
+[data-estilo="aet"]:not([data-theme="dark"]) body { background: radial-gradient(900px 420px at 85% -15%, #ffe9dc 0, transparent 60%), var(--bg); }
+[data-estilo="aet"] .sidebar { background: linear-gradient(180deg, #1a1d25, #111318 70%); }
+[data-estilo="aet"] .brand-title { font: 800 14px var(--sans); letter-spacing: .02em; }
+[data-estilo="aet"] .brand-sub { font-size: 10.5px; font-weight: 600; }
+[data-estilo="aet"] .nav button { border-radius: 7px; font-weight: 600; }
+[data-estilo="aet"] .nav button.active { background: linear-gradient(90deg, rgba(241,90,34,.2), transparent); color: #ff8a55; box-shadow: inset 2px 0 0 #f15a22; }
+[data-estilo="aet"] .nav-badge { background: #f15a22; }
+[data-estilo="aet"] .sel-ano, [data-estilo="aet"] .foot-actions .ghost { background: #1f232c; border-color: #2c313c; }
+[data-estilo="aet"] h1 { font: 800 24px/1.15 var(--sans); letter-spacing: -.02em; }
+[data-estilo="aet"] .card-head h2 { font: 700 13px var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-2); }
+[data-estilo="aet"] .cal-card .card-head h2 { font: 800 18px var(--sans); text-transform: none; letter-spacing: -.01em; color: var(--ink); }
+[data-estilo="aet"] .cal-ano { color: var(--accent); font-weight: 800; }
+[data-estilo="aet"] .kpi .label { letter-spacing: .12em; font-weight: 700; }
+[data-estilo="aet"] .kpi .value { font: 800 30px/1.1 var(--sans); letter-spacing: -.03em; }
+[data-estilo="aet"] .kpi.danger .value { color: var(--accent); }
+[data-estilo="aet"] .prox-t, [data-estilo="aet"] .tcard h3, [data-estilo="aet"] .drawer h2, [data-estilo="aet"] .now-item .t { font-family: var(--sans); font-weight: 700; }
+[data-estilo="aet"] .dbloco b { font: 800 18px var(--sans); }
+[data-estilo="aet"] .dbloco.late { background: var(--danger); }
+[data-estilo="aet"] .btn.primary { box-shadow: 0 4px 14px rgba(241,90,34,.3); }
+[data-estilo="aet"] .filters select.on { border-color: var(--accent); }
+[data-estilo="aet"] .cal-d.hoje { box-shadow: inset 0 0 0 2px var(--accent); }
+[data-estilo="aet"] .tr-mes { background: linear-gradient(90deg, #f15a22, #f58a3d); }
+[data-estilo="aet"] .tr-head { background: #1f232c; }
+[data-estilo="aet"] .tr-card.atual { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
+[data-estilo="aet"] .rule h3, [data-estilo="aet"] .ano-tit, [data-estilo="aet"] .t-resumo > b { font-family: var(--sans); font-weight: 800; }
 </style>
