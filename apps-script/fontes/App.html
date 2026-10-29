@@ -997,7 +997,7 @@
       const cls = e.status === 'Feito' ? 'done' : e.status === 'Não se aplica' ? 'na' : late ? 'late' : '';
       return '<div class="step ' + cls + '"><div class="chk">' + (cls === 'done' ? '✓' : cls === 'na' ? '–' : '') + '</div>' +
         '<div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
-        '<div class="m">Prazo ' + fmtAno(e.prazo) + (e.documento ? ' · ' + esc(e.documento) : '') +
+        '<div class="m">' + (e.prazo ? 'Prazo ' + fmtAno(e.prazo) : 'Sem prazo') + (e.documento ? ' · ' + esc(e.documento) : '') +
         (e.conclusao ? ' · concluída ' + fmt(e.conclusao) : '') + (e.observacoes ? ' · 💬 ' + esc(e.observacoes) : '') + '</div></div>' +
         '<div class="r">' + badgeDias(e) + seletorResp(e) + seletor(e) + (pode ? botaoEditar(e.id) : '') +
         (pode && t.aba ? '<button class="icon-btn" data-acao="nova-etapa" data-depois="' + esc(e.etapa) + '" title="Inserir uma etapa abaixo desta">＋</button>' : '') + '</div></div>' + depois;
@@ -1076,7 +1076,9 @@
   }
   const opsEquipe = atual => [['', '— definir']].concat((S.dados.responsaveis || []).map(n => [n, n]))
     .concat(atual && (S.dados.responsaveis || []).indexOf(atual) < 0 ? [[atual, atual + ' (fora da equipe)']] : []);
-  const camposPrazo = c => '<div class="form g2 prazo-g" style="margin-top:0">' + campo('Prazo (dias)', 'prazoDias', c.prazoDias, 'number', ' min="0" step="1" placeholder="ex.: 25"') +
+  /** Só etapas de antes do início têm prazo; as de durante e depois ficam sem. */
+  const camposPrazo = c => c.fase !== 'ANTES' ? '<div class="hint" style="margin-top:8px">Etapas de durante e depois do curso não têm prazo.</div>' :
+    '<div class="form g2 prazo-g" style="margin-top:0">' + campo('Prazo (dias)', 'prazoDias', c.prazoDias, 'number', ' min="0" step="1" placeholder="ex.: 25"') +
     campoSel('&nbsp;', 'prazoRef', c.prazoRef, REFS_PRAZO) + '</div>';
 
   function formEtapa(e) {
@@ -1527,10 +1529,10 @@
   function salvarEtapa() {
     const e = S.idx[S.edit.id], c = Object.assign({}, S.edit.campos), t = S.turmaIdx[e.turmaId];
     if (!String(c.nome || '').trim()) return toast('O nome da etapa não pode ficar vazio.', 'err');
-    const regra = camposParaRegra(c);
-    const mudouPrazo = regra && (!e.regra || regra.ref !== e.regra.ref || regra.dias !== e.regra.dias);
+    const regra = c.fase === 'ANTES' ? camposParaRegra(c) : null;
+    const mudouPrazo = c.fase === 'ANTES' ? regra && (!e.regra || regra.ref !== e.regra.ref || regra.dias !== e.regra.dias) : !!e.prazo;
     const campos = { nome: c.nome.trim(), fase: c.fase, responsavel: c.responsavel, documento: c.documento, observacoes: c.observacoes, conclusao: c.conclusao };
-    if (mudouPrazo) campos.prazo = regra;
+    if (mudouPrazo) campos.prazo = regra; // null = sem prazo (durante/depois)
     gravarNoServidor('atualizarEtapa', { aba: e.aba, linha: e.linha, etapa: e.etapa, turma: e.turma, linhaResumo: t && t.linhaResumo, campos: campos }, () => {
       Object.assign(e, { etapa: campos.nome, fase: c.fase, responsavel: String(c.responsavel || '').trim(), documento: String(c.documento || '').trim(),
         observacoes: String(c.observacoes || '').trim(), conclusao: c.conclusao || null });
@@ -1547,8 +1549,8 @@
     const c = S.edit.campos;
     const nome = String(c.nome || '').trim();
     if (!nome) return toast('Informe o nome da etapa.', 'err');
-    const regra = camposParaRegra(c);
-    if (!regra) return toast('Informe o prazo em dias (pode ser 0).', 'err');
+    const regra = c.fase === 'ANTES' ? camposParaRegra(c) : null;
+    if (c.fase === 'ANTES' && !regra) return toast('Informe o prazo em dias (pode ser 0).', 'err');
     const alvos = [t].concat(c.outras ? turmasSemEtapa(nome, t.id) : []).map(x => ({ aba: x.aba, linhaResumo: x.linhaResumo, turma: x.turma }));
     gravarNoServidor('incluirEtapa', { nome: nome, fase: c.fase, depoisDe: c.depoisDe, prazo: regra, responsavel: c.responsavel, alvos: alvos }, () => {
       S.edit = null; S.fase = c.fase;
@@ -1772,9 +1774,10 @@
     }
     if (S.edit && S.edit.tipo === 'nova-etapa' && el.dataset && (el.dataset.campo === 'nome' || el.dataset.campo === 'fase')) {
       S.edit.campos[el.dataset.campo] = el.value;
-      if (el.dataset.campo === 'fase') S.edit.campos.prazoRef = el.value === 'DEPOIS' ? 'dt' : el.value === 'DURANTE' ? 'di' : 'ai';
+      if (el.dataset.campo === 'fase') S.edit.campos.prazoRef = 'ai';
       return abrirTurma(S.drawer);
     }
+    if (S.edit && S.edit.tipo === 'etapa' && el.dataset && el.dataset.campo === 'fase') { S.edit.campos.fase = el.value; return abrirTurma(S.drawer); }
     const mapa = { fUnidade: 'unidade', fCurso: 'curso', fSituacao: 'situacao', fResp: 'resp' };
     if (mapa[el.id]) { S.f[mapa[el.id]] = el.value; return filtrosMudaram(); }
     if (el.id === 'fCanceladas') { S.f.canceladas = el.checked; return filtrosMudaram(); }

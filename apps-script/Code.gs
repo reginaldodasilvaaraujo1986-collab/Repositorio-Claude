@@ -23,6 +23,7 @@ const CONFIG = {
   ABA_CALENDARIO: 'Calendario', // calendário oficial (Período | Treinamento | Qtd vagas | Local/Obs)
   ABA_HISTORICO: 'Histórico Painel',
   ABA_RESOLUCAO: 'Resolução', // cursos aprovados no SiGE por ano (criada pelo painel com os dados iniciais)
+  ABA_PRAZOS: 'Prazos padrão', // prazo de cada etapa (dias antes do início), editável na planilha
 
   // Abas que nunca são tratadas como operacionais.
   ABAS_IGNORADAS: ['Painel Geral'],
@@ -59,6 +60,7 @@ function onOpen() {
     .addItem('Corrigir datas das etapas', 'corrigirReferenciasUi')
     .addItem('Preencher curso (SiGE) e cidade das turmas', 'preencherCursosUi')
     .addItem('Padronizar responsáveis das etapas', 'padronizarResponsaveisUi')
+    .addItem('Aplicar prazos padrão (aba Prazos padrão)', 'aplicarPrazosPadraoUi')
     .addSeparator()
     .addItem('Criar planilha nova (por unidade, já corrigida)', 'reorganizarPorUnidadeUi')
     .addSeparator()
@@ -174,6 +176,14 @@ function atualizarEtapa(req) {
         mudou.push('prazo: ' + (cel.getFormula() || texto_(cel.getValue())) + ' → ' + nova);
         cel.setFormula(nova);
       }
+    } else if (req.campos.prazo === null && col['prazo sugerido'] !== undefined) {
+      // Etapa de durante/depois: sem prazo.
+      const cel = aba.getRange(req.linha, col['prazo sugerido'] + 1);
+      if (cel.getFormula() || texto_(cel.getValue())) {
+        mudou.push('prazo: ' + (cel.getFormula() || texto_(cel.getValue())) + ' → (sem prazo)');
+        cel.setValue('');
+      }
+      ajustarAlerta_(aba, req.linha, col);
     }
     if (mudou.length) historico_(ss, req.aba, req.linha, req.turma, req.etapa, 'Edição da etapa', mudou.join('; '));
     return { ok: true, alteracoes: mudou.length };
@@ -597,7 +607,7 @@ function lerCadastro_(ss, avisos) {
  */
 function lerAbasOperacionais_(ss, avisos) {
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -1181,7 +1191,7 @@ function criarAnoSeguinte(req) {
     const ss = SpreadsheetApp.openById(copia.getId());
 
     const af = abaFormandos_(ss);
-    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
+    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
 
     ss.getSheets().forEach(aba => {
       const nomeAba = aba.getName();
@@ -1497,7 +1507,7 @@ function inserirEtapa_(aba, linhaResumo, d) {
   put('fase', fase);
   put('inicio', '=' + letraIni + linhaResumo);
   put('termino', '=' + letraFim + linhaResumo);
-  put('prazo sugerido', formulaPrazo_(null, aba, linhaResumo, d.prazo || { ref: 'inicio', dias: 0 }));
+  put('prazo sugerido', d.prazo ? formulaPrazo_(null, aba, linhaResumo, d.prazo) : '');
   put('etapa', String(d.nome).trim());
   put('status', 'Pendente');
   put('responsavel', d.responsavel || '');
@@ -1512,6 +1522,7 @@ function inserirEtapa_(aba, linhaResumo, d) {
       if (!fx || usadas.indexOf(j) >= 0) return;
       aba.getRange(nova, j + 1).setFormula(reescreverFormula_(fx, aba.getName(), [{ aba: null, de: m, ate: m, para: nova }]));
     });
+    ajustarAlerta_(aba, nova, b.col);
   }
   const ultima = Math.max(nova, b.etapas.length ? b.etapas[b.etapas.length - 1].linha + (b.etapas[b.etapas.length - 1].linha >= nova ? 1 : 0) : nova);
   ajustarContagens_(aba, linhaResumo, b.cab, ultima);
@@ -1559,6 +1570,202 @@ function excluirEtapa(req) {
     historico_(ss, req.aba, req.linha, req.turma, req.etapa, 'Etapa excluída', '');
     return { ok: true };
   }, req.ano);
+}
+
+/* ================================================================== */
+/* Prazos padrão das etapas (só as de antes do início)                 */
+/* ================================================================== */
+
+// Dados iniciais da aba "Prazos padrão". Depois de criada, a aba é a fonte:
+// edite lá os dias, os nomes alternativos e quais etapas entram em todas as turmas.
+const PRAZOS_INICIAIS = [
+  // etapa, dias antes do início, em todas as turmas, outros nomes (separados por ;)
+  ['Elaborar Plano de Treinamento', 60, 'Sim', ''],
+  ['Revisar Plano de Treinamento', 30, 'Sim', ''],
+  ['Solicitar docentes ao coordenador', 30, 'Sim', 'Solicitar docente ao coordenador; Solicitar indicação de docentes'],
+  ['Solicitar relação de discentes', 30, 'Sim', 'Solitar relação de discentes; Solicitar Lista de Discentes; Solicitar lista de discentes; Solicitar indicação dos discentes; solicitar inidicação de discente'],
+  ['Encaminhar Plano de Treinamento', 28, 'Sim', 'Encaminhar Plano de Treinamento P/ APM'],
+  ['Confirmar aprovação do Plano de Treinamento', 25, 'Sim', ''],
+  ['Elaborar minuta do edital', 24, '', ''],
+  ['Revisar elaboração do edital', 22, '', ''],
+  ['Elaborar designação docente', 22, 'Sim', 'Elaborar designação docente internos; Elaborar designação docente interna'],
+  ['Encaminhar designação docente', 20, 'Sim', 'Encaminhar designação docente p/ assinatura'],
+  ['Publicar edital', 20, '', ''],
+  ['Elaborar Ordem de Serviço', 20, 'Sim', ''],
+  ['Reservar CIPM', 20, '', ''],
+  ['Revisar Ordem de Serviço', 18, 'Sim', ''],
+  ['Encaminhar Ordem de Serviço', 16, 'Sim', 'Encaminhar O.S para assinatura; Encaminhar Ordem de Serviço para assinatura; Encaminhar Ordem de Serviço p/ assinatura'],
+  ['Publicar Ordem de Serviço', 15, 'Sim', 'Publicar Ordem de Serviço / PT/ E aprovação da APM; Publicar Ordem de Serviço e aprovação do PT; Publicar Ordem de Serviço/PT/ e aprovação da APM para diarias; Publicar Ordem de Serviço/PT/ aprovação do PT para diarias; Publicar Ordem de Serviço/PT/ e aprovação PT; Publicar Ordem de Serviço, PT, e Aprovação da APM; Publicar Ordem de Serviço , PT, e Aprovação da APM'],
+  ['Acompanhar publicação da designação de docentes externos em BGPM', 12, 'Sim', 'Publicação da designação de docentes externos em BGPM'],
+  ['Elaborar designação da CCT', 11, 'Sim', 'Elaborar designação da CCT e enviar para assinatura; Elaborar designação da CCT p/ Publicação'],
+  ['Encaminhar designação da CCT', 10, 'Sim', 'Encaminhar designação da CCT p/ assinatura; Encaminhar designação da CCT assinatura; Encaminhar designação da CCT para publicação em BI; Encaminhar designação da CCT e acompanhar Publicação'],
+  ['Conferir armamentos e calibres destinados ao treinamento', 10, '', ''],
+  ['Conferir previsão, distribuição e saldo de munições', 10, '', ''],
+  ['Publicar designação da CCT', 9, 'Sim', ''],
+  ['Conferir Conceito B dos discentes', 8, 'Sim', 'Conferir lista de discentes'],
+  ['Conferir aprovação no TPB', 7, 'Sim', 'Conferir aprovação no TPB e conceito; Conferir requisitos de dicentes'],
+  ['Confirmar seleção e indicação dos discentes pela ARI/AAI', 7, '', ''],
+  ['Conferir EPIs, alvos e estande de tiro', 7, '', ''],
+  ['Encaminhar Ordem de Serviço e, quando houver diária, a documentação à P1', 7, '', ''],
+  ['Conferir impedimentos disciplinares dos discentes', 6, 'Sim', ''],
+  ['Conferir relação nominal de discentes', 5, 'Sim', 'Conferir relação nominal de discentes p/ Certificação']
+];
+
+/** Lê a aba "Prazos padrão" (cria com os dados iniciais na primeira vez). */
+function lerPrazosPadrao_(ss) {
+  let aba = ss.getSheetByName(CONFIG.ABA_PRAZOS);
+  if (!aba) {
+    aba = ss.insertSheet(CONFIG.ABA_PRAZOS);
+    const cab = ['Etapa', 'Dias antes do início', 'Em todas as turmas', 'Outros nomes (separe com ;)'];
+    aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    aba.getRange(2, 1, PRAZOS_INICIAIS.length, cab.length).setValues(PRAZOS_INICIAIS);
+    aba.setFrozenRows(1);
+    aba.setColumnWidth(1, 420); aba.setColumnWidth(2, 150); aba.setColumnWidth(3, 150); aba.setColumnWidth(4, 520);
+    aba.getRange(PRAZOS_INICIAIS.length + 3, 1).setValue('Só etapas de ANTES do início têm prazo. Etapas de durante e depois do curso ficam sem prazo. ' +
+      '"Em todas as turmas" = Sim: a etapa é incluída nas turmas que ainda não começaram e não a têm. Depois de editar, use o menu 📊 Painel › Aplicar prazos padrão.');
+  }
+  const v = aba.getDataRange().getValues();
+  const c = indice_(v[0]);
+  const out = [];
+  for (let i = 1; i < v.length; i++) {
+    const nome = texto_(v[i][c['etapa']]);
+    const dias = numero_(v[i][c['dias antes do inicio']]);
+    if (!nome || dias == null) continue;
+    out.push({
+      nome: nome, dias: Math.abs(Math.round(dias)),
+      todas: /^s/i.test(texto_(v[i][c['em todas as turmas']])),
+      nomes: [nome].concat(texto_(v[i][c['outros nomes (separe com ;)']]).split(';').map(x => x.trim()).filter(Boolean))
+    });
+  }
+  return out;
+}
+
+/**
+ * Coluna Alerta: com o prazo vazio a fórmula original marcaria "VENCIDO".
+ * IF(D12<TODAY(),...) vira IF(D12="","",IF(D12<TODAY(),...)).
+ */
+function alertaComPrazoVazio_(f) {
+  if (!f || /=\s*""\s*,/.test(f)) return f;
+  const m = f.match(/IF\((\$?[A-Z]{1,3}\$?\d+)\s*<\s*TODAY\(\)/i);
+  if (!m) return f;
+  // fim do IF encontrado (parênteses fora de aspas)
+  let prof = 0, fim = -1, aspas = false;
+  for (let i = m.index + 2; i < f.length; i++) {
+    const ch = f[i];
+    if (ch === '"') aspas = !aspas;
+    if (aspas) continue;
+    if (ch === '(') prof++;
+    else if (ch === ')' && --prof === 0) { fim = i; break; }
+  }
+  if (fim < 0) return f;
+  return f.slice(0, m.index) + 'IF(' + m[1] + '="","",' + f.slice(m.index, fim + 1) + ')' + f.slice(fim + 1);
+}
+
+function ajustarAlerta_(aba, linha, col) {
+  if (col['alerta'] === undefined) return;
+  const cel = aba.getRange(linha, col['alerta'] + 1);
+  const f = cel.getFormula(), novo = alertaComPrazoVazio_(f);
+  if (novo !== f) cel.setFormula(novo);
+}
+
+/**
+ * Aplica a aba "Prazos padrão":
+ *  - etapas de ANTES com nome (ou outro nome) da tabela: prazo = início − dias;
+ *  - etapas de DURANTE e DEPOIS: ficam sem prazo;
+ *  - etapas marcadas "Em todas as turmas" que faltam: incluídas nas turmas que
+ *    ainda não começaram, na posição que segue a ordem dos prazos.
+ * Etapas de antes que não estão na tabela ficam como estão.
+ * Com aplicar=false só lista o que mudaria.
+ */
+function aplicarPrazosPadrao(aplicar, ano) {
+  const ss = ano && typeof ano === 'object' ? ano : planilha_(ano);
+  const tabela = lerPrazosPadrao_(ss);
+  const porNome = {};
+  tabela.forEach(r => r.nomes.forEach(n => { if (!porNome[semAcento_(n)]) porNome[semAcento_(n)] = r; }));
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const r = { prazos: 0, semPrazo: 0, incluidas: 0, foraDaTabela: {}, exemplos: [], turmas: 0 };
+
+  const run = () => lerAbasOperacionais_(ss, []).forEach(op => {
+    const aba = ss.getSheetByName(op.aba);
+    const f = aba.getDataRange().getFormulas(), v = aba.getDataRange().getValues();
+    // de baixo para cima: incluir linhas não desloca as turmas ainda por processar
+    op.turmas.slice().sort((a, b) => b.linha - a.linha).forEach(t => {
+      if (!t.etapas.length) return;
+      r.turmas++;
+      const b = blocoDaTurma_(aba, t.linha);
+      const cP = b.col['prazo sugerido'], letraIni = letra_(b.cr['inicio'] + 1);
+      if (cP === undefined) return;
+      t.etapas.forEach(e => {
+        const atual = f[e.linha - 1][cP] || texto_(v[e.linha - 1][cP]);
+        if (e.fase === 'ANTES') {
+          const p = porNome[semAcento_(e.etapa)];
+          if (!p) { r.foraDaTabela[e.etapa] = 1; return; }
+          const nova = '=' + letraIni + t.linha + (p.dias ? '-' + p.dias : '');
+          if (atual === nova) return;
+          r.prazos++;
+          if (r.exemplos.length < 12) r.exemplos.push(t.turma + ': ' + e.etapa + ' → ' + p.dias + ' d antes');
+          if (aplicar) { aba.getRange(e.linha, cP + 1).setFormula(nova); ajustarAlerta_(aba, e.linha, b.col); }
+        } else if (atual) {
+          r.semPrazo++;
+          if (aplicar) { aba.getRange(e.linha, cP + 1).setValue(''); ajustarAlerta_(aba, e.linha, b.col); }
+        }
+      });
+      // etapas de todas as turmas que faltam (só turmas que ainda não começaram)
+      const ini = data_(v[t.linha - 1][b.cr['inicio']]);
+      if (!ini || ini < hoje) return;
+      const tem = n => t.etapas.some(e => porNome[semAcento_(e.etapa)] === n);
+      tabela.filter(p => p.todas && !tem(p)).forEach(p => {
+        r.incluidas++;
+        if (r.exemplos.length < 12) r.exemplos.push(t.turma + ': incluir "' + p.nome + '" (' + p.dias + ' d antes)');
+        if (!aplicar) return;
+        // abaixo da última etapa de antes com prazo maior ou igual (ou no início)
+        const bl = blocoDaTurma_(aba, t.linha);
+        const fx = aba.getRange(1, cP + 1, aba.getLastRow(), 1).getFormulas();
+        let depoisDe = '';
+        bl.etapas.forEach(e => {
+          if (e.fase !== 'ANTES') return;
+          const q = porNome[semAcento_(e.nome)];
+          const rg = regraPrazo_(fx[e.linha - 1][0], { ini: letraIni, fim: letra_(b.cr['termino'] + 1) });
+          const d = q ? q.dias : rg && rg.ref === 'inicio' ? -rg.dias : null;
+          if (d != null && d >= p.dias) depoisDe = e.nome;
+        });
+        inserirEtapa_(aba, t.linha, { nome: p.nome, fase: 'ANTES', depoisDe: depoisDe, prazo: { ref: 'inicio', dias: -p.dias } });
+      });
+    });
+  });
+
+  if (aplicar) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      run();
+      historico_(ss, CONFIG.ABA_PRAZOS, '', '', '', 'Prazos padrão aplicados',
+        r.prazos + ' prazo(s) ajustados · ' + r.semPrazo + ' etapa(s) de durante/depois sem prazo · ' + r.incluidas + ' etapa(s) incluídas');
+      SpreadsheetApp.flush();
+      limparCache();
+    } finally {
+      lock.releaseLock();
+    }
+  } else run();
+  r.foraDaTabela = Object.keys(r.foraDaTabela).sort();
+  return r;
+}
+
+function aplicarPrazosPadraoUi() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const r = aplicarPrazosPadrao(false, ss);
+  const ok = ui.alert('Aplicar prazos padrão',
+    'Pela aba "' + CONFIG.ABA_PRAZOS + '" (' + r.turmas + ' turmas):\n\n' +
+    '• ' + r.prazos + ' prazo(s) de etapas de antes serão ajustados\n' +
+    '• ' + r.semPrazo + ' etapa(s) de durante/depois ficarão sem prazo\n' +
+    '• ' + r.incluidas + ' etapa(s) serão incluídas em turmas que ainda não começaram\n\n' +
+    (r.exemplos.length ? 'Exemplos:\n' + r.exemplos.join('\n') + '\n\n' : '') +
+    (r.foraDaTabela.length ? 'Etapas de antes que não estão na tabela (ficam como estão):\n' + r.foraDaTabela.join('\n') + '\n\n' : '') +
+    'Aplicar?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  aplicarPrazosPadrao(true, ss);
+  ui.alert('Aplicar prazos padrão', '✓ Pronto. Atualize o painel.', ui.ButtonSet.OK);
 }
 
 /* ================================================================== */
@@ -1793,7 +2000,7 @@ function reorganizarPorUnidadeUi() {
 function reorganizar_(ss, ano) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
   const etapasAntes = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
 
   // Unidade de cada turma (Cadastro; sem cadastro: regra padrão).
@@ -1999,7 +2206,7 @@ function responsavelPadrao_(txt, equipe) {
 function colunasResponsavel_(ss) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
   const out = [];
   ss.getSheets().forEach(aba => {
     if (fixas.indexOf(aba.getName()) >= 0) return;
@@ -2104,7 +2311,7 @@ function padronizarResponsaveisUi() {
 function corrigirReferencias(aplicar, ano) {
   const ss = ano && typeof ano === 'object' ? ano : planilha_(ano); // menu: a planilha aberta
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const correcoes = [], manuais = [];
 
