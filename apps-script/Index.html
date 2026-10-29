@@ -780,6 +780,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 [data-estilo="clean"] .tr-mes { background: var(--accent); border-radius: 0; } [data-estilo="clean"] .tr-head { background: #1e293b; }
 [data-estilo="clean"] .pz { border-top-color: #f1f4f8; }
 [data-estilo="clean"] .pz-div { background: transparent; }
+.sel-estilo { padding: 5px 8px; border-radius: 9px; border: 1px solid #36322b; background: transparent; color: var(--side-ink-2); font-size: 11.5px; }
+[data-estilo="comando"] .sel-estilo { border-color: #22345c; background: #101b33; }
+[data-estilo="clean"] .sel-estilo { border-color: var(--line); background: var(--surface-2); color: var(--ink-2); }
+@media (max-width: 1240px) and (min-width: 861px) { .sel-estilo { width: 46px; padding: 4px 2px; font-size: 0; } }
 </style>
 </head>
 <body>
@@ -805,8 +809,13 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         <div class="sync" id="syncInfo">Carregando…</div>
         <div class="foot-actions">
           <button class="ghost" id="btnRefresh" title="Recarregar da planilha (R)">↻ Atualizar</button>
-          <button class="ghost" id="btnTheme" title="Alternar tema">◐</button>
+          <button class="ghost" id="btnTheme" title="Alternar claro/escuro">◐</button>
         </div>
+        <select id="selEstilo" class="sel-estilo" title="Estilo visual do painel">
+          <option value="classico">Estilo: Clássico</option>
+          <option value="comando">Estilo: Comando</option>
+          <option value="clean">Estilo: Clean</option>
+        </select>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
         <button class="sheet-link link-btn" data-acao="equipe" title="Integrantes da seção (responsáveis das etapas)">👥 Equipe da seção</button>
         <div class="keys"><kbd>1</kbd>–<kbd>6</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
@@ -2649,6 +2658,16 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   $('#btnRefresh').addEventListener('click', () => carregar(true));
   $('#btnCsv').addEventListener('click', exportarCsv);
   $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'classico';
+  $('#selEstilo').addEventListener('change', ev => {
+    const e = ev.target.value;
+    document.documentElement.setAttribute('data-estilo', e);
+    try { localStorage.setItem('painel-estilo', e); } catch (x) { /* sem storage */ }
+    if (e === 'clean') aplicarTema('light'); // o Clean é claro; o Comando já é escuro
+    $('#btnTheme').style.display = e === 'classico' ? '' : 'none';
+    paginarTudo($('#view'));
+  });
+  $('#btnTheme').style.display = $('#selEstilo').value === 'classico' ? '' : 'none';
   $('#menuBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
   $$('#nav button').forEach(b => { b.title = b.textContent.trim(); });
 

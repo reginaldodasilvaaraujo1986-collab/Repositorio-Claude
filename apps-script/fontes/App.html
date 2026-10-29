@@ -1800,6 +1800,16 @@
   $('#btnRefresh').addEventListener('click', () => carregar(true));
   $('#btnCsv').addEventListener('click', exportarCsv);
   $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'classico';
+  $('#selEstilo').addEventListener('change', ev => {
+    const e = ev.target.value;
+    document.documentElement.setAttribute('data-estilo', e);
+    try { localStorage.setItem('painel-estilo', e); } catch (x) { /* sem storage */ }
+    if (e === 'clean') aplicarTema('light'); // o Clean é claro; o Comando já é escuro
+    $('#btnTheme').style.display = e === 'classico' ? '' : 'none';
+    paginarTudo($('#view'));
+  });
+  $('#btnTheme').style.display = $('#selEstilo').value === 'classico' ? '' : 'none';
   $('#menuBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
   $$('#nav button').forEach(b => { b.title = b.textContent.trim(); });
 
