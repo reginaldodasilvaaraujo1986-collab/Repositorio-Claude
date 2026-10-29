@@ -629,7 +629,7 @@
       const pctA = a.antesTot ? a.antesFeito / a.antesTot * 100 : 0;
       return '<div class="prox ' + (emExec ? 'exec' : '') + '" data-turma="' + t.id + '">' +
         blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
-        '<div class="prox-c"><div class="prox-t" title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurso(t)) + '</div>' +
+        '<span class="rv-p" style="--pc:' + corCurso(t) + '"></span><div class="prox-c"><div class="prox-t" title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurso(t)) + '</div>' +
         '<div class="prox-s">' + (t.onde ? '<b>' + esc(t.onde) + '</b> · ' : '') + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
         '<div class="prox-a"><span class="sublabel">Etapas</span>' +
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
@@ -640,7 +640,7 @@
     const html = exec.concat(prox).map(item).join('');
     return painel({
       titulo: 'Próximas turmas', meta: (exec.length ? exec.length + ' em execução · ' : '') + prox.length + ' a iniciar',
-      key: 'g-prox', fitCls: 'lista', auto: true, style: 'grid-area:prox',
+      key: 'g-prox', fitCls: 'lista rv', auto: true, style: 'grid-area:prox',
       html: html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>'
     });
   }
@@ -744,7 +744,7 @@
       const cls = n === null ? '' : n < 0 ? 'late' : n <= 7 ? 'soon' : '';
       const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
       return '<div class="pz' + (apagada ? ' apagada' : '') + '" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
-        '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+        '<span class="rv-p ' + cls + '"></span><div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
         '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(nomeDaEtapa(e)) +
         (apagada ? ' · ' + titulo(e.fase) : '') + '</span></div></div>' + seletor(e) + '</div>';
     };
@@ -756,7 +756,7 @@
 
     return painel({
       titulo: 'Prazos das etapas', meta: vencN + ' vencida' + (vencN === 1 ? '' : 's') + ' · ' + ativas.length + ' a cumprir',
-      key: 'g-prazos', cls: 'flush', style: 'grid-area:prazos',
+      key: 'g-prazos', cls: 'flush', fitCls: 'rv', style: 'grid-area:prazos',
       html: html || '<div class="empty">Nenhuma etapa em aberto. 🎉</div>',
       depois: outras.length ? '<button class="more" data-toggle-todas>' + (S.critTodas ? 'Ocultar etapas de durante e depois do curso' : 'Mostrar etapas de durante e depois do curso (' + outras.length + ')') + '</button>' : ''
     });
@@ -824,10 +824,12 @@
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
     const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
-    const barras = '<div class="ub">' + arr.map(([k, v]) =>
-      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
-      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
-    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
+    const barras = arr.map(([k, v]) =>
+      '<div class="al-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
+      '<em>' + v + '</em><span class="al-b"><i style="height:' + Math.max(v / max * 100, 4) + '%"></i></span><small>' + esc(k) + '</small></div>').join('');
+    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2></div>' +
+      '<div class="al"><div class="al-bars">' + barras + '</div><div class="al-side"><span class="al-k">Cursados</span><span class="al-t">em ' + anoRef() + '</span>' +
+      '<b>' + total + '</b><span class="al-s">militares</span><button class="btn small primary" data-goto="formandos">Ver cursados</button></div></div></div>';
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */

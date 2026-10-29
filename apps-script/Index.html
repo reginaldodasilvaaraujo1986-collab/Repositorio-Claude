@@ -938,6 +938,35 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 [data-estilo="aet"] .filters select, [data-estilo="aet"] .ghost.small { border-color: #cfd3dc; }
 [data-estilo="aet"] .filters select:hover, [data-estilo="aet"] .ghost.small:hover { border-color: #f15a22; }
 @media (max-width: 1240px) and (min-width: 861px) { .brand-emblema { width: 44px; } }
+
+/* listas em linha do tempo (roadmap): próximas turmas e prazos das etapas */
+.rv .prox, .rv .pz { position: relative; }
+.rv-p { width: 12px; height: 12px; border-radius: 50%; flex: none; align-self: center; background: var(--surface); border: 2.5px solid var(--pc, var(--ink-3)); z-index: 1; }
+.fit.rv .prox { border: 0; background: transparent; border-radius: 0; padding: 4px 6px; gap: 10px; }
+.fit.rv .prox.exec .rv-p { background: var(--pc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--s-exec) 30%, transparent); }
+.fit.rv .prox:hover { background: var(--surface-2); border-radius: 10px; }
+.fit.rv .prox::before { content: ''; position: absolute; left: 77px; top: -6px; bottom: -6px; width: 2px; background: var(--line); }
+.fit.rv .pz { grid-template-columns: auto 12px minmax(0, 1fr) auto; border-top: 0; }
+.fit.rv .pz::before { content: ''; position: absolute; left: 75px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.rv-p.late { border-color: var(--danger); background: var(--danger); box-shadow: 0 0 0 3px var(--danger-bg); }
+.rv-p.soon { border-color: var(--warn); }
+.fit.rv .pz-div { position: relative; z-index: 1; }
+/* cursados por unidade: barras no estilo "allocation" */
+.al { flex: 1; min-height: 0; display: flex; gap: 14px; align-items: stretch; }
+.al-bars { flex: 1.4; display: flex; gap: 10px; align-items: stretch; padding-top: 2px; }
+.al-c { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.al-c em { font: 700 11px var(--mono); font-style: normal; color: var(--ink-3); }
+.al-c.top em { color: var(--accent); }
+.al-b { flex: 1; width: 100%; max-width: 34px; display: flex; align-items: flex-end; border-radius: 6px; background: var(--surface-2); }
+.al-b i { display: block; width: 100%; border-radius: 6px; background: linear-gradient(180deg, #8a93a6, #4b5263); }
+.al-c.top .al-b i { background: linear-gradient(180deg, #ffb07a, var(--accent)); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent); }
+.al-c small { font: 700 9.5px var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); white-space: nowrap; }
+.al-side { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
+.al-k { font: 800 15px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--ink); }
+.al-t { font: 800 13px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.al-side b { font: 800 34px/1.1 var(--sans); letter-spacing: -.03em; color: var(--ink); margin-top: 6px; }
+.al-s { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.al-side .btn { align-self: flex-start; }
 </style>
 </head>
 <body>
@@ -1641,7 +1670,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       const pctA = a.antesTot ? a.antesFeito / a.antesTot * 100 : 0;
       return '<div class="prox ' + (emExec ? 'exec' : '') + '" data-turma="' + t.id + '">' +
         blocoData(t.inicio, emExec ? 'exec' : n <= 15 ? 'soon' : '', emExec ? 'agora' : n + 'd') +
-        '<div class="prox-c"><div class="prox-t" title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurso(t)) + '</div>' +
+        '<span class="rv-p" style="--pc:' + corCurso(t) + '"></span><div class="prox-c"><div class="prox-t" title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurso(t)) + '</div>' +
         '<div class="prox-s">' + (t.onde ? '<b>' + esc(t.onde) + '</b> · ' : '') + fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · <b>' + quando + '</b></div>' +
         '<div class="prox-a"><span class="sublabel">Etapas</span>' +
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
@@ -1652,7 +1681,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const html = exec.concat(prox).map(item).join('');
     return painel({
       titulo: 'Próximas turmas', meta: (exec.length ? exec.length + ' em execução · ' : '') + prox.length + ' a iniciar',
-      key: 'g-prox', fitCls: 'lista', auto: true, style: 'grid-area:prox',
+      key: 'g-prox', fitCls: 'lista rv', auto: true, style: 'grid-area:prox',
       html: html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>'
     });
   }
@@ -1756,7 +1785,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       const cls = n === null ? '' : n < 0 ? 'late' : n <= 7 ? 'soon' : '';
       const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
       return '<div class="pz' + (apagada ? ' apagada' : '') + '" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
-        '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+        '<span class="rv-p ' + cls + '"></span><div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
         '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(nomeDaEtapa(e)) +
         (apagada ? ' · ' + titulo(e.fase) : '') + '</span></div></div>' + seletor(e) + '</div>';
     };
@@ -1768,7 +1797,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
     return painel({
       titulo: 'Prazos das etapas', meta: vencN + ' vencida' + (vencN === 1 ? '' : 's') + ' · ' + ativas.length + ' a cumprir',
-      key: 'g-prazos', cls: 'flush', style: 'grid-area:prazos',
+      key: 'g-prazos', cls: 'flush', fitCls: 'rv', style: 'grid-area:prazos',
       html: html || '<div class="empty">Nenhuma etapa em aberto. 🎉</div>',
       depois: outras.length ? '<button class="more" data-toggle-todas>' + (S.critTodas ? 'Ocultar etapas de durante e depois do curso' : 'Mostrar etapas de durante e depois do curso (' + outras.length + ')') + '</button>' : ''
     });
@@ -1836,10 +1865,12 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
     const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
-    const barras = '<div class="ub">' + arr.map(([k, v]) =>
-      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
-      '<b>' + v + '</b><small>' + Math.round(v / (total || 1) * 100) + '%</small><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 3) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
-    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
+    const barras = arr.map(([k, v]) =>
+      '<div class="al-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
+      '<em>' + v + '</em><span class="al-b"><i style="height:' + Math.max(v / max * 100, 4) + '%"></i></span><small>' + esc(k) + '</small></div>').join('');
+    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2></div>' +
+      '<div class="al"><div class="al-bars">' + barras + '</div><div class="al-side"><span class="al-k">Cursados</span><span class="al-t">em ' + anoRef() + '</span>' +
+      '<b>' + total + '</b><span class="al-s">militares</span><button class="btn small primary" data-goto="formandos">Ver cursados</button></div></div></div>';
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */
