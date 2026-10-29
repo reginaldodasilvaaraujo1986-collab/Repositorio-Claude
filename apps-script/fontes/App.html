@@ -1666,6 +1666,15 @@
     setTimeout(() => el.remove(), tipo === 'err' ? 6000 : 3000);
   }
 
+  /** Estilo visual do painel: 'classico' (atual) | 'comando' | 'clean'. */
+  function aplicarEstilo() {
+    const h = (location.hash.match(/estilo=(\w+)/) || [])[1];
+    let e = h;
+    if (!e) { try { e = localStorage.getItem('painel-estilo'); } catch (x) { /* sem storage */ } }
+    document.documentElement.setAttribute('data-estilo', e || 'classico');
+  }
+  aplicarEstilo();
+
   function aplicarTema(t) {
     document.documentElement.setAttribute('data-theme', t);
     try { localStorage.setItem('painel-tema', t); } catch (e) { /* sem storage */ }
