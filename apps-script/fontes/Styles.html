@@ -883,4 +883,22 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   .kpi.com-ico .k-ico { display: none; }
   .cr-u b { font-size: 21px; } .cr-s { font-size: 17px; }
 }
+
+/* estilo AET: só os cartões de destaque ficam escuros (visual da referência) */
+[data-estilo="aet"] .g-kpi.k-turmas .kpi, [data-estilo="aet"] .card.escuro {
+  --surface: #181b22; --surface-2: #20242d; --surface-3: #2c313c; --ink: #f3f4f7; --ink-2: #b3b8c6; --ink-3: #7c8396; --line: #2a2f3a;
+  --accent: #ff5a1f; --accent-soft: rgba(255,90,31,.14); --danger: #ff5a1f; --danger-bg: rgba(255,90,31,.14);
+  --s-enc: #3ddc97; --s-exec: #ffb020; --s-plan: #4f8ff0;
+  background: radial-gradient(420px 160px at 100% 0%, rgba(255,90,31,.12), transparent 70%), linear-gradient(180deg, #1c2028, #15181e);
+  border-color: #262b35; color: var(--ink); box-shadow: 0 8px 24px rgba(10,12,18,.18);
+}
+[data-estilo="aet"] .g-kpi.k-turmas .kpi .k-ico, [data-estilo="aet"] .card.escuro .k-ico { box-shadow: inset 0 0 14px rgba(255,90,31,.22); }
+[data-estilo="aet"] .card.escuro .card-head h2 { color: #fff; }
+[data-estilo="aet"] .card.escuro .card-head h2::first-letter { color: inherit; }
+[data-estilo="aet"] .tr-card.escuro .tr-mes { background: transparent; color: #fff; border-bottom: 1px solid #262b35; letter-spacing: .14em; }
+[data-estilo="aet"] .tr-card.escuro .tr-mes span { color: #ff8a55; }
+[data-estilo="aet"] .tr-card.escuro .tr-fonte { border-top-color: #262b35; }
+[data-estilo="aet"] .card.escuro .ub-c.top .ub-b i { box-shadow: 0 0 22px rgba(255,90,31,.55); }
+[data-estilo="aet"] .card.escuro .rm-p { background: #181b22; }
+[data-estilo="aet"] .g-kpi.k-turmas .kpi.click:hover { box-shadow: 0 10px 28px rgba(10,12,18,.28); }
 </style>
