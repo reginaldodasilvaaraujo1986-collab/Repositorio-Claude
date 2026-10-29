@@ -26,8 +26,7 @@
         <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
         <button data-view="turmas"><span class="ico">▦</span><span class="lbl">Turmas</span></button>
         <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
-        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Formandos</span></button>
-        <button data-view="regras"><span class="ico">§</span><span class="lbl">Regras e prazos</span></button>
+        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Cursados</span></button>
       </nav>
       <div class="sidebar-foot">
         <div class="sync" id="syncInfo">Carregando…</div>
@@ -42,7 +41,7 @@
         </select>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
         <button class="sheet-link link-btn" data-acao="equipe" title="Integrantes da seção (responsáveis das etapas)">👥 Equipe da seção</button>
-        <div class="keys"><kbd>1</kbd>–<kbd>6</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
+        <div class="keys"><kbd>1</kbd>–<kbd>5</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
       </div>
     </aside>
 
@@ -56,7 +55,7 @@
         <div class="search">
           <input id="search" type="search" placeholder="Buscar turma, etapa, responsável…  ( / )" autocomplete="off">
         </div>
-        <span class="avisos-chip" id="avisos"></span>
+        <span class="avisos-chip" id="avisos" hidden></span>
         <button class="ghost small" id="btnCsv" title="Exportar a visão atual em CSV">⇩ CSV</button>
       </header>
 

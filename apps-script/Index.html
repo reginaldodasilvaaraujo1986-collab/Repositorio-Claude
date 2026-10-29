@@ -784,6 +784,28 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 [data-estilo="comando"] .sel-estilo { border-color: #22345c; background: #101b33; }
 [data-estilo="clean"] .sel-estilo { border-color: var(--line); background: var(--surface-2); color: var(--ink-2); }
 @media (max-width: 1240px) and (min-width: 861px) { .sel-estilo { width: 46px; padding: 4px 2px; font-size: 0; } }
+
+/* turmas previstas no ano: realizadas / em execução / a realizar */
+.g-kpi.k-turmas { grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); }
+.kpi-turmas .kt { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+.kpi-turmas .kt .value { margin-top: 0; }
+.kt-c { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.kt-l { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--ink-2); }
+.tbar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--surface-3); gap: 2px; min-width: 120px; }
+.tbar i { display: block; height: 100%; }
+.tbar i.enc, .tl-l i.enc { background: var(--s-enc); } .tbar i.exec, .tl-l i.exec { background: var(--s-exec); } .tbar i.plan, .tl-l i.plan { background: var(--s-plan); }
+.tl-l { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.tl-l i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.tl-l b { color: var(--ink); font-family: var(--mono); font-size: 11.5px; }
+.tl-l.dim { color: var(--ink-3); }
+.t-resumo { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+.t-resumo > b { font: 600 20px var(--serif); color: var(--ink); }
+.t-resumo .tbar { width: 160px; }
+
+/* calendário: cor por curso; encerrada esmaecida, em execução com ▶ */
+.cal-bar.enc { opacity: .5; }
+.cal-bar.exec { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--s-exec); }
+.legend .dim { color: var(--ink-3); }
 </style>
 </head>
 <body>
@@ -802,8 +824,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
         <button data-view="turmas"><span class="ico">▦</span><span class="lbl">Turmas</span></button>
         <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
-        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Formandos</span></button>
-        <button data-view="regras"><span class="ico">§</span><span class="lbl">Regras e prazos</span></button>
+        <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Cursados</span></button>
       </nav>
       <div class="sidebar-foot">
         <div class="sync" id="syncInfo">Carregando…</div>
@@ -818,7 +839,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         </select>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
         <button class="sheet-link link-btn" data-acao="equipe" title="Integrantes da seção (responsáveis das etapas)">👥 Equipe da seção</button>
-        <div class="keys"><kbd>1</kbd>–<kbd>6</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
+        <div class="keys"><kbd>1</kbd>–<kbd>5</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
       </div>
     </aside>
 
@@ -832,7 +853,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         <div class="search">
           <input id="search" type="search" placeholder="Buscar turma, etapa, responsável…  ( / )" autocomplete="off">
         </div>
-        <span class="avisos-chip" id="avisos"></span>
+        <span class="avisos-chip" id="avisos" hidden></span>
         <button class="ghost small" id="btnCsv" title="Exportar a visão atual em CSV">⇩ CSV</button>
       </header>
 
@@ -878,7 +899,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     cronograma: ['Cronograma', 'Calendário de treinamentos do ano, mês a mês'],
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
-    formandos:  ['Formandos', 'Militares formados no ano'],
+    formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
   const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral (0 = desligada)
@@ -1056,6 +1077,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     d.etapas.forEach(e => { S.idx[e.id] = e; });
     normalizarResponsaveis();
     prepararNomes();
+    S._cursosCor = null;
     recalcular();
     montarFiltros();
     $('#brandSub').textContent = 'AET/CPE · ' + anoRef();
@@ -1064,7 +1086,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     $('#sheetLink').href = d.url || '#';
     const av = d.avisos || [];
     const chip = $('#avisos');
-    chip.classList.toggle('on', av.length > 0);
+    chip.classList.remove('on'); // avisos só no menu Diagnóstico da planilha
     chip.textContent = '⚠ ' + av.length + (av.length > 1 ? ' avisos' : ' aviso');
     chip.setAttribute('data-tip', '<b>Avisos da leitura</b>' + av.map(esc).join('<br><br>'));
     atualizarSync();
@@ -1284,17 +1306,14 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const abertas = es.filter(e => !concluida(e));
     const antesAbertas = abertas.filter(ehAntes);
     const venc = antesAbertas.filter(e => dias(e.prazo) < 0);
-    const semana = antesAbertas.filter(e => { const n = dias(e.prazo); return n !== null && n >= 0 && n <= 7; });
     const pct = es.length ? (es.length - abertas.length) / es.length * 100 : 0;
     const cont = k => ts.filter(t => t.sit === k).length;
     const proxima = ts.filter(t => dias(t.inicio) > 0).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
 
     const kpis = [
-      kpi('Turmas', ts.length, '', [cont('plan') + ' planej.', cont('exec') + ' em exec.', cont('enc') + ' encerr.'].join(' · '), 'turmas'),
+      kpiTurmas(ts),
       kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
       kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
-      kpi('Vencem em 7 dias', semana.length, '', semana.length ? 'próximo prazo: ' + fmt(semana.map(e => e.prazo).sort()[0]) : 'nada na semana', 'etapas', semana.length ? 'warn' : ''),
-      kpi('Formados', soma(formandosF(), x => x.formados), '', 'militares em ' + anoRef(), 'formandos'),
       proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(nomeCurto(proxima)), null, '', '', proxima.id)
               : kpi('Próxima turma', '—', '', 'nenhuma prevista')
     ].join('');
@@ -1311,7 +1330,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         cardListaPrazos('Vencem nos próximos 7 dias', 'g-sem', 'semana', ts, abertas, n => n !== null && n >= 0 && n <= 7) +
         cardUnidades(ts) + '</div>';
     }
-    return '<div class="grid g-kpi">' + kpis + '</div>' +
+    return '<div class="grid g-kpi k-turmas">' + kpis + '</div>' +
       '<div class="geral-main">' + cardProximas(ts) + cardCalendario(ts, es) + cardPrazos(ts, abertas) +
       cardTreinamentosMes() + cardFormadosUnidade() + '</div>';
   }
@@ -1424,6 +1443,27 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       '<span><i class="lt-pz late" style="position:static"></i>prazo vencido</span><span><i class="lt-pz soon" style="position:static"></i>vence em 7 dias</span><span><i class="lt-pz" style="position:static"></i>prazo futuro</span></div></div>';
   }
 
+  /** Turmas do ano: quantas estão previstas e quantas já foram realizadas, em execução e a realizar. */
+  function contagemTurmas(ts) {
+    const c = k => ts.filter(t => t.sit === k).length;
+    return { previstas: ts.filter(t => t.sit !== 'canc').length, enc: c('enc'), exec: c('exec'), plan: c('plan'),
+      canc: S.dados.turmas.filter(t => t.sit === 'canc' && turmaPassa(Object.assign({}, t, { sit: 'plan' }), true)).length };
+  }
+  function barraTurmas(n) {
+    const tot = n.previstas || 1;
+    return '<div class="tbar">' + [['enc', n.enc], ['exec', n.exec], ['plan', n.plan]].map(([k, v]) => v ? '<i class="' + k + '" style="flex:' + v / tot + '" data-tip="<b>' + v + ' ' + {
+      enc: 'realizada(s)', exec: 'em execução', plan: 'a realizar' }[k] + '</b>"></i>' : '').join('') + '</div>';
+  }
+  const legendaTurmas = n => '<span class="tl-l"><i class="enc"></i><b>' + n.enc + '</b> realizada' + (n.enc === 1 ? '' : 's') + '</span>' +
+    '<span class="tl-l"><i class="exec"></i><b>' + n.exec + '</b> em execução</span>' +
+    '<span class="tl-l"><i class="plan"></i><b>' + n.plan + '</b> a realizar</span>' +
+    (n.canc ? '<span class="tl-l dim">+ ' + n.canc + ' cancelada' + (n.canc === 1 ? '' : 's') + '</span>' : '');
+  function kpiTurmas(ts) {
+    const n = contagemTurmas(ts);
+    return '<div class="card kpi click kpi-turmas" data-goto="turmas"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
+      '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div>';
+  }
+
   function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
     const attr = ir ? ' data-goto="' + ir + '"' : turmaId ? ' data-turma="' + turmaId + '"' : '';
     return '<div class="card kpi ' + (cls || '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
@@ -1465,6 +1505,19 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       key: 'g-prox', fitCls: 'lista', auto: true, style: 'grid-area:prox',
       html: html || '<div class="empty">Nenhuma turma em execução ou prevista.</div>'
     });
+  }
+
+  /** Uma cor por curso (fixa no ano), para turmas com datas coincidentes não se confundirem. */
+  const CORES_CURSO = ['#3c6db0', '#c0571f', '#2f8a57', '#8a4fb5', '#b8860b', '#1f8f99', '#c23a5b', '#5b6b85', '#6d8f1f', '#a0522d', '#2b5797', '#9c3fa0'];
+  function indiceCurso(nome) {
+    if (!S._cursosCor) S._cursosCor = Array.from(new Set(S.dados.turmas.map(nomeCurso))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return Math.max(0, S._cursosCor.indexOf(nome));
+  }
+  const corCurso = t => CORES_CURSO[indiceCurso(nomeCurso(t)) % CORES_CURSO.length];
+  function cursosNoMes(ts, ano, mes) {
+    const ini = ano + '-' + pad(mes + 1) + '-01', fim = ano + '-' + pad(mes + 1) + '-31';
+    const nomes = Array.from(new Set(ts.filter(t => t.inicio && t.fim && t.inicio <= fim && t.fim >= ini).map(nomeCurso)));
+    return nomes.map(n => ({ nome: n, i: indiceCurso(n) })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }
 
   function cardCalendario(ts, es) {
@@ -1521,9 +1574,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       });
       const barras = trechos.filter(x => x.f < nF).map(x => {
         const t = x.t, contE = t.inicio < ini, contD = t.fim > fim;
-        return '<span class="cal-bar ' + t.sit + (contE ? ' cont-e' : '') + (contD ? ' cont-d' : '') + '" style="grid-column:' + (x.a + 1) + ' / ' + (x.b + 2) + ';grid-row:' + (x.f + 2) +
-          '" data-turma="' + t.id + '" data-tip="<b>' + esc(nomeLongo(t)) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + '">' +
-          '<span>' + (contE ? '‹ ' : '') + esc(x.b - x.a >= 3 ? nomeLongo(t) : nomeCurto(t)) + (contD ? ' ›' : '') + '</span></span>';
+        return '<span class="cal-bar ' + t.sit + (contE ? ' cont-e' : '') + (contD ? ' cont-d' : '') + '" style="background:' + corCurso(t) + ';grid-column:' + (x.a + 1) + ' / ' + (x.b + 2) + ';grid-row:' + (x.f + 2) +
+          '" data-turma="' + t.id + '" data-tip="<b>' + esc(nomeLongo(t)) + '</b>' + esc(t.local) + '<br>' + fmtAno(t.inicio) + ' a ' + fmtAno(t.fim) + ' · ' + SIT[t.sit].label + '">' +
+          '<span>' + (contE ? '‹ ' : '') + (t.sit === 'exec' ? '▶ ' : '') + esc(x.b - x.a >= 3 ? nomeLongo(t) : nomeCurto(t)) + (contD ? ' ›' : '') + '</span></span>';
       }).join('');
       linhas += '<div class="cal-sem" style="grid-template-rows:var(--cal-n, 22px) repeat(' + nF + ', auto) 1fr">' + cel + barras + '</div>';
     }
@@ -1535,8 +1588,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       (S.calMes ? '<button data-cal="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') +
       '<button data-cal="1" title="Próximo mês">›</button></div></div>' +
       '<div class="cal"><div class="cal-hs">' + ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => '<div class="cal-h">' + x + '</div>').join('') + '</div>' + linhas + '</div>' +
-      '<div class="legend" style="margin-top:8px">' + ['plan', 'exec', 'enc'].map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
-      '<span><b style="color:var(--danger)">⚑</b> prazo de etapa</span></div></div>';
+      '<div class="legend" style="margin-top:8px">' + cursosNoMes(ts, ano, mes).map(c => '<span><i style="background:' + CORES_CURSO[c.i % CORES_CURSO.length] + '"></i>' + esc(cursoCurto(c.nome)) + '</span>').join('') +
+      '<span class="dim">▶ em execução · esmaecida = encerrada</span><span><b style="color:var(--danger)">⚑</b> prazo de etapa</span></div></div>';
   }
 
   function cardPrazos(ts, abertas) {
@@ -1624,8 +1677,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const total = soma(arr, a => a[1]);
     const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
     return painel({
-      titulo: 'Formandos por unidade', meta: total + ' formados', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
-      html: donut(seg, total, 'formados')
+      titulo: 'Cursados por unidade', meta: total + ' militares', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
+      html: donut(seg, total, 'cursados')
     });
   }
 
@@ -1676,7 +1729,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       '<select id="ordTurmas" class="ghost">' +
       [['inicio', 'Ordenar por início'], ['progresso', 'Menor progresso'], ['vencidas', 'Mais vencidas'], ['nome', 'Nome']]
         .map(o => '<option value="' + o[0] + '"' + (S.turmasOrdem === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
-      '</select><span style="color:var(--ink-3);font-size:12.5px">' + ts.length + ' turma(s)</span>' + botaoNovaTurma() + pager('turmas-' + S.turmasModo) + '</div>';
+      '</select>' + resumoTurmas(ts) + botaoNovaTurma() + pager('turmas-' + S.turmasModo) + '</div>';
 
     if (!ts.length) return barraFerr + '<div class="card empty">Nenhuma turma no filtro.</div>';
 
@@ -1702,6 +1755,12 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         '<div class="foot-line"><div class="flags">' + bandeiras(t) + '</div>' +
         (t.st.venc && t.sit !== 'canc' ? '<span class="alert-line">⚠ ' + t.st.venc + '</span>' : '') + '</div></div>';
     }).join(''), 'g-cards') + '</div>';
+  }
+
+  /** Faixa da tela Turmas: "18 turmas previstas em 2026" + realizadas / em execução / a realizar. */
+  function resumoTurmas(ts) {
+    const n = contagemTurmas(ts);
+    return '<div class="t-resumo"><b>' + n.previstas + '</b><span>turmas previstas em ' + anoRef() + '</span>' + barraTurmas(n) + legendaTurmas(n) + '</div>';
   }
 
   function bandeiras(t) {
@@ -2708,7 +2767,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos', 6: 'regras' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 
