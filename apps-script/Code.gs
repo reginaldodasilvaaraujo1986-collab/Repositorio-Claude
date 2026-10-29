@@ -1582,14 +1582,14 @@ const PRAZOS_INICIAIS = [
   // etapa, dias antes do início, em todas as turmas, outros nomes (separados por ;)
   ['Elaborar Plano de Treinamento', 60, 'Sim', ''],
   ['Revisar Plano de Treinamento', 30, 'Sim', ''],
-  ['Solicitar docentes ao coordenador', 30, 'Sim', 'Solicitar docente ao coordenador; Solicitar indicação de docentes'],
+  ['Solicitar relação de docentes', 30, 'Sim', 'Solicitar docentes ao coordenador; Solicitar docente ao coordenador; Solicitar indicação de docentes'],
   ['Solicitar relação de discentes', 30, 'Sim', 'Solitar relação de discentes; Solicitar Lista de Discentes; Solicitar lista de discentes; Solicitar indicação dos discentes; solicitar inidicação de discente'],
   ['Encaminhar Plano de Treinamento', 28, 'Sim', 'Encaminhar Plano de Treinamento P/ APM'],
   ['Confirmar aprovação do Plano de Treinamento', 25, 'Sim', ''],
   ['Elaborar minuta do edital', 24, '', ''],
   ['Revisar elaboração do edital', 22, '', ''],
   ['Elaborar designação docente', 22, 'Sim', 'Elaborar designação docente internos; Elaborar designação docente interna'],
-  ['Encaminhar designação docente', 20, 'Sim', 'Encaminhar designação docente p/ assinatura'],
+  ['Enviar docentes para publicação', 20, 'Sim', 'Encaminhar designação docente; Encaminhar designação docente p/ assinatura'],
   ['Publicar edital', 20, '', ''],
   ['Elaborar Ordem de Serviço', 20, 'Sim', ''],
   ['Reservar CIPM', 20, '', ''],
@@ -1611,6 +1611,36 @@ const PRAZOS_INICIAIS = [
   ['Conferir relação nominal de discentes', 5, 'Sim', 'Conferir relação nominal de discentes p/ Certificação']
 ];
 
+// Etapas obrigatórias em todos os treinamentos, com nome e prazo fixos: mesmo que a aba
+// "Prazos padrão" já exista, a linha é criada/atualizada e as etapas recebem este nome.
+const ETAPAS_OBRIGATORIAS = [
+  ['Solicitar relação de docentes', 30, 'Sim', 'Solicitar docentes ao coordenador; Solicitar docente ao coordenador; Solicitar indicação de docentes'],
+  ['Enviar docentes para publicação', 20, 'Sim', 'Encaminhar designação docente; Encaminhar designação docente p/ assinatura']
+];
+
+/** Garante as linhas de ETAPAS_OBRIGATORIAS na aba (renomeia a linha antiga equivalente ou acrescenta). */
+function garantirObrigatorias_(aba) {
+  const v = aba.getDataRange().getValues();
+  const c = indice_(v[0]);
+  const cN = c['etapa'], cD = c['dias antes do inicio'], cT = c['em todas as turmas'], cO = c['outros nomes (separe com ;)'];
+  ETAPAS_OBRIGATORIAS.forEach(([nome, dias, todas, outros]) => {
+    const alvo = [nome].concat(outros.split(';')).map(x => semAcento_(x.trim()));
+    let linha = -1;
+    for (let i = 1; i < v.length; i++) {
+      const nomes = [texto_(v[i][cN])].concat(texto_(v[i][cO]).split(';')).map(x => semAcento_(x.trim())).filter(Boolean);
+      if (nomes.some(n => alvo.indexOf(n) >= 0)) { linha = i; break; }
+    }
+    const antigos = linha > 0 ? [texto_(v[linha][cN])].concat(texto_(v[linha][cO]).split(';')).map(x => x.trim()) : [];
+    const juntos = Array.from(new Set(outros.split(';').map(x => x.trim()).concat(antigos))).filter(x => x && semAcento_(x) !== semAcento_(nome));
+    const r = linha > 0 ? linha + 1 : Math.max(2, ultimaLinhaComDados_(v.filter(x => texto_(x[cN]) && !/^so etapas/.test(semAcento_(x[cN])))) + 1);
+    if (linha < 0) aba.insertRowBefore(r);
+    aba.getRange(r, cN + 1).setValue(nome);
+    aba.getRange(r, cD + 1).setValue(dias);
+    aba.getRange(r, cT + 1).setValue(todas);
+    aba.getRange(r, cO + 1).setValue(juntos.join('; '));
+  });
+}
+
 /** Lê a aba "Prazos padrão" (cria com os dados iniciais na primeira vez). */
 function lerPrazosPadrao_(ss) {
   let aba = ss.getSheetByName(CONFIG.ABA_PRAZOS);
@@ -1624,8 +1654,10 @@ function lerPrazosPadrao_(ss) {
     aba.getRange(PRAZOS_INICIAIS.length + 3, 1).setValue('Só etapas de ANTES do início têm prazo. Etapas de durante e depois do curso ficam sem prazo. ' +
       '"Em todas as turmas" = Sim: a etapa é incluída nas turmas que ainda não começaram e não a têm. Depois de editar, use o menu 📊 Painel › Aplicar prazos padrão.');
   }
+  garantirObrigatorias_(aba);
   const v = aba.getDataRange().getValues();
   const c = indice_(v[0]);
+  const obrig = ETAPAS_OBRIGATORIAS.map(x => semAcento_(x[0]));
   const out = [];
   for (let i = 1; i < v.length; i++) {
     const nome = texto_(v[i][c['etapa']]);
@@ -1634,6 +1666,7 @@ function lerPrazosPadrao_(ss) {
     out.push({
       nome: nome, dias: Math.abs(Math.round(dias)),
       todas: /^s/i.test(texto_(v[i][c['em todas as turmas']])),
+      renomear: obrig.indexOf(semAcento_(nome)) >= 0, // obrigatórias: as etapas passam a ter este nome
       nomes: [nome].concat(texto_(v[i][c['outros nomes (separe com ;)']]).split(';').map(x => x.trim()).filter(Boolean))
     });
   }
@@ -1683,7 +1716,7 @@ function aplicarPrazosPadrao(aplicar, ano) {
   const porNome = {};
   tabela.forEach(r => r.nomes.forEach(n => { if (!porNome[semAcento_(n)]) porNome[semAcento_(n)] = r; }));
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const r = { prazos: 0, semPrazo: 0, incluidas: 0, foraDaTabela: {}, exemplos: [], turmas: 0 };
+  const r = { prazos: 0, semPrazo: 0, incluidas: 0, renomeadas: 0, foraDaTabela: {}, exemplos: [], turmas: 0 };
 
   const run = () => lerAbasOperacionais_(ss, []).forEach(op => {
     const aba = ss.getSheetByName(op.aba);
@@ -1701,6 +1734,11 @@ function aplicarPrazosPadrao(aplicar, ano) {
           const p = porNome[semAcento_(e.etapa)];
           if (!p) { r.foraDaTabela[e.etapa] = 1; return; }
           const nova = '=' + letraIni + t.linha + (p.dias ? '-' + p.dias : '');
+          if (p.renomear && e.etapa !== p.nome && b.col['etapa'] !== undefined) {
+            r.renomeadas++;
+            if (r.exemplos.length < 12) r.exemplos.push(t.turma + ': "' + e.etapa + '" → "' + p.nome + '"');
+            if (aplicar) aba.getRange(e.linha, b.col['etapa'] + 1).setValue(p.nome);
+          }
           if (atual === nova) return;
           r.prazos++;
           if (r.exemplos.length < 12) r.exemplos.push(t.turma + ': ' + e.etapa + ' → ' + p.dias + ' d antes');
@@ -1740,7 +1778,7 @@ function aplicarPrazosPadrao(aplicar, ano) {
     try {
       run();
       historico_(ss, CONFIG.ABA_PRAZOS, '', '', '', 'Prazos padrão aplicados',
-        r.prazos + ' prazo(s) ajustados · ' + r.semPrazo + ' etapa(s) de durante/depois sem prazo · ' + r.incluidas + ' etapa(s) incluídas');
+        r.prazos + ' prazo(s) ajustados · ' + r.renomeadas + ' renomeada(s) · ' + r.semPrazo + ' etapa(s) de durante/depois sem prazo · ' + r.incluidas + ' etapa(s) incluídas');
       SpreadsheetApp.flush();
       limparCache();
     } finally {
@@ -1759,7 +1797,8 @@ function aplicarPrazosPadraoUi() {
     'Pela aba "' + CONFIG.ABA_PRAZOS + '" (' + r.turmas + ' turmas):\n\n' +
     '• ' + r.prazos + ' prazo(s) de etapas de antes serão ajustados\n' +
     '• ' + r.semPrazo + ' etapa(s) de durante/depois ficarão sem prazo\n' +
-    '• ' + r.incluidas + ' etapa(s) serão incluídas em turmas que ainda não começaram\n\n' +
+    '• ' + r.incluidas + ' etapa(s) serão incluídas em turmas que ainda não começaram\n' +
+    '• ' + r.renomeadas + ' etapa(s) passam a ter o nome padrão (' + ETAPAS_OBRIGATORIAS.map(x => x[0]).join(', ') + ')\n\n' +
     (r.exemplos.length ? 'Exemplos:\n' + r.exemplos.join('\n') + '\n\n' : '') +
     (r.foraDaTabela.length ? 'Etapas de antes que não estão na tabela (ficam como estão):\n' + r.foraDaTabela.join('\n') + '\n\n' : '') +
     'Aplicar?', ui.ButtonSet.YES_NO);

@@ -136,5 +136,5 @@ No detalhe da turma (checklist):
 
 - Só as etapas **de antes do início** têm prazo. As de durante e depois do curso ficam sem prazo (a coluna Alerta não marca "VENCIDO").
 - Os prazos ficam na aba **Prazos padrão** (criada na primeira vez): etapa, dias antes do início, se entra em todas as turmas e outros nomes da mesma etapa.
-- Menu **📊 Painel › Aplicar prazos padrão**: mostra o que muda e, ao confirmar, ajusta as fórmulas de prazo, tira o prazo das etapas de durante/depois e inclui as etapas marcadas "Em todas as turmas" (ex.: *Solicitar docentes ao coordenador*, 30 dias) nas turmas que ainda não começaram.
+- Menu **📊 Painel › Aplicar prazos padrão**: mostra o que muda e, ao confirmar, ajusta as fórmulas de prazo, tira o prazo das etapas de durante/depois e inclui as etapas marcadas "Em todas as turmas" (ex.: *Solicitar relação de docentes*, 30 dias, e *Enviar docentes para publicação*, 20 dias — essas duas são obrigatórias: entram em todos os treinamentos e as etapas equivalentes passam a ter esse nome) nas turmas que ainda não começaram.
 - Etapas de antes que não estão na tabela ficam como estão.
