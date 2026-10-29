@@ -849,6 +849,50 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 [data-estilo="aet"] .tr-head { background: #1f232c; }
 [data-estilo="aet"] .tr-card.atual { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
 [data-estilo="aet"] .rule h3, [data-estilo="aet"] .ano-tit, [data-estilo="aet"] .t-resumo > b { font-family: var(--sans); font-weight: 800; }
+
+/* cartões com ícone (estilo da referência) */
+.kpi.com-ico { display: flex; align-items: center; gap: 14px; }
+.k-ico { width: 46px; height: 46px; flex: none; border-radius: 12px; display: grid; place-items: center; color: var(--accent); border: 1.5px solid var(--accent); background: var(--accent-soft); }
+.kpi.danger .k-ico { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+.k-tx { min-width: 0; flex: 1; }
+.kpi.com-ico .ring { right: 14px; }
+.kpi.com-ico:has(.ring) .k-tx { padding-right: 46px; }
+/* contagem regressiva */
+.cr { display: flex; align-items: flex-start; gap: 4px; margin-top: 3px; }
+.cr-u { display: flex; flex-direction: column; align-items: center; }
+.cr-u b { font: 800 25px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); }
+.cr-u i { font: 600 9px var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); margin-top: 2px; }
+.cr-s { font: 700 20px/1 var(--mono); color: var(--ink-3); padding-top: 1px; }
+/* cursados por unidade: barras verticais */
+.ub { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 14px; padding: 4px 6px 0; }
+.ub-c { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.ub-c > b { font: 800 16px var(--mono); color: var(--ink-2); }
+.ub-c.top > b { color: var(--accent); }
+.ub-b { flex: 1; width: 100%; max-width: 74px; display: flex; align-items: flex-end; border-bottom: 1px solid var(--line); }
+.ub-b i { display: block; width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--surface-3), color-mix(in srgb, var(--surface-3) 60%, var(--surface))); }
+.ub-c.top .ub-b i { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 75%, #fff), var(--accent)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ub-c em { font: 700 11px var(--sans); font-style: normal; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+/* treinamentos do mês: linha do tempo */
+.fit.rmap { display: flex; flex-direction: column; padding: 8px 14px 0 10px; }
+.rm-it { display: grid; grid-template-columns: 74px 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 46px; flex: none; position: relative; cursor: default; }
+.rm-it[data-turma] { cursor: pointer; }
+.rm-it[data-turma]:hover .rm-t b { color: var(--accent); }
+.rm-it::before { content: ''; position: absolute; left: 82px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.rm-it:first-child::before { top: 50%; } .rm-it:last-child::before { bottom: 50%; }
+.rm-d { font: 700 11px var(--mono); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 3px 6px; text-align: center; white-space: nowrap; }
+.rm-p { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2.5px solid var(--pc, var(--ink-3)); justify-self: center; z-index: 1; }
+.rm-it.exec .rm-p { background: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-exec) 35%, transparent); }
+.rm-it.enc { opacity: .6; }
+.rm-t { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.rm-t b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-t small { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-v { font: 600 11px var(--mono); color: var(--ink-2); white-space: nowrap; }
+
+.kpi.com-ico .label { letter-spacing: .06em; }
+@media (max-width: 1400px) and (min-width: 861px) {
+  .kpi.com-ico .k-ico { display: none; }
+  .cr-u b { font-size: 21px; } .cr-s { font-size: 17px; }
+}
 </style>
 </head>
 <body>
@@ -1356,10 +1400,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
     const kpis = [
       kpiTurmas(ts),
-      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
-      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
-      proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(nomeCurto(proxima)), null, '', '', proxima.id)
-              : kpi('Próxima turma', '—', '', 'nenhuma prevista')
+      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', '', null, 'check'),
+      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : '', '', null, 'alerta'),
+      proxima ? kpiProxima(proxima)
+              : kpi('Próxima turma', '—', '', 'nenhuma prevista', null, '', '', null, 'relogio')
     ].join('');
 
     const layout = layoutGeral();
@@ -1504,16 +1548,38 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     (n.canc ? '<span class="tl-l dim">+ ' + n.canc + ' cancelada' + (n.canc === 1 ? '' : 's') + '</span>' : '');
   function kpiTurmas(ts) {
     const n = contagemTurmas(ts);
-    return '<div class="card kpi click kpi-turmas" data-goto="turmas"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
-      '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div>';
+    return '<div class="card kpi com-ico click kpi-turmas" data-goto="turmas"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
+      '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div></div>';
   }
 
-  function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
+  function kpi(label, valor, unid, foot, ir, cls, extra, turmaId, ico) {
     const attr = ir ? ' data-goto="' + ir + '"' : turmaId ? ' data-turma="' + turmaId + '"' : '';
-    return '<div class="card kpi ' + (cls || '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
-      '<div class="label">' + label + '</div>' +
+    const txt = '<div class="label">' + label + '</div>' +
       '<div class="value">' + valor + (unid ? '<small>' + unid + '</small>' : '') + '</div>' +
-      '<div class="foot">' + foot + '</div></div>';
+      '<div class="foot">' + foot + '</div>';
+    return '<div class="card kpi ' + (cls || '') + (ico ? ' com-ico' : '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
+      (ico ? '<div class="k-ico">' + ICONES[ico] + '</div><div class="k-tx">' + txt + '</div>' : txt) + '</div>';
+  }
+
+  /** Ícones de traço (estilo dos cartões de destaque). */
+  const svgIco = d => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  const ICONES = {
+    turmas: svgIco('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+    check: svgIco('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 10"/>'),
+    alerta: svgIco('<path d="M12 3.5l9 16H3z"/><path d="M12 10v4.5M12 17.5v.2"/>'),
+    relogio: svgIco('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>')
+  };
+
+  /** Contagem regressiva até o início (dias : horas : min), atualizada a cada minuto. */
+  function regressiva(iso) {
+    const ms = Math.max(0, dt(iso) - Date.now());
+    const d = Math.floor(ms / DIA), h = Math.floor(ms % DIA / 3600000), m = Math.floor(ms % 3600000 / 60000);
+    return [[d, 'dias'], [h, 'horas'], [m, 'min']].map(([n, l]) => '<span class="cr-u"><b>' + pad(n) + '</b><i>' + l + '</i></span>').join('<span class="cr-s">:</span>');
+  }
+  function kpiProxima(t) {
+    return '<div class="card kpi com-ico click kpi-prox" data-turma="' + t.id + '"><div class="k-ico">' + ICONES.relogio + '</div><div class="k-tx">' +
+      '<div class="label">Próxima turma em</div><div class="cr" data-regressiva="' + t.inicio + '">' + regressiva(t.inicio) + '</div>' +
+      '<div class="foot">' + esc(nomeCurto(t)) + ' · ' + fmt(t.inicio) + '</div></div></div>';
   }
 
   /** Bloco de data grande (dia + mês), usado nas listas da visão geral. */
@@ -1701,14 +1767,24 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       (larga ? '<span class="tr-l">' + esc(x.local) + '</span>' : '') + '</div>';
   }
 
+  /** Treinamento do mês como marco de uma linha do tempo (data · nome · vagas). */
+  function itemLinhaTempo(x) {
+    const t = x.turma;
+    const hoje = t && t.sit === 'exec';
+    return '<div class="rm-it' + (t ? ' ' + t.sit : '') + '"' + (t ? ' data-turma="' + t.id + '"' : '') +
+      ' data-tip="<b>' + esc(x.treinamento) + '</b>' + esc(x.periodo) + (x.vagas ? ' · ' + esc(x.vagas) : '') + (x.local ? '<br>' + esc(x.local) : '') + '">' +
+      '<span class="rm-d">' + esc(x.periodo) + '</span><span class="rm-p"' + (t ? ' style="--pc:' + corCurso(t) + '"' : '') + '></span>' +
+      '<span class="rm-t"><b>' + (hoje ? '▶ ' : '') + esc(x.treinamento) + '</b><small>' + esc(x.local || '') + '</small></span>' +
+      '<span class="rm-v">' + esc(x.vagas && x.vagas !== '-' ? x.vagas : '') + '</span></div>';
+  }
+
   function cardTreinamentosMes() {
     const base = new Date(anoRef(), mesBase() + S.calMes, 1);
     const lista = treinamentosDoMes(base.getFullYear(), base.getMonth());
     const fonte = (S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas';
     return '<div class="card panel flush tr-card" style="grid-area:trein">' +
       '<div class="tr-mes">' + MES_LONGO[base.getMonth()].toUpperCase() + ' <span>· ' + lista.length + ' treinamento' + (lista.length === 1 ? '' : 's') + '</span>' + pager('g-trein') + '</div>' +
-      '<div class="tr-head"><span>Período</span><span>Treinamento</span><span>Vagas</span></div>' +
-      caixa('g-trein', lista.map(x => linhaTreinamento(x, false)).join('') || '<div class="empty">Nenhum treinamento previsto neste mês.</div>') +
+      caixa('g-trein', lista.map(itemLinhaTempo).join('') || '<div class="empty">Nenhum treinamento previsto neste mês.</div>', 'rmap') +
       '<div class="tr-fonte">fonte: ' + fonte + '</div></div>';
   }
 
@@ -1719,11 +1795,11 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (S.f.unidade) Object.keys(m).forEach(k => { if (k !== S.f.unidade) delete m[k]; });
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
-    const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
-    return painel({
-      titulo: 'Cursados por unidade', meta: total + ' militares', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
-      html: donut(seg, total, 'cursados')
-    });
+    const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
+    const barras = '<div class="ub">' + arr.map(([k, v]) =>
+      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
+      '<b>' + v + '</b><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 2) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
+    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */
@@ -2848,6 +2924,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
   carregar(false);
   setInterval(atualizarSync, 30000);
+  setInterval(() => { $$('[data-regressiva]').forEach(el => { el.innerHTML = regressiva(el.dataset.regressiva); }); }, 60000);
 
   // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
   if (ROTACAO_MS) setInterval(() => {

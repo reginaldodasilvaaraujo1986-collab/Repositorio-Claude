@@ -433,10 +433,10 @@
 
     const kpis = [
       kpiTurmas(ts),
-      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', anel(pct, 42)),
-      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : ''),
-      proxima ? kpi('Próxima turma', dias(proxima.inicio), 'dias', esc(nomeCurto(proxima)), null, '', '', proxima.id)
-              : kpi('Próxima turma', '—', '', 'nenhuma prevista')
+      kpi('Etapas concluídas', Math.round(pct), '%', (es.length - abertas.length) + ' de ' + es.length, 'etapas', '', '', null, 'check'),
+      kpi('Etapas vencidas', venc.length, '', 'em ' + new Set(venc.map(e => e.turmaId)).size + ' turma(s)', 'etapas', venc.length ? 'danger' : '', '', null, 'alerta'),
+      proxima ? kpiProxima(proxima)
+              : kpi('Próxima turma', '—', '', 'nenhuma prevista', null, '', '', null, 'relogio')
     ].join('');
 
     const layout = layoutGeral();
@@ -581,16 +581,38 @@
     (n.canc ? '<span class="tl-l dim">+ ' + n.canc + ' cancelada' + (n.canc === 1 ? '' : 's') + '</span>' : '');
   function kpiTurmas(ts) {
     const n = contagemTurmas(ts);
-    return '<div class="card kpi click kpi-turmas" data-goto="turmas"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
-      '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div>';
+    return '<div class="card kpi com-ico click kpi-turmas" data-goto="turmas"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
+      '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div></div>';
   }
 
-  function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
+  function kpi(label, valor, unid, foot, ir, cls, extra, turmaId, ico) {
     const attr = ir ? ' data-goto="' + ir + '"' : turmaId ? ' data-turma="' + turmaId + '"' : '';
-    return '<div class="card kpi ' + (cls || '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
-      '<div class="label">' + label + '</div>' +
+    const txt = '<div class="label">' + label + '</div>' +
       '<div class="value">' + valor + (unid ? '<small>' + unid + '</small>' : '') + '</div>' +
-      '<div class="foot">' + foot + '</div></div>';
+      '<div class="foot">' + foot + '</div>';
+    return '<div class="card kpi ' + (cls || '') + (ico ? ' com-ico' : '') + (attr ? ' click' : '') + '"' + attr + '>' + (extra || '') +
+      (ico ? '<div class="k-ico">' + ICONES[ico] + '</div><div class="k-tx">' + txt + '</div>' : txt) + '</div>';
+  }
+
+  /** Ícones de traço (estilo dos cartões de destaque). */
+  const svgIco = d => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  const ICONES = {
+    turmas: svgIco('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+    check: svgIco('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 10"/>'),
+    alerta: svgIco('<path d="M12 3.5l9 16H3z"/><path d="M12 10v4.5M12 17.5v.2"/>'),
+    relogio: svgIco('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>')
+  };
+
+  /** Contagem regressiva até o início (dias : horas : min), atualizada a cada minuto. */
+  function regressiva(iso) {
+    const ms = Math.max(0, dt(iso) - Date.now());
+    const d = Math.floor(ms / DIA), h = Math.floor(ms % DIA / 3600000), m = Math.floor(ms % 3600000 / 60000);
+    return [[d, 'dias'], [h, 'horas'], [m, 'min']].map(([n, l]) => '<span class="cr-u"><b>' + pad(n) + '</b><i>' + l + '</i></span>').join('<span class="cr-s">:</span>');
+  }
+  function kpiProxima(t) {
+    return '<div class="card kpi com-ico click kpi-prox" data-turma="' + t.id + '"><div class="k-ico">' + ICONES.relogio + '</div><div class="k-tx">' +
+      '<div class="label">Próxima turma em</div><div class="cr" data-regressiva="' + t.inicio + '">' + regressiva(t.inicio) + '</div>' +
+      '<div class="foot">' + esc(nomeCurto(t)) + ' · ' + fmt(t.inicio) + '</div></div></div>';
   }
 
   /** Bloco de data grande (dia + mês), usado nas listas da visão geral. */
@@ -778,14 +800,24 @@
       (larga ? '<span class="tr-l">' + esc(x.local) + '</span>' : '') + '</div>';
   }
 
+  /** Treinamento do mês como marco de uma linha do tempo (data · nome · vagas). */
+  function itemLinhaTempo(x) {
+    const t = x.turma;
+    const hoje = t && t.sit === 'exec';
+    return '<div class="rm-it' + (t ? ' ' + t.sit : '') + '"' + (t ? ' data-turma="' + t.id + '"' : '') +
+      ' data-tip="<b>' + esc(x.treinamento) + '</b>' + esc(x.periodo) + (x.vagas ? ' · ' + esc(x.vagas) : '') + (x.local ? '<br>' + esc(x.local) : '') + '">' +
+      '<span class="rm-d">' + esc(x.periodo) + '</span><span class="rm-p"' + (t ? ' style="--pc:' + corCurso(t) + '"' : '') + '></span>' +
+      '<span class="rm-t"><b>' + (hoje ? '▶ ' : '') + esc(x.treinamento) + '</b><small>' + esc(x.local || '') + '</small></span>' +
+      '<span class="rm-v">' + esc(x.vagas && x.vagas !== '-' ? x.vagas : '') + '</span></div>';
+  }
+
   function cardTreinamentosMes() {
     const base = new Date(anoRef(), mesBase() + S.calMes, 1);
     const lista = treinamentosDoMes(base.getFullYear(), base.getMonth());
     const fonte = (S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas';
     return '<div class="card panel flush tr-card" style="grid-area:trein">' +
       '<div class="tr-mes">' + MES_LONGO[base.getMonth()].toUpperCase() + ' <span>· ' + lista.length + ' treinamento' + (lista.length === 1 ? '' : 's') + '</span>' + pager('g-trein') + '</div>' +
-      '<div class="tr-head"><span>Período</span><span>Treinamento</span><span>Vagas</span></div>' +
-      caixa('g-trein', lista.map(x => linhaTreinamento(x, false)).join('') || '<div class="empty">Nenhum treinamento previsto neste mês.</div>') +
+      caixa('g-trein', lista.map(itemLinhaTempo).join('') || '<div class="empty">Nenhum treinamento previsto neste mês.</div>', 'rmap') +
       '<div class="tr-fonte">fonte: ' + fonte + '</div></div>';
   }
 
@@ -796,11 +828,11 @@
     if (S.f.unidade) Object.keys(m).forEach(k => { if (k !== S.f.unidade) delete m[k]; });
     const arr = Object.keys(m).map(k => [k, m[k]]);
     const total = soma(arr, a => a[1]);
-    const seg = arr.map(([k, v], i) => ({ v: v, cor: CORES[i % CORES.length], l: k }));
-    return painel({
-      titulo: 'Cursados por unidade', meta: total + ' militares', key: 'g-form', fitCls: 'lista', style: 'grid-area:form',
-      html: donut(seg, total, 'cursados')
-    });
+    const max = Math.max.apply(null, arr.map(a => a[1]).concat([1]));
+    const barras = '<div class="ub">' + arr.map(([k, v]) =>
+      '<div class="ub-c' + (v === max && v ? ' top' : '') + '" data-tip="<b>' + esc(k) + '</b>' + v + ' militares (' + Math.round(v / (total || 1) * 100) + '%)">' +
+      '<b>' + v + '</b><span class="ub-b"><i style="height:' + Math.max(v / max * 100, 2) + '%"></i></span><em>' + esc(k) + '</em></div>').join('') + '</div>';
+    return '<div class="card panel" style="grid-area:form"><div class="card-head"><h2>Cursados por unidade</h2><span class="meta">' + total + ' militares</span></div>' + barras + '</div>';
   }
 
   /** Rosca + legenda com valores (usada em Status e Formandos). */
@@ -1925,6 +1957,7 @@
 
   carregar(false);
   setInterval(atualizarSync, 30000);
+  setInterval(() => { $$('[data-regressiva]').forEach(el => { el.innerHTML = regressiva(el.dataset.regressiva); }); }, 60000);
 
   // Modo painel de TV: cartões da visão geral avançam sozinhos (pausa com o mouse em cima).
   if (ROTACAO_MS) setInterval(() => {

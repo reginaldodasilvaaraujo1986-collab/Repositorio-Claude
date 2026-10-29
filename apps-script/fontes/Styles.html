@@ -839,4 +839,48 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 [data-estilo="aet"] .tr-head { background: #1f232c; }
 [data-estilo="aet"] .tr-card.atual { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
 [data-estilo="aet"] .rule h3, [data-estilo="aet"] .ano-tit, [data-estilo="aet"] .t-resumo > b { font-family: var(--sans); font-weight: 800; }
+
+/* cartões com ícone (estilo da referência) */
+.kpi.com-ico { display: flex; align-items: center; gap: 14px; }
+.k-ico { width: 46px; height: 46px; flex: none; border-radius: 12px; display: grid; place-items: center; color: var(--accent); border: 1.5px solid var(--accent); background: var(--accent-soft); }
+.kpi.danger .k-ico { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+.k-tx { min-width: 0; flex: 1; }
+.kpi.com-ico .ring { right: 14px; }
+.kpi.com-ico:has(.ring) .k-tx { padding-right: 46px; }
+/* contagem regressiva */
+.cr { display: flex; align-items: flex-start; gap: 4px; margin-top: 3px; }
+.cr-u { display: flex; flex-direction: column; align-items: center; }
+.cr-u b { font: 800 25px/1 var(--mono); letter-spacing: -.02em; color: var(--ink); }
+.cr-u i { font: 600 9px var(--sans); font-style: normal; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); margin-top: 2px; }
+.cr-s { font: 700 20px/1 var(--mono); color: var(--ink-3); padding-top: 1px; }
+/* cursados por unidade: barras verticais */
+.ub { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 14px; padding: 4px 6px 0; }
+.ub-c { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.ub-c > b { font: 800 16px var(--mono); color: var(--ink-2); }
+.ub-c.top > b { color: var(--accent); }
+.ub-b { flex: 1; width: 100%; max-width: 74px; display: flex; align-items: flex-end; border-bottom: 1px solid var(--line); }
+.ub-b i { display: block; width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--surface-3), color-mix(in srgb, var(--surface-3) 60%, var(--surface))); }
+.ub-c.top .ub-b i { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 75%, #fff), var(--accent)); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ub-c em { font: 700 11px var(--sans); font-style: normal; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+/* treinamentos do mês: linha do tempo */
+.fit.rmap { display: flex; flex-direction: column; padding: 8px 14px 0 10px; }
+.rm-it { display: grid; grid-template-columns: 74px 18px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 46px; flex: none; position: relative; cursor: default; }
+.rm-it[data-turma] { cursor: pointer; }
+.rm-it[data-turma]:hover .rm-t b { color: var(--accent); }
+.rm-it::before { content: ''; position: absolute; left: 82px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.rm-it:first-child::before { top: 50%; } .rm-it:last-child::before { bottom: 50%; }
+.rm-d { font: 700 11px var(--mono); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 3px 6px; text-align: center; white-space: nowrap; }
+.rm-p { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2.5px solid var(--pc, var(--ink-3)); justify-self: center; z-index: 1; }
+.rm-it.exec .rm-p { background: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-exec) 35%, transparent); }
+.rm-it.enc { opacity: .6; }
+.rm-t { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.rm-t b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-t small { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-v { font: 600 11px var(--mono); color: var(--ink-2); white-space: nowrap; }
+
+.kpi.com-ico .label { letter-spacing: .06em; }
+@media (max-width: 1400px) and (min-width: 861px) {
+  .kpi.com-ico .k-ico { display: none; }
+  .cr-u b { font-size: 21px; } .cr-s { font-size: 17px; }
+}
 </style>
