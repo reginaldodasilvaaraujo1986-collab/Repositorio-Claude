@@ -441,9 +441,129 @@
               : kpi('Próxima turma', '—', '', 'nenhuma prevista')
     ].join('');
 
+    const layout = layoutGeral();
+    if (layout === 'a') {
+      return '<div class="grid g-kpi slim">' + kpis + '</div>' +
+        '<div class="geral-a">' + cardAcoes(ts, abertas) + cardCalendario(ts, es) + cardProximas(ts) + cardUnidades(ts) + '</div>';
+    }
+    if (layout === 'b') {
+      return '<div class="grid g-kpi slim">' + kpis + '</div>' +
+        '<div class="geral-b">' + cardLinhaTempo(ts, es) +
+        cardListaPrazos('Etapas vencidas', 'g-venc', 'venc', ts, abertas, n => n !== null && n < 0) +
+        cardListaPrazos('Vencem nos próximos 7 dias', 'g-sem', 'semana', ts, abertas, n => n !== null && n >= 0 && n <= 7) +
+        cardUnidades(ts) + '</div>';
+    }
     return '<div class="grid g-kpi">' + kpis + '</div>' +
       '<div class="geral-main">' + cardProximas(ts) + cardCalendario(ts, es) + cardPrazos(ts, abertas) +
       cardTreinamentosMes() + cardFormadosUnidade() + '</div>';
+  }
+
+  /** Layout da visão geral: 'atual' | 'a' (painel do dia) | 'b' (linha do tempo). */
+  function layoutGeral() {
+    const h = (location.hash.match(/layout=(\w+)/) || [])[1];
+    if (h) return h;
+    try { return localStorage.getItem('painel-layout') || 'atual'; } catch (e) { return 'atual'; }
+  }
+
+  /** Linha de prazo (bloco de data + etapa + turma + responsável + status). */
+  function linhaPz(e, extra) {
+    const n = dias(e.prazo);
+    const cls = n === null ? '' : n < 0 ? 'late' : n <= 7 ? 'soon' : '';
+    const quando = n === null ? 'sem prazo' : n < 0 ? (-n) + ' dia' + (n < -1 ? 's' : '') + ' de atraso' : n === 0 ? 'vence hoje' : 'vence ' + relativo(n);
+    return '<div class="pz" data-turma="' + e.turmaId + '">' + blocoData(e.prazo, cls) +
+      '<div style="min-width:0"><div class="pz-t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+      '<div class="pz-s">' + seletorResp(e) + '<span><b class="' + cls + '">' + quando + '</b> · ' + esc(nomeDaEtapa(e)) + (extra || '') + '</span></div></div>' + seletor(e) + '</div>';
+  }
+
+  /** Opção A: "o que fazer", agrupado por quando vence (só etapas antes do início). */
+  function cardAcoes(ts, abertas) {
+    const sit = {}; ts.forEach(t => { sit[t.id] = t.sit; });
+    const antes = abertas.filter(e => ehAntes(e) && sit[e.turmaId] && sit[e.turmaId] !== 'canc')
+      .sort((a, b) => String(a.prazo || '9999').localeCompare(String(b.prazo || '9999')));
+    const grupos = [
+      ['Vencidas', n => n !== null && n < 0, 'late'], ['Hoje', n => n === 0, 'soon'], ['Próximos 7 dias', n => n > 0 && n <= 7, 'soon'],
+      ['8 a 30 dias', n => n > 7 && n <= 30, ''], ['Depois de 30 dias', n => n === null || n > 30, '']
+    ];
+    let html = '';
+    grupos.forEach(([rot, f, cls]) => {
+      const it = antes.filter(e => f(dias(e.prazo)));
+      if (!it.length) return;
+      html += '<div class="pz-div grp ' + cls + '">' + rot + ' <b>' + it.length + '</b></div>' + it.map(e => linhaPz(e)).join('');
+    });
+    const venc = antes.filter(e => dias(e.prazo) < 0).length;
+    return painel({
+      titulo: 'O que fazer', meta: venc + ' vencida' + (venc === 1 ? '' : 's') + ' · etapas antes do início',
+      key: 'g-acoes', cls: 'flush', style: 'grid-area:acoes',
+      html: html || '<div class="empty">Nenhuma etapa em aberto. 🎉</div>'
+    });
+  }
+
+  /** Lista de prazos filtrada (opção B). */
+  function cardListaPrazos(titulo, key, area, ts, abertas, f) {
+    const sit = {}; ts.forEach(t => { sit[t.id] = t.sit; });
+    const it = abertas.filter(e => ehAntes(e) && sit[e.turmaId] && sit[e.turmaId] !== 'canc' && f(dias(e.prazo)))
+      .sort((a, b) => String(a.prazo).localeCompare(String(b.prazo)));
+    return painel({
+      titulo: titulo, meta: it.length + ' etapa(s)', key: key, cls: 'flush', style: 'grid-area:' + area,
+      html: it.map(e => linhaPz(e)).join('') || '<div class="empty">Nada aqui. ✓</div>'
+    });
+  }
+
+  /** Formados e previstos por unidade (barras), com as turmas em andamento. */
+  function cardUnidades(ts) {
+    const res = resolucaoDoAno(anoRef());
+    const comAlgo = u => ts.some(t => t.unidade === u) || res.some(r => r.unidade === u && r.alunos);
+    const linhas = unidadesLista().filter(u => (!S.f.unidade || u === S.f.unidade) && comAlgo(u)).map((u, i) => {
+      const form = soma(formandosF().filter(x => { const t = turmaDoFormando(x); return (t ? t.unidade : unidadeDoCurso(x.curso)) === u; }), x => x.formados || 0);
+      const prev = soma(res.filter(r => r.unidade === u), r => r.alunos);
+      const tu = ts.filter(t => t.unidade === u);
+      const pct = prev ? Math.min(100, form / prev * 100) : 0;
+      return '<div class="un-row"><div class="un-h"><b><i style="background:' + CORES[i % CORES.length] + '"></i>' + esc(u) + '</b>' +
+        '<span class="mono">' + form + (prev ? ' / ' + prev : '') + '</span></div>' +
+        '<div class="bar un-bar"><i style="width:' + pct + '%;background:' + CORES[i % CORES.length] + '"></i></div>' +
+        '<div class="un-s">' + tu.length + ' turma(s) · ' + tu.filter(t => t.sit === 'exec').length + ' em execução · ' + tu.filter(t => t.sit === 'plan').length + ' a iniciar' +
+        (prev ? ' · ' + Math.round(pct) + '% dos previstos formados' : '') + '</div></div>';
+    }).join('');
+    return painel({
+      titulo: 'Por unidade', meta: 'formados / previstos na Resolução', key: 'g-un', fitCls: 'lista', style: 'grid-area:form',
+      html: linhas || '<div class="empty">Sem unidades.</div>'
+    });
+  }
+
+  /** Opção B: linha do tempo das turmas (−7 a +60 dias) com os prazos de etapa como marcas. */
+  function cardLinhaTempo(ts, es) {
+    const ini = new Date(HOJE.getTime() - 7 * DIA), fim = new Date(HOJE.getTime() + 60 * DIA);
+    const span = fim - ini;
+    const pos = d => Math.max(0, Math.min(100, (d - ini) / span * 100));
+    const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    const iIso = iso(ini), fIso = iso(fim);
+    const lista = ts.filter(t => t.inicio && t.fim && t.sit !== 'canc' && t.fim >= iIso && t.inicio <= fIso)
+      .sort((a, b) => a.inicio.localeCompare(b.inicio));
+    // prazos ANTES/DURANTE em aberto, por turma, dentro da janela
+    const pz = {};
+    es.filter(e => !concluida(e) && e.prazo && e.prazo >= iIso && e.prazo <= fIso).forEach(e => { (pz[e.turmaId] = pz[e.turmaId] || []).push(e); });
+    const marcas = [];
+    for (let d = new Date(ini); d <= fim; d = new Date(d.getTime() + DIA)) {
+      if (d.getDay() === 1) marcas.push('<span style="left:' + pos(d) + '%">' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '</span>');
+    }
+    const hoje = '<i class="lt-hoje" style="left:' + pos(HOJE) + '%"></i>';
+    const linhas = lista.map(t => {
+      const a = pos(dt(t.inicio)), b = pos(new Date(dt(t.fim).getTime() + DIA));
+      const pts = (pz[t.id] || []).map(e => {
+        const n = dias(e.prazo);
+        return '<i class="lt-pz ' + (n < 0 ? 'late' : n <= 7 ? 'soon' : '') + '" style="left:' + pos(dt(e.prazo)) + '%" data-tip="<b>' + esc(e.etapa) + '</b>' + fmtAno(e.prazo) + ' · ' + relativo(n) + (e.respN ? ' · ' + esc(e.respN) : '') + '"></i>';
+      }).join('');
+      return '<div class="lt-row" data-turma="' + t.id + '"><div class="lt-l"><b title="' + esc(nomeLongo(t)) + '">' + esc(nomeCurto(t)) + '</b>' +
+        '<span>' + esc(t.unidade || '') + ' · ' + fmt(t.inicio) + '–' + fmt(t.fim) + ' · etapas ' + t.st.antesFeito + '/' + t.st.antesTot +
+        (t.st.vencAntes ? ' · <em>⚠ ' + t.st.vencAntes + '</em>' : '') + '</span></div>' +
+        '<div class="lt-track">' + hoje + '<div class="lt-bar ' + t.sit + '" style="left:' + a + '%;width:' + Math.max(1.2, b - a) + '%"></div>' + pts + '</div></div>';
+    }).join('');
+    return '<div class="card panel flush lt-card" style="grid-area:linha"><div class="card-head"><h2>Próximos 60 dias</h2>' +
+      '<span class="meta">' + lista.length + ' turma(s) · ● prazos de etapa em aberto</span>' + pager('g-lt') + '</div>' +
+      '<div class="lt-row lt-head"><div class="lt-l"></div><div class="lt-track">' + marcas.join('') + '<span class="lt-hoje-l" style="left:' + pos(HOJE) + '%">hoje</span></div></div>' +
+      caixa('g-lt', linhas || '<div class="empty">Nenhuma turma nos próximos 60 dias.</div>') +
+      '<div class="legend lt-leg">' + ['plan', 'exec', 'enc'].map(k => '<span><i style="background:' + SIT[k].cor + '"></i>' + SIT[k].label + '</span>').join('') +
+      '<span><i class="lt-pz late" style="position:static"></i>prazo vencido</span><span><i class="lt-pz soon" style="position:static"></i>vence em 7 dias</span><span><i class="lt-pz" style="position:static"></i>prazo futuro</span></div></div>';
   }
 
   function kpi(label, valor, unid, foot, ir, cls, extra, turmaId) {
