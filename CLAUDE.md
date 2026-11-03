@@ -107,6 +107,16 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - EFD-Reinf: confirmar com a DF se o envio é centralizado
 - A guia de retenção sai da mesma fonte da despesa
 
+## Processos de despesa no SEI (Informativo 10/2026-DF, out/2026)
+
+- Despesa 100% eletrônica no SEI (adequa a IF 19/2016-DF); transição gradual: cada UE fixa um exercício de referência (ex.: a partir de 01/01/2027)
+- Tipo de processo: "FINANÇAS: EXECUÇÃO FINANCEIRA DA DESPESA"
+- Sem licitação (água, energia, adiantamento, diárias, reembolsos, auxílios): iniciar direto no SEI, assunto conforme o objeto (ex.: "VIAGEM A SERVIÇO COM ÔNUS PARA A INSTITUIÇÃO")
+- Com licitação/contratação direta: dentro do processo da compra → "INICIAR PROCESSO RELACIONADO" (compra e despesa são processos autônomos, só relacionados)
+- NF eletrônica e papel digitalizado entram como "EXTERNO", com autenticação administrativa no SEI; papel original fica arquivado (tabela de temporalidade)
+- Criar bloco interno por exercício; boa prática: processo relacionado de gestão/fiscalização contratual (fiscais, gestores, CPARM)
+- UEs modelo: COMAVE, EM/2ª RPM, CAR-1 · DF: df@pmmg.mg.gov.br, (31) 3915-7935
+
 ## Repasse (DF)
 
 - Pedido após a liquidação (exceto diárias/adiantamentos), por GMIFP
