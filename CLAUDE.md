@@ -128,5 +128,6 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 
 - Empenho 90 dias sem movimento é anulado (Dec. 37.924/96)
 - Sempre que citar conta contábil (respostas e quizzes), trazer número + nome (ex.: 2.1.8.8.1.03 – INSS retido)
+- Quizzes: só conteúdo FIXO e do uso da SOFi (o que o usuário pergunta ou envia): (1) códigos da dotação (elemento, item, fonte, IPU, IPE, ações); (2) códigos fixos de empenho/liquidação/pagamento (navegações, unid. financiadora, convênio, títulos, GMIFP, contas bancárias); (3) contas contábeis número + nome, o que se acha nelas e o fluxo entre elas. Nunca perguntar saldos ou valores que mudam
 - Não reproduzir nomes de pessoas reais dos documentos
 - Simulador de treino: senha sempre "TREINO"; nunca pedir senha real
