@@ -56,9 +56,9 @@
     |---|---|
     | ISS Teófilo Otoni | 137,55 |
     | ISS Belo Horizonte | 100,25 |
-    | IRRF (serviço + peça) | 584,20 (336,09 + 248,11) |
 
-15. Conferir: o líquido mostrado deve ser **79.430,89**.
+    O **IRRF não entra aqui**: é retido na OP (passo 19).
+15. Conferir: líquido da liquidação = 80.252,89 − 237,80 = **80.015,09** (o IRRF 584,20 sai na OP, chegando à duplicata **79.430,89**).
 16. Confirmar e gravar. **Anotar o nº da liquidação.**
 
 ## D. Pagamento — Navegação 71
@@ -69,10 +69,9 @@
     - empenho **2026/718**, liquidação do passo 16;
     - título bancário **Empenho**;
     - valor **79.430,89** → gravar e anotar o nº da OP.
-19. **Guia do IRRF**:
-    - título bancário **Retenção**;
-    - credor Estado de MG **18.715.615/0001-60**;
-    - valor **584,20** (ou 336,09 + 248,11, se o sistema separar por código) → gravar.
+19. **IRRF na própria OP** (retido sobre o bruto, numa linha só):
+    - códigos 6190 serviço **336,09** + 6147 peça **248,11** = **584,20**;
+    - vai para 2.1.8.8.1.01 – IRRF retido (credor Estado de MG **18.715.615/0001-60**); fica no Estado, sem guia externa.
 20. **Guias de ISS** (por código de barras ou conforme cada prefeitura), título bancário **Retenção**:
     - Teófilo Otoni **137,55**;
     - Belo Horizonte **100,25**.
