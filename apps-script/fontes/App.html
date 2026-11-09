@@ -581,7 +581,7 @@
     (n.canc ? '<span class="tl-l dim">+ ' + n.canc + ' cancelada' + (n.canc === 1 ? '' : 's') + '</span>' : '');
   function kpiTurmas(ts) {
     const n = contagemTurmas(ts);
-    return '<div class="card kpi com-ico click kpi-turmas" data-goto="turmas"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
+    return '<div class="card kpi com-ico click kpi-turmas" data-goto="cronograma"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
       '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div></div>';
   }
 
@@ -848,20 +848,21 @@
     const total = soma(porMes, l => l.length);
     const nav = '<div class="toolbar"><b class="ano-tit">Calendário de treinamentos – ' + ano + '</b>' +
       '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' treinamento(s) · fonte: ' + ((S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas') + '</span>' + botaoNovaTurma() + '</div>';
-    if (m0 < 0) return nav + '<div class="card empty">Nenhum treinamento em ' + ano + '.</div>';
-
-    const qtd = m1 - m0 + 1;
-    const colunas = qtd <= 2 ? qtd : qtd <= 4 ? 2 : 3;
-    const linhas = Math.ceil(qtd / colunas);
-    const blocos = porMes.slice(m0, m1 + 1).map((lista, k) => {
-      const m = m0 + k;
+    // Duas páginas: 1º semestre (jan–jun) e 2º semestre (jul–dez); 6 meses em 3 colunas × 2 linhas.
+    if (!S.semestre) S.semestre = HOJE.getFullYear() === ano && HOJE.getMonth() > 5 ? 2 : 1;
+    const qtdSem = k => soma(porMes.slice((k - 1) * 6, k * 6), l => l.length);
+    const abas = '<div class="seg sem-sel">' + [1, 2].map(k => '<button data-semestre="' + k + '" class="' + (S.semestre === k ? 'on' : '') + '">' + k + 'º semestre <small>' + qtdSem(k) + '</small></button>').join('') + '</div>';
+    const ini = (S.semestre - 1) * 6;
+    const blocos = porMes.slice(ini, ini + 6).map((lista, k) => {
+      const m = ini + k;
       const atual = ano === HOJE.getFullYear() && m === HOJE.getMonth();
-      return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + '">' +
-        '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + (atual ? ' <span>· mês atual</span>' : '') + pager('ano-' + m) + '</div>' +
+      return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + (lista.length ? '' : ' vazio') + '">' +
+        '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + ' <span>· ' + (lista.length ? lista.length + ' treinamento' + (lista.length > 1 ? 's' : '') : 'sem treinamentos') + (atual ? ' · mês atual' : '') + '</span>' + pager('ano-' + m) + '</div>' +
         '<div class="tr-head larga"><span>Período</span><span>Treinamento</span><span>Vagas</span><span>Local/Obs</span></div>' +
-        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos.</div>') + '</div>';
+        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos neste mês.</div>') + '</div>';
     }).join('');
-    return nav + '<div class="ano-grid grow" style="grid-template-columns:repeat(' + colunas + ', minmax(0, 1fr));grid-template-rows:repeat(' + linhas + ', minmax(0, 1fr))">' + blocos + '</div>';
+    return nav.replace('<div class="toolbar">', '<div class="toolbar">' + abas) +
+      '<div class="ano-grid grow" style="grid-template-columns:repeat(3, minmax(0, 1fr));grid-template-rows:repeat(2, minmax(0, 1fr))">' + blocos + '</div>';
   }
 
   /* ---------- Turmas ---------- */
@@ -1004,22 +1005,78 @@
       : '<span class="mono">' + (valor == null ? '—' : valor) + '</span>';
     const pct = x => { const m = matr(x); return m && x.formados ? Math.round(x.formados / m * 100) + '%' : ''; };
 
-    return '<div class="grid g-kpi k4">' +
-      kpi('Previstos na Resolução', soma(res, r => r.alunos), '', 'alunos em ' + anoRef() + ' · ' + soma(res, r => r.turmas) + ' turmas') +
+    // Só a lista por turma (onde se digitam matriculados e formados), com a cor da unidade na borda.
+    const corUn = x => { const u = norm((turmaDoFormando(x) && turmaDoFormando(x).unidade) || unidadeDoCurso(x.curso)); return /amb/.test(u) ? 'u-mamb' : /gd/.test(u) ? 'u-gd' : 'u-rv'; };
+    const ordem = lista.slice().sort((p, q) => String((turmaDoFormando(p) || {}).inicio || '9').localeCompare(String((turmaDoFormando(q) || {}).inicio || '9')));
+    // "1ª turma (Montes Claros)": número da turma no curso, pela data de início; cidade entre parênteses.
+    const numTurma = {};
+    const grupos = {};
+    S.dados.turmas.filter(t => t.sit !== 'canc').forEach(t => { (grupos[nomeCurso(t)] = grupos[nomeCurso(t)] || []).push(t); });
+    Object.keys(grupos).forEach(k => grupos[k].sort((p, q) => String(p.inicio).localeCompare(String(q.inicio))).forEach((t, i) => { numTurma[t.id] = i + 1; }));
+    const rotuloTurma = x => {
+      const t = turmaDoFormando(x);
+      if (!t) return esc(x.turma);
+      return (numTurma[t.id] || 1) + 'ª turma' + (t.cidade ? ' <i>(' + esc(t.cidade) + ')</i>' : '');
+    };
+    // gráfico: formados por unidade (rosca grande), cor da unidade
+    const porUn = [['BPMRv', 'u-rv', 'var(--u-rv)'], ['BPM MAmb', 'u-mamb', 'var(--u-mamb)'], ['BPGd', 'u-gd', 'var(--u-gd)']].map(([u, cls, cor]) => {
+      const xs = lista.filter(x => corUn(x) === cls);
+      return { l: u, cls: cls, cor: cor, v: soma(xs, x => x.formados || 0), m: soma(xs, x => matr(x) || 0), n: xs.length };
+    });
+    // anel segmentado (estilo infográfico): faixa grossa com degradê, número em cada fatia e % por fora
+    const aneis = (us, tot) => {
+      const V = 360, c = V / 2, R = 128, r = 86, G = 0.025;
+      const pt = (ang, rad) => [c + rad * Math.cos(ang), c + rad * Math.sin(ang)];
+      const fatia = (a0, a1) => {
+        const big = a1 - a0 > Math.PI ? 1 : 0, p = [pt(a0, R), pt(a1, R), pt(a1, r), pt(a0, r)];
+        return 'M' + p[0] + 'A' + R + ',' + R + ' 0 ' + big + ' 1 ' + p[1] + 'L' + p[2] + 'A' + r + ',' + r + ' 0 ' + big + ' 0 ' + p[3] + 'Z';
+      };
+      const cores = [['#ffb07a', '#f15a22'], ['#7fdcab', '#1f8a55'], ['#7d869a', '#1c2028']];
+      let defs = '<radialGradient id="disco" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e7ee"/></radialGradient>' +
+        '<filter id="sombra" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1c2028" flood-opacity=".18"/></filter>';
+      let fatias = '', marcas = '', ini = -Math.PI / 2;
+      const vis = us.map((u, i) => Object.assign({ i: i }, u)).filter(u => u.v > 0);
+      vis.forEach((u, k) => {
+        defs += '<linearGradient id="gf' + u.i + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + cores[u.i][0] + '"/><stop offset="1" stop-color="' + cores[u.i][1] + '"/></linearGradient>';
+        const f = tot ? u.v / tot : 0, ang = f * 2 * Math.PI;
+        const gap = vis.length > 1 ? G : 0;
+        let a0 = ini + gap / 2, a1 = ini + ang - gap / 2;
+        if (ang >= 2 * Math.PI - 0.001) { fatias += '<path d="' + fatia(-Math.PI / 2, Math.PI / 2) + fatia(Math.PI / 2, 3 * Math.PI / 2) + '" fill="url(#gf' + u.i + ')"/>'; }
+        else fatias += '<path d="' + fatia(a0, a1) + '" fill="url(#gf' + u.i + ')" data-tip="<b>' + u.l + '</b>' + u.v + ' formados (' + Math.round(f * 100) + '%)"/>';
+        const meio = ini + ang / 2, b = pt(meio, (R + r) / 2), o = pt(meio, R + 10), t = pt(meio, R + 30);
+        marcas += '<circle cx="' + b[0] + '" cy="' + b[1] + '" r="13" fill="#fff" stroke="' + cores[u.i][1] + '" stroke-width="2"/><text x="' + b[0] + '" y="' + (b[1] + 4.5) + '" text-anchor="middle" class="an-n">0' + (u.i + 1) + '</text>' +
+          '<line x1="' + o[0] + '" y1="' + o[1] + '" x2="' + t[0] + '" y2="' + t[1] + '" stroke="var(--ink-3)" stroke-width="1"/>' +
+          '<text x="' + t[0] + '" y="' + (t[1] + (Math.sin(meio) > 0 ? 14 : -4)) + '" text-anchor="' + (Math.cos(meio) > 0.2 ? 'start' : Math.cos(meio) < -0.2 ? 'end' : 'middle') + '" class="an-p">' + Math.round(f * 100) + '%</text>';
+        ini += ang;
+      });
+      return '<svg viewBox="0 0 ' + V + ' ' + V + '" class="aneis"><defs>' + defs + '</defs>' +
+        '<circle cx="' + c + '" cy="' + c + '" r="' + R + '" fill="var(--surface-3)" opacity=".5"/>' +
+        '<g filter="url(#sombra)">' + fatias + '</g>' +
+        '<circle cx="' + c + '" cy="' + c + '" r="' + (r - 6) + '" fill="url(#disco)" filter="url(#sombra)"/>' + marcas +
+        '<text x="50%" y="49%" text-anchor="middle" class="an-v">' + tot + '</text><text x="50%" y="58%" text-anchor="middle" class="an-l">formados</text></svg>';
+    };
+    const grafico = '<div class="card panel fg"><div class="card-head"><h2>Formados por unidade</h2><span class="meta">' + anoRef() + '</span></div>' +
+      '<div class="fg-w">' + aneis(porUn, total) + '</div>' +
+      '<div class="fg-u">' + porUn.map(u => '<div class="fg-x ' + u.cls + '"><i></i><b data-n="0' + (porUn.indexOf(u) + 1) + '">' + u.l + '</b><span>' + u.n + ' turma' + (u.n === 1 ? '' : 's') + (u.m ? ' · ' + u.m + ' matric.' : '') + '</span>' +
+        '<em>' + u.v + '</em><small>' + (total ? Math.round(u.v / total * 100) : 0) + '%</small></div>').join('') + '</div></div>';
+    const linha = x => {
+      const t = turmaDoFormando(x);
+      return '<div class="fr ' + corUn(x) + (x.formados ? '' : ' zero') + '">' +
+        '<div class="fr-c"><b title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoDoFormando(x)) + '</b>' +
+          '<span>' + esc(cursoCurto(cursoDoFormando(x))) + '</span></div>' +
+        '<div class="fr-t"><b>' + rotuloTurma(x) + '</b><span>' + (t ? fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · ' + esc(t.unidade || '') : esc(x.local || '')) + '</span></div>' +
+        '<label class="fr-n"><span>Matric.</span>' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</label>' +
+        '<label class="fr-n"><span>Formados</span>' + num(x, 'formados', x.formados) + '</label>' +
+        '<span class="fr-p">' + (pct(x) || '—') + '</span></div>';
+    };
+    return '<div class="grid g-kpi k3">' +
       kpi('Matriculados', totMatr, '', estimados ? estimados + ' turma(s) com estimativa da Resolução' : 'informados por turma') +
       kpi('Formados', total, '', 'militares em ' + anoRef()) +
       kpi('Aproveitamento', aprov == null ? '—' : aprov, aprov == null ? '' : '%', 'formados ÷ matriculados (turmas encerradas)') +
-      '</div><div class="grid grow" style="grid-template-columns:1.05fr 1fr">' +
-      '<div class="card flush panel"><div class="card-head"><h2>Resolução ' + anoRef() + '</h2><span class="meta">turmas: planilha / Resolução</span>' + pager('f-res') + '</div>' +
-      '<div class="gt-head" style="' + colsR + ';margin-top:8px"><span>Curso no SiGE</span><span style="text-align:right">Turmas</span><span style="text-align:right">Alunos</span><span style="text-align:right">Matric.</span><span style="text-align:right">Form.</span></div>' +
-      caixa('f-res', resHtml || '<div class="empty">Sem cursos na aba Resolução para ' + anoRef() + '.</div>') + '</div>' +
-      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">edite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
-      '<div class="gt-head" style="' + colsT + ';margin-top:8px"><span>Curso</span><span>Turma</span><span style="text-align:right">Matriculados</span><span style="text-align:right">Formados</span><span></span></div>' +
-      caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + colsT + (x.formados ? '' : ';color:var(--ink-3)') + '">' +
-        '<span title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoCurto(cursoDoFormando(x))) + '</span><span title="' + esc(x.turma + (x.local ? ' · ' + x.local : '')) + '">' + esc((turmaDoFormando(x) && turmaDoFormando(x).onde) || x.turma) + '</span>' +
-        '<span style="text-align:right">' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</span>' +
-        '<span style="text-align:right">' + num(x, 'formados', x.formados) + '</span><span class="mono dim" style="text-align:right">' + pct(x) + '</span></div>').join('')) +
-      '</div></div>';
+      '</div><div class="grid grow" style="grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)">' +
+      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2>' +
+      '<span class="meta">digite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
+      caixa('f-turma', ordem.map(linha).join('') || '<div class="empty">Nenhuma turma na aba de formandos.</div>', 'fr-lista') + '</div>' + grafico + '</div>';
   }
 
   /* ---------- Regras ---------- */
@@ -1772,6 +1829,9 @@
     const seg = el.closest('[data-seg] button');
     if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
 
+    const sm = el.closest('[data-semestre]');
+    if (sm) { S.semestre = Number(sm.dataset.semestre); S.pg = {}; return render(); }
+
     const fc = el.closest('[data-fasechip]');
     if (fc) {
       const k = fc.dataset.fasechip, F = S.fasesEtapas;
@@ -1917,7 +1977,7 @@
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 

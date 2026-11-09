@@ -967,6 +967,71 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .al-side b { font: 800 34px/1.1 var(--sans); letter-spacing: -.03em; color: var(--ink); margin-top: 6px; }
 .al-s { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
 .al-side .btn { align-self: flex-start; }
+
+/* cronograma por semestre */
+.sem-sel button small { font: 600 11px var(--mono); color: var(--ink-3); margin-left: 4px; }
+.sem-sel button.on { background: var(--accent); color: #fff; } .sem-sel button.on small { color: rgba(255,255,255,.85); }
+.tr-card.vazio { opacity: .7; }
+.tr-card.vazio .tr-head { display: none; }
+
+/* cronograma: coluna Treinamento mais larga, nome em até 2 linhas */
+.ano-grid .tr-head.larga, .ano-grid .tr-row.larga { grid-template-columns: 88px minmax(0, 1.9fr) 46px minmax(0, .8fr); }
+.ano-grid .tr-row.larga { min-height: 40px; padding-top: 4px; padding-bottom: 4px; }
+.ano-grid .tr-row.larga .tr-t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; }
+
+/* cursados: só a lista por turma, borda na cor da unidade */
+:root { --u-rv: #f15a22; --u-mamb: #2f9e66; --u-gd: #1c2028; }
+.fit.fr-lista { display: flex; flex-direction: column; gap: 8px; padding: 4px 14px 10px; }
+.fr { flex: none; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) 78px 78px 40px; }
+.fr-c b { font: 700 14px/1.25 var(--sans) !important; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fr-c span { font: 700 10.5px var(--mono) !important; letter-spacing: .04em; color: var(--ink-3); text-transform: uppercase; }
+.fg-w { flex: 1; min-height: 0; display: grid; place-items: center; }
+.fg-w svg { width: min(100%, 330px); height: auto; overflow: visible; }
+.aneis { overflow: visible; }
+.aneis circle[data-tip] { transition: stroke-width .15s; cursor: default; }
+.aneis .an-v { font: 800 40px var(--sans); fill: var(--ink); letter-spacing: -.03em; }
+.aneis .an-l { font: 700 11px var(--sans); fill: var(--ink-3); text-transform: uppercase; letter-spacing: .14em; }
+.aneis .an-n { font: 800 11px var(--mono); fill: var(--ink); }
+.aneis .an-p { font: 800 17px var(--sans); fill: var(--ink); }
+.fg-x b::before { content: attr(data-n); font: 800 11px var(--mono); color: var(--ink-3); margin-right: 6px; }
+.fg-u { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.fg-x { display: grid; grid-template-columns: 12px auto 1fr auto 40px; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border-left: 4px solid var(--u-rv); }
+.fg-x.u-mamb { border-left-color: var(--u-mamb); } .fg-x.u-gd { border-left-color: var(--u-gd); }
+.fg-x i { width: 12px; height: 12px; border-radius: 3px; background: var(--u-rv); } .fg-x.u-mamb i { background: var(--u-mamb); } .fg-x.u-gd i { background: var(--u-gd); }
+.fg-x b { font-size: 13.5px; } .fg-x span { font-size: 11.5px; color: var(--ink-3); }
+.fg-x em { font: 800 18px var(--sans); font-style: normal; } .fg-x small { font: 600 11.5px var(--mono); color: var(--ink-3); text-align: right; }
+.fr-t b i { font-style: normal; font-weight: 500; color: var(--ink-3); }
+/* gráfico formados por curso */
+.fg-l { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-around; gap: 6px; }
+.fg-r { display: grid; grid-template-columns: 74px minmax(0, 1fr) 36px; gap: 10px; align-items: center; }
+.fg-k { font: 800 13px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-b { position: relative; height: 16px; border-radius: 8px; background: var(--surface-2); }
+.fg-b i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; }
+.fg-b i.m { background: color-mix(in srgb, var(--u-rv) 22%, transparent); }
+.fg-b i.f { background: linear-gradient(90deg, color-mix(in srgb, var(--u-rv) 70%, #fff), var(--u-rv)); }
+.fg-r.u-mamb .fg-b i.m { background: color-mix(in srgb, var(--u-mamb) 22%, transparent); } .fg-r.u-mamb .fg-b i.f { background: linear-gradient(90deg, color-mix(in srgb, var(--u-mamb) 70%, #fff), var(--u-mamb)); }
+.fg-r.u-gd .fg-b i.m { background: color-mix(in srgb, var(--u-gd) 18%, transparent); } .fg-r.u-gd .fg-b i.f { background: linear-gradient(90deg, #4b5263, var(--u-gd)); }
+.fg-v { font: 800 13px var(--mono); text-align: right; }
+.fr { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 82px 82px 42px; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-left: 5px solid var(--u-rv); border-radius: 10px; background: var(--surface); }
+.fr.u-mamb { border-left-color: var(--u-mamb); } .fr.u-gd { border-left-color: var(--u-gd); }
+.fr.zero { background: var(--surface-2); }
+.fr-c, .fr-t { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.fr-c b { font: 800 15px var(--sans); color: var(--ink); }
+.fr-c span, .fr-t span { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-t b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-n { display: flex; flex-direction: column; gap: 2px; }
+.fr-n > span { font: 700 9.5px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.fr-n .num-in { width: 100%; font-size: 14px; font-weight: 700; padding: 5px 8px; }
+.fr-p { font: 700 12px var(--mono); color: var(--s-enc); text-align: right; }
+.fr.zero .fr-p { color: var(--ink-3); }
+.fr-leg { display: inline-flex; gap: 6px; align-items: center; font-size: 11.5px; color: var(--ink-2); margin-left: 8px; }
+.fr-leg i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-left: 6px; }
+.fr-leg i.u-rv { background: var(--u-rv); } .fr-leg i.u-mamb { background: var(--u-mamb); } .fr-leg i.u-gd { background: var(--u-gd); }
+.g-kpi.k3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1400px) and (min-width: 861px) {
+  .ano-grid .tr-head.larga, .ano-grid .tr-row.larga { grid-template-columns: 74px minmax(0, 1.7fr) 38px minmax(0, .75fr); gap: 6px; padding: 0 8px; }
+  .ano-grid .tr-head.larga { font-size: 9.5px; letter-spacing: .02em; }
+}
 </style>
 </head>
 <body>
@@ -983,7 +1048,6 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       <nav class="nav" id="nav">
         <button data-view="geral" class="active"><span class="ico">◎</span><span class="lbl">Visão geral</span></button>
         <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
-        <button data-view="turmas"><span class="ico">▦</span><span class="lbl">Turmas</span></button>
         <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
         <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Cursados</span></button>
       </nav>
@@ -1001,7 +1065,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         </select>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
         <button class="sheet-link link-btn" data-acao="equipe" title="Integrantes da seção (responsáveis das etapas)">👥 Equipe da seção</button>
-        <div class="keys"><kbd>1</kbd>–<kbd>5</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
+        <div class="keys"><kbd>1</kbd>–<kbd>4</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
       </div>
     </aside>
 
@@ -1622,7 +1686,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     (n.canc ? '<span class="tl-l dim">+ ' + n.canc + ' cancelada' + (n.canc === 1 ? '' : 's') + '</span>' : '');
   function kpiTurmas(ts) {
     const n = contagemTurmas(ts);
-    return '<div class="card kpi com-ico click kpi-turmas" data-goto="turmas"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
+    return '<div class="card kpi com-ico click kpi-turmas" data-goto="cronograma"><div class="k-ico">' + ICONES.turmas + '</div><div class="k-tx"><div class="label">Turmas previstas em ' + anoRef() + '</div>' +
       '<div class="kt"><div class="value">' + n.previstas + '</div><div class="kt-c">' + barraTurmas(n) + '<div class="kt-l">' + legendaTurmas(n) + '</div></div></div></div></div>';
   }
 
@@ -1889,20 +1953,21 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const total = soma(porMes, l => l.length);
     const nav = '<div class="toolbar"><b class="ano-tit">Calendário de treinamentos – ' + ano + '</b>' +
       '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' treinamento(s) · fonte: ' + ((S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas') + '</span>' + botaoNovaTurma() + '</div>';
-    if (m0 < 0) return nav + '<div class="card empty">Nenhum treinamento em ' + ano + '.</div>';
-
-    const qtd = m1 - m0 + 1;
-    const colunas = qtd <= 2 ? qtd : qtd <= 4 ? 2 : 3;
-    const linhas = Math.ceil(qtd / colunas);
-    const blocos = porMes.slice(m0, m1 + 1).map((lista, k) => {
-      const m = m0 + k;
+    // Duas páginas: 1º semestre (jan–jun) e 2º semestre (jul–dez); 6 meses em 3 colunas × 2 linhas.
+    if (!S.semestre) S.semestre = HOJE.getFullYear() === ano && HOJE.getMonth() > 5 ? 2 : 1;
+    const qtdSem = k => soma(porMes.slice((k - 1) * 6, k * 6), l => l.length);
+    const abas = '<div class="seg sem-sel">' + [1, 2].map(k => '<button data-semestre="' + k + '" class="' + (S.semestre === k ? 'on' : '') + '">' + k + 'º semestre <small>' + qtdSem(k) + '</small></button>').join('') + '</div>';
+    const ini = (S.semestre - 1) * 6;
+    const blocos = porMes.slice(ini, ini + 6).map((lista, k) => {
+      const m = ini + k;
       const atual = ano === HOJE.getFullYear() && m === HOJE.getMonth();
-      return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + '">' +
-        '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + (atual ? ' <span>· mês atual</span>' : '') + pager('ano-' + m) + '</div>' +
+      return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + (lista.length ? '' : ' vazio') + '">' +
+        '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + ' <span>· ' + (lista.length ? lista.length + ' treinamento' + (lista.length > 1 ? 's' : '') : 'sem treinamentos') + (atual ? ' · mês atual' : '') + '</span>' + pager('ano-' + m) + '</div>' +
         '<div class="tr-head larga"><span>Período</span><span>Treinamento</span><span>Vagas</span><span>Local/Obs</span></div>' +
-        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos.</div>') + '</div>';
+        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos neste mês.</div>') + '</div>';
     }).join('');
-    return nav + '<div class="ano-grid grow" style="grid-template-columns:repeat(' + colunas + ', minmax(0, 1fr));grid-template-rows:repeat(' + linhas + ', minmax(0, 1fr))">' + blocos + '</div>';
+    return nav.replace('<div class="toolbar">', '<div class="toolbar">' + abas) +
+      '<div class="ano-grid grow" style="grid-template-columns:repeat(3, minmax(0, 1fr));grid-template-rows:repeat(2, minmax(0, 1fr))">' + blocos + '</div>';
   }
 
   /* ---------- Turmas ---------- */
@@ -2045,22 +2110,78 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       : '<span class="mono">' + (valor == null ? '—' : valor) + '</span>';
     const pct = x => { const m = matr(x); return m && x.formados ? Math.round(x.formados / m * 100) + '%' : ''; };
 
-    return '<div class="grid g-kpi k4">' +
-      kpi('Previstos na Resolução', soma(res, r => r.alunos), '', 'alunos em ' + anoRef() + ' · ' + soma(res, r => r.turmas) + ' turmas') +
+    // Só a lista por turma (onde se digitam matriculados e formados), com a cor da unidade na borda.
+    const corUn = x => { const u = norm((turmaDoFormando(x) && turmaDoFormando(x).unidade) || unidadeDoCurso(x.curso)); return /amb/.test(u) ? 'u-mamb' : /gd/.test(u) ? 'u-gd' : 'u-rv'; };
+    const ordem = lista.slice().sort((p, q) => String((turmaDoFormando(p) || {}).inicio || '9').localeCompare(String((turmaDoFormando(q) || {}).inicio || '9')));
+    // "1ª turma (Montes Claros)": número da turma no curso, pela data de início; cidade entre parênteses.
+    const numTurma = {};
+    const grupos = {};
+    S.dados.turmas.filter(t => t.sit !== 'canc').forEach(t => { (grupos[nomeCurso(t)] = grupos[nomeCurso(t)] || []).push(t); });
+    Object.keys(grupos).forEach(k => grupos[k].sort((p, q) => String(p.inicio).localeCompare(String(q.inicio))).forEach((t, i) => { numTurma[t.id] = i + 1; }));
+    const rotuloTurma = x => {
+      const t = turmaDoFormando(x);
+      if (!t) return esc(x.turma);
+      return (numTurma[t.id] || 1) + 'ª turma' + (t.cidade ? ' <i>(' + esc(t.cidade) + ')</i>' : '');
+    };
+    // gráfico: formados por unidade (rosca grande), cor da unidade
+    const porUn = [['BPMRv', 'u-rv', 'var(--u-rv)'], ['BPM MAmb', 'u-mamb', 'var(--u-mamb)'], ['BPGd', 'u-gd', 'var(--u-gd)']].map(([u, cls, cor]) => {
+      const xs = lista.filter(x => corUn(x) === cls);
+      return { l: u, cls: cls, cor: cor, v: soma(xs, x => x.formados || 0), m: soma(xs, x => matr(x) || 0), n: xs.length };
+    });
+    // anel segmentado (estilo infográfico): faixa grossa com degradê, número em cada fatia e % por fora
+    const aneis = (us, tot) => {
+      const V = 360, c = V / 2, R = 128, r = 86, G = 0.025;
+      const pt = (ang, rad) => [c + rad * Math.cos(ang), c + rad * Math.sin(ang)];
+      const fatia = (a0, a1) => {
+        const big = a1 - a0 > Math.PI ? 1 : 0, p = [pt(a0, R), pt(a1, R), pt(a1, r), pt(a0, r)];
+        return 'M' + p[0] + 'A' + R + ',' + R + ' 0 ' + big + ' 1 ' + p[1] + 'L' + p[2] + 'A' + r + ',' + r + ' 0 ' + big + ' 0 ' + p[3] + 'Z';
+      };
+      const cores = [['#ffb07a', '#f15a22'], ['#7fdcab', '#1f8a55'], ['#7d869a', '#1c2028']];
+      let defs = '<radialGradient id="disco" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3e7ee"/></radialGradient>' +
+        '<filter id="sombra" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1c2028" flood-opacity=".18"/></filter>';
+      let fatias = '', marcas = '', ini = -Math.PI / 2;
+      const vis = us.map((u, i) => Object.assign({ i: i }, u)).filter(u => u.v > 0);
+      vis.forEach((u, k) => {
+        defs += '<linearGradient id="gf' + u.i + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + cores[u.i][0] + '"/><stop offset="1" stop-color="' + cores[u.i][1] + '"/></linearGradient>';
+        const f = tot ? u.v / tot : 0, ang = f * 2 * Math.PI;
+        const gap = vis.length > 1 ? G : 0;
+        let a0 = ini + gap / 2, a1 = ini + ang - gap / 2;
+        if (ang >= 2 * Math.PI - 0.001) { fatias += '<path d="' + fatia(-Math.PI / 2, Math.PI / 2) + fatia(Math.PI / 2, 3 * Math.PI / 2) + '" fill="url(#gf' + u.i + ')"/>'; }
+        else fatias += '<path d="' + fatia(a0, a1) + '" fill="url(#gf' + u.i + ')" data-tip="<b>' + u.l + '</b>' + u.v + ' formados (' + Math.round(f * 100) + '%)"/>';
+        const meio = ini + ang / 2, b = pt(meio, (R + r) / 2), o = pt(meio, R + 10), t = pt(meio, R + 30);
+        marcas += '<circle cx="' + b[0] + '" cy="' + b[1] + '" r="13" fill="#fff" stroke="' + cores[u.i][1] + '" stroke-width="2"/><text x="' + b[0] + '" y="' + (b[1] + 4.5) + '" text-anchor="middle" class="an-n">0' + (u.i + 1) + '</text>' +
+          '<line x1="' + o[0] + '" y1="' + o[1] + '" x2="' + t[0] + '" y2="' + t[1] + '" stroke="var(--ink-3)" stroke-width="1"/>' +
+          '<text x="' + t[0] + '" y="' + (t[1] + (Math.sin(meio) > 0 ? 14 : -4)) + '" text-anchor="' + (Math.cos(meio) > 0.2 ? 'start' : Math.cos(meio) < -0.2 ? 'end' : 'middle') + '" class="an-p">' + Math.round(f * 100) + '%</text>';
+        ini += ang;
+      });
+      return '<svg viewBox="0 0 ' + V + ' ' + V + '" class="aneis"><defs>' + defs + '</defs>' +
+        '<circle cx="' + c + '" cy="' + c + '" r="' + R + '" fill="var(--surface-3)" opacity=".5"/>' +
+        '<g filter="url(#sombra)">' + fatias + '</g>' +
+        '<circle cx="' + c + '" cy="' + c + '" r="' + (r - 6) + '" fill="url(#disco)" filter="url(#sombra)"/>' + marcas +
+        '<text x="50%" y="49%" text-anchor="middle" class="an-v">' + tot + '</text><text x="50%" y="58%" text-anchor="middle" class="an-l">formados</text></svg>';
+    };
+    const grafico = '<div class="card panel fg"><div class="card-head"><h2>Formados por unidade</h2><span class="meta">' + anoRef() + '</span></div>' +
+      '<div class="fg-w">' + aneis(porUn, total) + '</div>' +
+      '<div class="fg-u">' + porUn.map(u => '<div class="fg-x ' + u.cls + '"><i></i><b data-n="0' + (porUn.indexOf(u) + 1) + '">' + u.l + '</b><span>' + u.n + ' turma' + (u.n === 1 ? '' : 's') + (u.m ? ' · ' + u.m + ' matric.' : '') + '</span>' +
+        '<em>' + u.v + '</em><small>' + (total ? Math.round(u.v / total * 100) : 0) + '%</small></div>').join('') + '</div></div>';
+    const linha = x => {
+      const t = turmaDoFormando(x);
+      return '<div class="fr ' + corUn(x) + (x.formados ? '' : ' zero') + '">' +
+        '<div class="fr-c"><b title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoDoFormando(x)) + '</b>' +
+          '<span>' + esc(cursoCurto(cursoDoFormando(x))) + '</span></div>' +
+        '<div class="fr-t"><b>' + rotuloTurma(x) + '</b><span>' + (t ? fmt(t.inicio) + ' a ' + fmt(t.fim) + ' · ' + esc(t.unidade || '') : esc(x.local || '')) + '</span></div>' +
+        '<label class="fr-n"><span>Matric.</span>' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</label>' +
+        '<label class="fr-n"><span>Formados</span>' + num(x, 'formados', x.formados) + '</label>' +
+        '<span class="fr-p">' + (pct(x) || '—') + '</span></div>';
+    };
+    return '<div class="grid g-kpi k3">' +
       kpi('Matriculados', totMatr, '', estimados ? estimados + ' turma(s) com estimativa da Resolução' : 'informados por turma') +
       kpi('Formados', total, '', 'militares em ' + anoRef()) +
       kpi('Aproveitamento', aprov == null ? '—' : aprov, aprov == null ? '' : '%', 'formados ÷ matriculados (turmas encerradas)') +
-      '</div><div class="grid grow" style="grid-template-columns:1.05fr 1fr">' +
-      '<div class="card flush panel"><div class="card-head"><h2>Resolução ' + anoRef() + '</h2><span class="meta">turmas: planilha / Resolução</span>' + pager('f-res') + '</div>' +
-      '<div class="gt-head" style="' + colsR + ';margin-top:8px"><span>Curso no SiGE</span><span style="text-align:right">Turmas</span><span style="text-align:right">Alunos</span><span style="text-align:right">Matric.</span><span style="text-align:right">Form.</span></div>' +
-      caixa('f-res', resHtml || '<div class="empty">Sem cursos na aba Resolução para ' + anoRef() + '.</div>') + '</div>' +
-      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2><span class="meta">edite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
-      '<div class="gt-head" style="' + colsT + ';margin-top:8px"><span>Curso</span><span>Turma</span><span style="text-align:right">Matriculados</span><span style="text-align:right">Formados</span><span></span></div>' +
-      caixa('f-turma', lista.map(x => '<div class="gt-row" style="' + colsT + (x.formados ? '' : ';color:var(--ink-3)') + '">' +
-        '<span title="' + esc(cursoDoFormando(x)) + '">' + esc(cursoCurto(cursoDoFormando(x))) + '</span><span title="' + esc(x.turma + (x.local ? ' · ' + x.local : '')) + '">' + esc((turmaDoFormando(x) && turmaDoFormando(x).onde) || x.turma) + '</span>' +
-        '<span style="text-align:right">' + num(x, 'matriculados', x.matriculados, estDe(x)) + '</span>' +
-        '<span style="text-align:right">' + num(x, 'formados', x.formados) + '</span><span class="mono dim" style="text-align:right">' + pct(x) + '</span></div>').join('')) +
-      '</div></div>';
+      '</div><div class="grid grow" style="grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)">' +
+      '<div class="card flush panel"><div class="card-head"><h2>Por turma</h2>' +
+      '<span class="meta">digite e aperte Enter · vazio = estimativa</span>' + pager('f-turma') + '</div>' +
+      caixa('f-turma', ordem.map(linha).join('') || '<div class="empty">Nenhuma turma na aba de formandos.</div>', 'fr-lista') + '</div>' + grafico + '</div>';
   }
 
   /* ---------- Regras ---------- */
@@ -2813,6 +2934,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const seg = el.closest('[data-seg] button');
     if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
 
+    const sm = el.closest('[data-semestre]');
+    if (sm) { S.semestre = Number(sm.dataset.semestre); S.pg = {}; return render(); }
+
     const fc = el.closest('[data-fasechip]');
     if (fc) {
       const k = fc.dataset.fasechip, F = S.fasesEtapas;
@@ -2958,7 +3082,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'turmas', 4: 'etapas', 5: 'formandos' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 
