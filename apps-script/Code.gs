@@ -1817,36 +1817,42 @@ const GRUPO_EPP = 'Estágio de Pilotagem Policial (EPP)';
 
 // Dados iniciais da aba "Resolução" (copiados do SiGE). Depois de criada,
 // a aba é a fonte: edite lá para incluir anos ou corrigir números.
+// Versão dos dados abaixo: quando muda, a aba "Resolução" que já existe é atualizada
+// uma vez pelo ID do SiGE (turmas, alunos, status) e os IDs que faltam são incluídos.
+const RESOLUCAO_VERSAO = 2;
 const RESOLUCAO_INICIAL = [
-  // ano, ID SiGE, curso, grupo no painel, unidade, turmas, alunos, status
-  [2026, 9388, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 160, 'Em curso'],
-  [2026, 9391, 'Curso de Policiamento de Guardas', '', 'BPGd', 1, 30, 'Cancelado'],
-  [2026, 9597, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 38, 'Pendente de conclusão'],
-  [2026, 9614, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Pendente de conclusão'],
-  [2026, 9623, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 4, 71, 'Em curso'],
-  [2026, 9624, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 4, 75, 'Em curso'],
-  [2026, 9625, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 4, 155, 'Em curso'],
-  [2026, 9634, 'Estágio Tático Rodoviário', '', 'BPMRv', 4, 152, 'Em curso'],
-  [2026, 9639, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 50, 'Autorizado pelo comando'],
-  [2026, 9640, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 37, 'Pendente de conclusão'],
-  [2026, 9646, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 2, 88, 'Em curso'],
-  [2026, 9651, 'Curso de Pilotagem Policial', '', 'BPMRv', 2, 48, 'Em curso'],
-  [2026, 9654, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 53, 'Em curso'],
-  [2026, 9786, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 4, 67, 'Em curso'],
-  [2027, 11850, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise'],
-  [2027, 11851, 'Estágio Tático Rodoviário', '', 'BPMRv', 2, 60, 'Aguardando análise'],
-  [2027, 11852, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
-  [2027, 11853, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
-  [2027, 11854, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise'],
-  [2027, 11855, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 80, 'Aguardando análise'],
-  [2027, 11856, 'Curso de Credenciamento para o Serviço de Policiamento Velado', '', 'BPMRv', 1, 30, 'Aguardando análise'],
-  [2027, 11857, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Aguardando análise'],
-  [2027, 11867, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 120, 'Aguardando análise'],
-  [2027, 11869, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise'],
-  [2027, 11870, 'Curso de Pilotagem Policial', '', 'BPMRv', 1, 24, 'Aguardando análise'],
-  [2027, 11871, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 1, 30, 'Aguardando análise'],
-  [2027, 11872, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 40, 'Aguardando análise'],
-  [2027, 11873, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 30, 'Aguardando análise']
+  // ano, ID SiGE, curso, grupo no painel, unidade, turmas, alunos, status, fora da Resolução
+  [2026, 3791, 'Estágio Tático Rodoviário', '', 'BPMRv', 2, 79, 'Pendente de conclusão', ''],
+  [2026, 5729, 'Estágio Tático Rodoviário', '', 'BPMRv', 4, 142, 'Pendente de conclusão', ''],
+  [2026, 9388, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 160, 'Pendente de conclusão', ''],
+  [2026, 9391, 'Curso de Policiamento de Guardas', '', 'BPGd', 1, 30, 'Cancelado', ''],
+  [2026, 9597, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 38, 'Pendente de conclusão', ''],
+  [2026, 9614, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Pendente de conclusão', ''],
+  [2026, 9623, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 4, 71, 'Concluído', ''],
+  [2026, 9624, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 4, 75, 'Concluído', ''],
+  [2026, 9625, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 4, 146, 'Concluído', ''],
+  [2026, 9634, 'Estágio Tático Rodoviário', '', 'BPMRv', 4, 152, 'Pendente de conclusão', ''],
+  [2026, 9639, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 50, 'Em curso', ''],
+  [2026, 9640, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 37, 'Pendente de conclusão', ''],
+  [2026, 9646, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 2, 88, 'Em curso', ''],
+  [2026, 9651, 'Curso de Pilotagem Policial', '', 'BPMRv', 2, 48, 'Pendente de conclusão', ''],
+  [2026, 9654, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 53, 'Pendente de conclusão', ''],
+  [2026, 9786, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 4, 67, 'Concluído', ''],
+  [2026, 11731, 'Curso de Credenciamento para o Serviço de Policiamento Velado', '', 'BPMRv', 1, 40, 'Concluído', 'Sim'],
+  [2027, 11850, 'Curso de Policiamento Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise da APM', ''],
+  [2027, 11851, 'Estágio Tático Rodoviário', '', 'BPMRv', 2, 60, 'Aguardando análise da APM', ''],
+  [2027, 11852, 'Estágio de Condução Defensiva de Viaturas', GRUPO_EPP, 'BPMRv', 2, 40, 'Aguardando análise da APM', ''],
+  [2027, 11853, 'Estágio de Deslocamento de Comboio', GRUPO_EPP, 'BPMRv', 2, 32, 'Aguardando análise da APM', ''],
+  [2027, 11854, 'Estágio de Condução 4x4', GRUPO_EPP, 'BPMRv', 2, 42, 'Aguardando análise da APM', ''],
+  [2027, 11855, 'Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', '', 'BPMRv', 2, 80, 'Aguardando análise da APM', ''],
+  [2027, 11856, 'Curso de Credenciamento para o Serviço de Policiamento Velado', '', 'BPMRv', 1, 30, 'Aguardando análise da APM', ''],
+  [2027, 11857, 'Curso de Capacitação do Grupo Especial de Policiamento Ambiental - GEPAM', '', 'BPM MAmb', 1, 40, 'Aguardando análise da APM', ''],
+  [2027, 11867, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 120, 'Aguardando análise da APM', ''],
+  [2027, 11869, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 40, 'Aguardando análise da APM', ''],
+  [2027, 11870, 'Curso de Pilotagem Policial', '', 'BPMRv', 1, 24, 'Aguardando análise da APM', ''],
+  [2027, 11871, 'Curso de Fiscalização de Transporte Terrestre de Produtos Perigosos e Atendimento a Sinistros (PP)', '', 'BPMRv', 1, 30, 'Aguardando análise da APM', ''],
+  [2027, 11872, 'Curso de Policiamento de Meio Ambiente', '', 'BPM MAmb', 1, 40, 'Aguardando análise da APM', ''],
+  [2027, 11873, 'Curso de Capacitação de Mediadores do Programa de Educação Ambiental - PROGEA', '', 'BPM MAmb', 1, 30, 'Aguardando análise da APM', '']
 ];
 
 /** Lê a aba "Resolução" (cria com os dados iniciais na primeira vez). */
@@ -1854,11 +1860,14 @@ function lerResolucao_(ss) {
   let aba = ss.getSheetByName(CONFIG.ABA_RESOLUCAO);
   if (!aba) {
     aba = ss.insertSheet(CONFIG.ABA_RESOLUCAO);
-    const cab = ['Ano', 'ID SiGE', 'Curso', 'Grupo no painel', 'Unidade', 'Turmas', 'Alunos', 'Status'];
+    const cab = ['Ano', 'ID SiGE', 'Curso', 'Grupo no painel', 'Unidade', 'Turmas', 'Alunos', 'Status', 'Fora da Resolução'];
     aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
     aba.getRange(2, 1, RESOLUCAO_INICIAL.length, cab.length).setValues(RESOLUCAO_INICIAL);
     aba.setFrozenRows(1);
     aba.setColumnWidth(3, 520); aba.setColumnWidth(4, 260); aba.setColumnWidth(8, 200);
+    marcarVersaoResolucao_(ss);
+  } else {
+    sincronizarResolucao_(ss, aba);
   }
   const v = aba.getDataRange().getValues();
   const h = acharCabecalho_(v, ['ano', 'curso', 'turmas'], 5);
@@ -1877,10 +1886,55 @@ function lerResolucao_(ss) {
       unidade: texto_(v[i][c['unidade']]).replace(/\/CPE$/i, ''),
       turmas: numero_(v[i][c['turmas']]) || 0,
       alunos: numero_(v[i][c['alunos']]) || 0,
-      status: texto_(v[i][c['status']])
+      status: texto_(v[i][c['status']]),
+      fora: /^s/i.test(texto_(v[i][c['fora da resolucao']]))
     });
   }
   return out;
+}
+
+function chaveVersaoResolucao_(ss) { return 'RESOLUCAO_VERSAO_' + ss.getId(); }
+function marcarVersaoResolucao_(ss) { PropertiesService.getScriptProperties().setProperty(chaveVersaoResolucao_(ss), String(RESOLUCAO_VERSAO)); }
+
+/**
+ * Atualiza uma vez a aba "Resolução" que já existe com os dados de RESOLUCAO_INICIAL
+ * (quando RESOLUCAO_VERSAO aumenta): pelo ID do SiGE, ajusta turmas, alunos, status e
+ * "fora da Resolução"; IDs que faltam são incluídos. O "Grupo no painel" digitado é mantido.
+ */
+function sincronizarResolucao_(ss, aba) {
+  const props = PropertiesService.getScriptProperties();
+  if (Number(props.getProperty(chaveVersaoResolucao_(ss)) || 1) >= RESOLUCAO_VERSAO) return;
+  let v = aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['ano', 'curso', 'turmas'], 5);
+  if (h < 0) return;
+  let c = indice_(v[h]);
+  if (c['fora da resolucao'] === undefined) {
+    const col = larguraCabecalho_(v[h]) + 1;
+    aba.getRange(h + 1, col).setValue('Fora da Resolução').setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    v = aba.getDataRange().getValues(); c = indice_(v[h]);
+  }
+  const porId = {};
+  for (let i = h + 1; i < v.length; i++) {
+    const id = texto_(v[i][c['id sige']]).replace(/\.0$/, '');
+    if (id) porId[numero_(v[i][c['ano']]) + '|' + id] = i + 1;
+  }
+  let mudou = 0, novos = 0;
+  RESOLUCAO_INICIAL.forEach(r => {
+    const linha = porId[r[0] + '|' + r[1]];
+    if (linha) {
+      [['turmas', r[5]], ['alunos', r[6]], ['status', r[7]], ['fora da resolucao', r[8]]].forEach(([k, val]) => {
+        const cel = aba.getRange(linha, c[k] + 1);
+        if (texto_(cel.getValue()) !== texto_(val)) { cel.setValue(val); mudou++; }
+      });
+    } else {
+      const nova = new Array(Math.max(aba.getLastColumn(), 9)).fill('');
+      [['ano', 0], ['id sige', 1], ['curso', 2], ['grupo no painel', 3], ['unidade', 4], ['turmas', 5], ['alunos', 6], ['status', 7], ['fora da resolucao', 8]]
+        .forEach(([k, j]) => { if (c[k] !== undefined) nova[c[k]] = r[j]; });
+      aba.appendRow(nova); novos++;
+    }
+  });
+  marcarVersaoResolucao_(ss);
+  if (mudou || novos) historico_(ss, CONFIG.ABA_RESOLUCAO, '', '', '', 'Resolução atualizada (SiGE)', mudou + ' valor(es) ajustados · ' + novos + ' curso(s) incluídos');
 }
 
 /** Nome do curso sem o ano da matriz curricular ("... 2022 atualizada" → "..."). */
