@@ -1819,11 +1819,11 @@ const GRUPO_EPP = 'Estágio de Pilotagem Policial (EPP)';
 // a aba é a fonte: edite lá para incluir anos ou corrigir números.
 // Versão dos dados abaixo: quando muda, a aba "Resolução" que já existe é atualizada
 // uma vez pelo ID do SiGE (turmas, alunos, status) e os IDs que faltam são incluídos.
-const RESOLUCAO_VERSAO = 2;
+const RESOLUCAO_VERSAO = 3;
+// Lançamentos que não são do ano (ex.: ETR de 2023 e 2024 ainda em fechamento no SiGE): saem da aba.
+const RESOLUCAO_REMOVER = [[2026, 3791], [2026, 5729]];
 const RESOLUCAO_INICIAL = [
   // ano, ID SiGE, curso, grupo no painel, unidade, turmas, alunos, status, fora da Resolução
-  [2026, 3791, 'Estágio Tático Rodoviário', '', 'BPMRv', 2, 79, 'Pendente de conclusão', ''],
-  [2026, 5729, 'Estágio Tático Rodoviário', '', 'BPMRv', 4, 142, 'Pendente de conclusão', ''],
   [2026, 9388, 'Curso de Identificação Veicular e Documental', '', 'BPMRv', 4, 160, 'Pendente de conclusão', ''],
   [2026, 9391, 'Curso de Policiamento de Guardas', '', 'BPGd', 1, 30, 'Cancelado', ''],
   [2026, 9597, 'Curso de Radiopatrulhamento Tático Rodoviário', '', 'BPMRv', 1, 38, 'Pendente de conclusão', ''],
@@ -1918,7 +1918,18 @@ function sincronizarResolucao_(ss, aba) {
     const id = texto_(v[i][c['id sige']]).replace(/\.0$/, '');
     if (id) porId[numero_(v[i][c['ano']]) + '|' + id] = i + 1;
   }
-  let mudou = 0, novos = 0;
+  let mudou = 0, novos = 0, removidos = 0;
+  RESOLUCAO_REMOVER.map(([ano, id]) => porId[ano + '|' + id]).filter(Boolean).sort((a, b) => b - a).forEach(linha => {
+    aba.deleteRow(linha); removidos++;
+  });
+  if (removidos) {
+    v = aba.getDataRange().getValues();
+    Object.keys(porId).forEach(k => { delete porId[k]; });
+    for (let i = h + 1; i < v.length; i++) {
+      const id = texto_(v[i][c['id sige']]).replace(/\.0$/, '');
+      if (id) porId[numero_(v[i][c['ano']]) + '|' + id] = i + 1;
+    }
+  }
   RESOLUCAO_INICIAL.forEach(r => {
     const linha = porId[r[0] + '|' + r[1]];
     if (linha) {
@@ -1934,7 +1945,7 @@ function sincronizarResolucao_(ss, aba) {
     }
   });
   marcarVersaoResolucao_(ss);
-  if (mudou || novos) historico_(ss, CONFIG.ABA_RESOLUCAO, '', '', '', 'Resolução atualizada (SiGE)', mudou + ' valor(es) ajustados · ' + novos + ' curso(s) incluídos');
+  if (mudou || novos || removidos) historico_(ss, CONFIG.ABA_RESOLUCAO, '', '', '', 'Resolução atualizada (SiGE)', mudou + ' valor(es) ajustados · ' + novos + ' curso(s) incluídos · ' + removidos + ' lançamento(s) de outros anos removidos');
 }
 
 /** Nome do curso sem o ano da matriz curricular ("... 2022 atualizada" → "..."). */
