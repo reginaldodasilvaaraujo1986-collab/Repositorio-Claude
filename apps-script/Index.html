@@ -1453,6 +1453,11 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       if (nl && !unidadeLike.test(nl) && (nome.indexOf(nl) >= 0 || norm(t.cidade) === nl)) p += 2;
       if (p > pts) { pts = p; melhor = t; }
     });
+    // Só o curso bate: aceita quando o curso tem uma única turma (não cancelada) no ano.
+    if (pts === 2) {
+      const doCurso = S.dados.turmas.filter(t => norm(t.curso) === norm(x.curso) && t.sit !== 'canc');
+      if (doCurso.length === 1) pts = 3, melhor = doCurso[0];
+    }
     x._t = pts >= 3 ? melhor : null;
     return x._t;
   }
@@ -2126,7 +2131,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 
     // Só a lista por turma (onde se digitam matriculados e formados), com a cor da unidade na borda.
     const corUn = x => { const u = norm((turmaDoFormando(x) && turmaDoFormando(x).unidade) || unidadeDoCurso(x.curso)); return /amb/.test(u) ? 'u-mamb' : /gd/.test(u) ? 'u-gd' : 'u-rv'; };
-    const ordem = lista.slice().sort((p, q) => String((turmaDoFormando(p) || {}).inicio || '9').localeCompare(String((turmaDoFormando(q) || {}).inicio || '9')));
+    // Ordem por data de início da turma; sem turma ligada, vai para o fim, por curso.
+    const ini = x => (turmaDoFormando(x) || {}).inicio || '9999';
+    const ordem = lista.slice().sort((p, q) => ini(p).localeCompare(ini(q)) || cursoDoFormando(p).localeCompare(cursoDoFormando(q), 'pt-BR') || String(p.turma).localeCompare(String(q.turma), 'pt-BR'));
     // "1ª turma (Montes Claros)": número da turma no curso, pela data de início; cidade entre parênteses.
     const numTurma = {};
     const grupos = {};
