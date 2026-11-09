@@ -791,11 +791,11 @@
 
   function linhaTreinamento(x, larga) {
     const t = x.turma;
-    return '<div class="tr-row' + (larga ? ' larga' : '') + (t ? ' ' + t.sit : '') + '"' + (t ? ' data-turma="' + t.id + '"' : '') +
-      ' data-tip="<b>' + esc(x.treinamento) + '</b>' + esc(x.periodo) + (x.vagas ? ' · ' + esc(x.vagas) : '') + (x.local ? '<br>' + esc(x.local) : '') +
+    return '<div class="tr-row' + (larga ? ' larga' : '') + (x.cont ? ' cont' : '') + (t ? ' ' + t.sit : '') + '"' + (t ? ' data-turma="' + t.id + '"' : '') +
+      ' data-tip="<b>' + esc(x.treinamento) + '</b>' + esc(x.periodo) + (x.cont ? ' · continuação (mesma turma)' : '') + (x.vagas ? ' · ' + esc(x.vagas) : '') + (x.local ? '<br>' + esc(x.local) : '') +
       (t ? '<br>' + SIT[t.sit].label + ' · ' + Math.round(t.st.pct) + '% das etapas' : '') + '">' +
       '<span class="tr-p">' + esc(x.periodo) + '</span>' +
-      '<span class="tr-t">' + esc(x.treinamento) + (larga ? '' : '<small>' + esc(x.local) + '</small>') + '</span>' +
+      '<span class="tr-t">' + (x.cont ? '<i class="tr-cont">desde ' + x.cont + '</i>' : '') + esc(x.treinamento) + (larga ? '' : '<small>' + esc(x.local) + '</small>') + '</span>' +
       '<span class="tr-v">' + esc(x.vagas || '—') + '</span>' +
       (larga ? '<span class="tr-l">' + esc(x.local) + '</span>' : '') + '</div>';
   }
@@ -850,12 +850,15 @@
     const ano = anoRef();
     const porMes = MES_LONGO.map((_, m) => treinamentosDoMes(ano, m));
     const m0 = porMes.findIndex(l => l.length), m1 = 11 - porMes.slice().reverse().findIndex(l => l.length);
-    const total = soma(porMes, l => l.length);
+    // Cada turma conta uma vez só, mesmo quando passa por dois meses (ex.: 31/08 a 25/09).
+    const chave = x => x.turma ? 't' + x.turma.id : (x.treinamento + '|' + (x.inicio || x.periodo));
+    const unicos = listas => new Set([].concat.apply([], listas).map(chave)).size;
+    const total = unicos(porMes);
     const nav = '<div class="toolbar"><b class="ano-tit">Calendário de treinamentos – ' + ano + '</b>' +
-      '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' treinamento(s) · fonte: ' + ((S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas') + '</span>' + botaoNovaTurma() + '</div>';
+      '<span style="color:var(--ink-3);font-size:12.5px">' + total + ' turma' + (total === 1 ? '' : 's') + ' no ano · fonte: ' + ((S.dados.calendario || []).length ? 'aba Calendario' : 'turmas cadastradas') + '</span>' + botaoNovaTurma() + '</div>';
     // Duas páginas: 1º semestre (jan–jun) e 2º semestre (jul–dez); 6 meses em 3 colunas × 2 linhas.
     if (!S.semestre) S.semestre = HOJE.getFullYear() === ano && HOJE.getMonth() > 5 ? 2 : 1;
-    const qtdSem = k => soma(porMes.slice((k - 1) * 6, k * 6), l => l.length);
+    const qtdSem = k => unicos(porMes.slice((k - 1) * 6, k * 6));
     const abas = '<div class="seg sem-sel">' + [1, 2].map(k => '<button data-semestre="' + k + '" class="' + (S.semestre === k ? 'on' : '') + '">' + k + 'º semestre <small>' + qtdSem(k) + '</small></button>').join('') + '</div>';
     const ini = (S.semestre - 1) * 6;
     const blocos = porMes.slice(ini, ini + 6).map((lista, k) => {
@@ -864,7 +867,11 @@
       return '<div class="card panel flush tr-card' + (atual ? ' atual' : '') + (lista.length ? '' : ' vazio') + '">' +
         '<div class="tr-mes">' + MES_LONGO[m].toUpperCase() + ' <span>· ' + (lista.length ? lista.length + ' treinamento' + (lista.length > 1 ? 's' : '') : 'sem treinamentos') + (atual ? ' · mês atual' : '') + '</span>' + pager('ano-' + m) + '</div>' +
         '<div class="tr-head larga"><span>Período</span><span>Treinamento</span><span>Vagas</span><span>Local/Obs</span></div>' +
-        caixa('ano-' + m, lista.map(x => linhaTreinamento(x, true)).join('') || '<div class="empty">Sem treinamentos neste mês.</div>') + '</div>';
+        caixa('ano-' + m, lista.map(x => {
+          // Turma que começou no mês anterior: marca "desde ago" para não parecer outra turma.
+          const mi = x.inicio && Number(x.inicio.slice(0, 4)) === ano ? Number(x.inicio.slice(5, 7)) - 1 : m;
+          return linhaTreinamento(mi < m ? Object.assign({}, x, { cont: MESES[mi] }) : x, true);
+        }).join('') || '<div class="empty">Sem treinamentos neste mês.</div>') + '</div>';
     }).join('');
     return nav.replace('<div class="toolbar">', '<div class="toolbar">' + abas) +
       '<div class="ano-grid grow" style="grid-template-columns:repeat(3, minmax(0, 1fr));grid-template-rows:repeat(2, minmax(0, 1fr))">' + blocos + '</div>';
