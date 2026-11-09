@@ -1819,9 +1819,10 @@ const GRUPO_EPP = 'Estágio de Pilotagem Policial (EPP)';
 // a aba é a fonte: edite lá para incluir anos ou corrigir números.
 // Versão dos dados abaixo: quando muda, a aba "Resolução" que já existe é atualizada
 // uma vez pelo ID do SiGE (turmas, alunos, status) e os IDs que faltam são incluídos.
-const RESOLUCAO_VERSAO = 4;
+const RESOLUCAO_VERSAO = 5;
 // Turmas previstas na Resolução que foram canceladas (ano|ID SiGE → quantidade).
-const RESOLUCAO_CANCELADAS = { '2026|9634': 2, '2026|9391': 1 };
+// 2026: ETR 2 de 4; Guardas 1 de 1; EPP (Defensiva, 4x4 e Comboio) 1 de 4; CPP 2 de 2; PP 2 de 4.
+const RESOLUCAO_CANCELADAS = { '2026|9634': 2, '2026|9391': 1, '2026|9623': 1, '2026|9624': 1, '2026|9786': 1, '2026|9651': 2, '2026|9625': 2 };
 // Lançamentos que não são do ano (ex.: ETR de 2023 e 2024 ainda em fechamento no SiGE): saem da aba.
 const RESOLUCAO_REMOVER = [[2026, 3791], [2026, 5729]];
 const RESOLUCAO_INICIAL = [
