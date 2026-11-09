@@ -387,7 +387,21 @@
       (!S.f.resp || (S.f.resp === '__sem' ? !e.respN : e.respN === S.f.resp)) &&
       (!comBusca || !b || norm([e.etapa, e.turma, nomeLongo(S.turmaIdx[e.turmaId]), e.responsavel, e.documento, e.fase].join(' ')).indexOf(b) >= 0));
   }
+  /** Turmas cadastradas (não canceladas) sem linha na aba de formandos: entram como linhas novas,
+   *  criadas na planilha quando o usuário digita matriculados ou formados. */
+  function completarFormandos() {
+    const d = S.dados;
+    if (!d || d._formCompleto) return;
+    d.formandos = d.formandos || [];
+    const ligadas = new Set(d.formandos.map(turmaDoFormando).filter(Boolean).map(t => t.id));
+    const ano = String(anoRef());
+    (d.turmas || []).filter(t => t.sit !== 'canc' && !ligadas.has(t.id) && (!t.inicio || t.inicio.slice(0, 4) === ano))
+      .forEach(t => d.formandos.push({ linha: null, novo: true, curso: t.curso, turma: t.turma, local: t.cidade || t.local || '', formados: null, matriculados: null, _t: t }));
+    d._formCompleto = true;
+  }
+
   function formandosF() {
+    completarFormandos();
     let f = S.dados.formandos || [];
     if (S.f.unidade) f = f.filter(x => { const t = turmaDoFormando(x); return (t ? t.unidade : unidadeDoCurso(x.curso)) === S.f.unidade; });
     return S.f.curso ? f.filter(x => cursoDoFormando(x) === S.f.curso) : f;
@@ -1016,7 +1030,7 @@
       '<span class="mono" style="text-align:right;font-weight:600">' + l.form + '</span></div>').join('');
 
     const colsT = 'grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 92px 86px 40px';
-    const num = (x, campo, valor, ph) => S.dados.podeEditar && x.linha
+    const num = (x, campo, valor, ph) => S.dados.podeEditar && (x.linha || x.novo)
       ? '<input class="num-in" type="number" min="0" step="1" data-formando="' + S.dados.formandos.indexOf(x) + '" data-campo-f="' + campo + '" value="' + (valor == null ? '' : valor) + '"' +
         (ph != null ? ' placeholder="' + ph + '"' : '') + ' title="Digite e aperte Enter para gravar"' + (S.salvando ? ' disabled' : '') + '>'
       : '<span class="mono">' + (valor == null ? '—' : valor) + '</span>';
@@ -1766,9 +1780,15 @@
     const antes = x[campo];
     x[campo] = n;
     const req = { linha: x.linha, curso: x.curso, turma: x.turma, campo: campo };
+    if (x.novo) { req.novo = true; req.local = x.local; }
     req[campo] = n;
     gravarNoServidor('atualizarFormados', req,
-      () => { toast('✓ ' + (campo === 'matriculados' ? 'Matriculados' : 'Formados') + ' de ' + x.curso + ' / ' + x.turma + ': ' + n); refrescar(); },
+      () => {
+        toast('✓ ' + (campo === 'matriculados' ? 'Matriculados' : 'Formados') + ' de ' + x.curso + ' / ' + x.turma + ': ' + n);
+        // Linha nova criada na aba de formandos: recarrega para pegar o número da linha.
+        if (x.novo && RUN) { x.novo = false; return carregar(true); }
+        refrescar();
+      },
       () => { x[campo] = antes; });
   }
 

@@ -345,6 +345,22 @@ function atualizarFormados(req) {
   return comTrava_(ss => {
     const aba = abaFormandos_(ss);
     if (!aba) throw new Error('Aba de formandos não encontrada.');
+    if (req.novo) {
+      // Turma cadastrada que ainda não tinha linha na aba de formandos: cria a linha.
+      const campoN = req.campo === 'matriculados' ? 'matriculados' : 'formados';
+      const valor = Number(req[campoN]);
+      if (!(valor >= 0) || Math.floor(valor) !== valor) throw new Error('Informe um número inteiro (0 ou mais).');
+      const antes = lerFormandos_(ss).find(x => semAcento_(x.curso) === semAcento_(req.curso) && semAcento_(x.turma) === semAcento_(req.turma));
+      if (antes) { req.linha = antes.linha; }
+      else {
+        incluirEmFormandos_(ss, req.curso, req.turma, req.local || '', campoN === 'matriculados' ? valor : '');
+        const nova = lerFormandos_(ss).find(x => semAcento_(x.curso) === semAcento_(req.curso) && semAcento_(x.turma) === semAcento_(req.turma));
+        if (!nova) throw new Error('Não foi possível incluir a turma na aba de formandos.');
+        if (campoN === 'formados') { const vv = aba.getDataRange().getValues(); const hh = acharCabecalho_(vv, ['curso', 'turma', 'formados'], 5); gravar_(aba.getRange(nova.linha, indice_(vv[hh])['formados'] + 1), valor); }
+        historico_(ss, aba.getName(), nova.linha, req.curso + ' / ' + req.turma, '', 'Formandos', 'linha incluída pelo painel (' + campoN + ': ' + valor + ')');
+        return { ok: true, linha: nova.linha };
+      }
+    }
     const v = aba.getRange(1, 1, Math.min(aba.getLastRow(), 5), aba.getLastColumn()).getValues();
     const h = acharCabecalho_(v, ['curso', 'turma', 'formados'], 5);
     const c = indice_(v[h]);
