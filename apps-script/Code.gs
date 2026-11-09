@@ -1819,7 +1819,9 @@ const GRUPO_EPP = 'Estágio de Pilotagem Policial (EPP)';
 // a aba é a fonte: edite lá para incluir anos ou corrigir números.
 // Versão dos dados abaixo: quando muda, a aba "Resolução" que já existe é atualizada
 // uma vez pelo ID do SiGE (turmas, alunos, status) e os IDs que faltam são incluídos.
-const RESOLUCAO_VERSAO = 3;
+const RESOLUCAO_VERSAO = 4;
+// Turmas previstas na Resolução que foram canceladas (ano|ID SiGE → quantidade).
+const RESOLUCAO_CANCELADAS = { '2026|9634': 2, '2026|9391': 1 };
 // Lançamentos que não são do ano (ex.: ETR de 2023 e 2024 ainda em fechamento no SiGE): saem da aba.
 const RESOLUCAO_REMOVER = [[2026, 3791], [2026, 5729]];
 const RESOLUCAO_INICIAL = [
@@ -1860,9 +1862,9 @@ function lerResolucao_(ss) {
   let aba = ss.getSheetByName(CONFIG.ABA_RESOLUCAO);
   if (!aba) {
     aba = ss.insertSheet(CONFIG.ABA_RESOLUCAO);
-    const cab = ['Ano', 'ID SiGE', 'Curso', 'Grupo no painel', 'Unidade', 'Turmas', 'Alunos', 'Status', 'Fora da Resolução'];
+    const cab = ['Ano', 'ID SiGE', 'Curso', 'Grupo no painel', 'Unidade', 'Turmas', 'Alunos', 'Status', 'Fora da Resolução', 'Turmas canceladas'];
     aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
-    aba.getRange(2, 1, RESOLUCAO_INICIAL.length, cab.length).setValues(RESOLUCAO_INICIAL);
+    aba.getRange(2, 1, RESOLUCAO_INICIAL.length, cab.length).setValues(RESOLUCAO_INICIAL.map(r => r.concat([RESOLUCAO_CANCELADAS[r[0] + '|' + r[1]] || ''])));
     aba.setFrozenRows(1);
     aba.setColumnWidth(3, 520); aba.setColumnWidth(4, 260); aba.setColumnWidth(8, 200);
     marcarVersaoResolucao_(ss);
@@ -1887,7 +1889,8 @@ function lerResolucao_(ss) {
       turmas: numero_(v[i][c['turmas']]) || 0,
       alunos: numero_(v[i][c['alunos']]) || 0,
       status: texto_(v[i][c['status']]),
-      fora: /^s/i.test(texto_(v[i][c['fora da resolucao']]))
+      fora: /^s/i.test(texto_(v[i][c['fora da resolucao']])),
+      canceladas: numero_(v[i][c['turmas canceladas']]) || 0
     });
   }
   return out;
@@ -1908,11 +1911,12 @@ function sincronizarResolucao_(ss, aba) {
   const h = acharCabecalho_(v, ['ano', 'curso', 'turmas'], 5);
   if (h < 0) return;
   let c = indice_(v[h]);
-  if (c['fora da resolucao'] === undefined) {
+  ['Fora da Resolução', 'Turmas canceladas'].forEach(rotulo => {
+    if (c[semAcento_(rotulo)] !== undefined) return;
     const col = larguraCabecalho_(v[h]) + 1;
-    aba.getRange(h + 1, col).setValue('Fora da Resolução').setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    aba.getRange(h + 1, col).setValue(rotulo).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
     v = aba.getDataRange().getValues(); c = indice_(v[h]);
-  }
+  });
   const porId = {};
   for (let i = h + 1; i < v.length; i++) {
     const id = texto_(v[i][c['id sige']]).replace(/\.0$/, '');
@@ -1933,7 +1937,7 @@ function sincronizarResolucao_(ss, aba) {
   RESOLUCAO_INICIAL.forEach(r => {
     const linha = porId[r[0] + '|' + r[1]];
     if (linha) {
-      [['turmas', r[5]], ['alunos', r[6]], ['status', r[7]], ['fora da resolucao', r[8]]].forEach(([k, val]) => {
+      [['turmas', r[5]], ['alunos', r[6]], ['status', r[7]], ['fora da resolucao', r[8]], ['turmas canceladas', RESOLUCAO_CANCELADAS[r[0] + '|' + r[1]] || '']].forEach(([k, val]) => {
         const cel = aba.getRange(linha, c[k] + 1);
         if (texto_(cel.getValue()) !== texto_(val)) { cel.setValue(val); mudou++; }
       });
@@ -1941,6 +1945,7 @@ function sincronizarResolucao_(ss, aba) {
       const nova = new Array(Math.max(aba.getLastColumn(), 9)).fill('');
       [['ano', 0], ['id sige', 1], ['curso', 2], ['grupo no painel', 3], ['unidade', 4], ['turmas', 5], ['alunos', 6], ['status', 7], ['fora da resolucao', 8]]
         .forEach(([k, j]) => { if (c[k] !== undefined) nova[c[k]] = r[j]; });
+      if (c['turmas canceladas'] !== undefined) nova[c['turmas canceladas']] = RESOLUCAO_CANCELADAS[r[0] + '|' + r[1]] || '';
       aba.appendRow(nova); novos++;
     }
   });

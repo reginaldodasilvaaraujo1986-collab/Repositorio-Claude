@@ -1421,12 +1421,13 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   function resolucaoDoAno(ano) {
     const g = {};
     (S.dados.resolucao || []).filter(r => r.ano === ano).forEach(r => {
-      const x = g[r.grupo] = g[r.grupo] || { grupo: r.grupo, unidade: r.unidade, turmas: 0, alunos: 0, cursos: [], ids: [], status: r.status, fora: false };
+      const x = g[r.grupo] = g[r.grupo] || { grupo: r.grupo, unidade: r.unidade, turmas: 0, alunos: 0, cursos: [], ids: [], status: r.status, fora: false, canceladas: 0 };
       // EPP: três estágios do SiGE executados juntos (mesmas turmas) → vale o maior;
       // o mesmo curso com mais de um ID (ex.: ETR em três resoluções) → soma.
       if (r.grupo !== r.curso) { x.turmas = Math.max(x.turmas, r.turmas); x.alunos = Math.max(x.alunos, r.alunos); }
       else { x.turmas += r.turmas; x.alunos += r.alunos; }
       x.fora = x.fora || !!r.fora;
+      x.canceladas = Math.max(x.canceladas, r.canceladas || 0);
       x.cursos.push(r.curso); x.ids.push(r.id);
     });
     return Object.keys(g).map(k => g[k]).sort((a, b) => a.grupo.localeCompare(b.grupo, 'pt-BR'));
