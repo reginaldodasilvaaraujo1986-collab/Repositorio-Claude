@@ -124,6 +124,12 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Diárias: pode ir o total por GMIFP com credor "DIVERSOS"
 - Nunca deixar vazios o nº do empenho e a data da liquidação
 
+## Encerramento do exercício 2026 (mensagem DF, nov/2026; decreto ainda não publicado)
+
+- Até 19/11/2026: o Ordenador nomeia no mínimo 2 subcomissões (segregação de funções), publicadas em BI, com um relatório de cada arquivado na UE: (A) almoxarifado + bens patrimoniais, inclusive imóveis e cessões (itens II e III); (B) caixa/documentos conversíveis, Passivo Circulante e Não Circulante, Restos a Pagar Não Processados e contas de controle dos atos potenciais (itens I, IV e V)
+- Saldos de referência: 30/11/2026 — SIAFI nav. 99 › 05, balancete de verificação e saldos/extratos no Módulo Contábil (exportar para Excel)
+- Demais regras: Instrução Conjunta DF-DAL (a publicar)
+
 ## Regras
 
 - Empenho 90 dias sem movimento é anulado (Dec. 37.924/96)
