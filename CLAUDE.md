@@ -101,6 +101,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - INSS retido: 2.1.8.8.1.03 · ISS: 2.1.8.8.1.88 (aux.: ano/CNPJ prefeitura/GMIFP) · IRRF: 2.1.8.8.1.01 (credor Estado de MG 18.715.615/0001-60)
 
 - IRRF na OP sobre o bruto: 1,2% material, 4,8% serviço
+- IRRF retido em fonte vinculada (52, 60, 73, 83): recolher ao Tesouro por DAE — DAE Online SEF/MG (daeonline1.fazenda.mg.gov.br) › Receita de Órgãos Estaduais › órgão TESOURO ESTADUAL EGE/SEF › serviço IMPOSTO RENDA RETIDO NA FONTE-OUTROS (não usar "– FOLHA"); pagar no SIAFI (71, título Retenção, código de barras) pela mesma fonte. Fluxo visto em tela em 13/11/2026; campos seguintes a confirmar
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
 - INSS vence dia 20; ISS conforme cada prefeitura
 - SIAFI aceita no máximo 5 prefeituras (ISS) por liquidação: com mais, dividir a nota em 2+ especificações/liquidações (ex. Ticket BPMRV 1ª quinz. out/2026: 7 municípios → espec. 125.377,19 + 100.000,00). ISS BPMRV: BH 494,77 · Formiga 163,00 · Frutal 78,57 · Almenara 48,78 · Contagem 19,29 · Teófilo Otoni 14,55 · Pedra Azul 1,92

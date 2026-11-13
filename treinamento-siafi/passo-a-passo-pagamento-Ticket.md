@@ -71,7 +71,8 @@
     - valor **79.430,89** → gravar e anotar o nº da OP.
 19. **IRRF na própria OP** (retido sobre o bruto, numa linha só):
     - códigos 6190 serviço **336,09** + 6147 peça **248,11** = **584,20**;
-    - vai para 2.1.8.8.1.01 – IRRF retido (credor Estado de MG **18.715.615/0001-60**); fica no Estado, sem guia externa.
+    - vai para 2.1.8.8.1.01 – IRRF retido (credor Estado de MG **18.715.615/0001-60**);
+    - fonte vinculada (52/73): emitir **DAE** no DAE Online SEF/MG › Tesouro Estadual EGE/SEF › **Imposto Renda Retido na Fonte-Outros** e pagar na 71 (título Retenção, código de barras).
 20. **Guias de ISS** (por código de barras ou conforme cada prefeitura), título bancário **Retenção**:
     - Teófilo Otoni **137,55**;
     - Belo Horizonte **100,25**.
