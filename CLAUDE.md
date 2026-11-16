@@ -16,6 +16,7 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | UE da DRH (repasse de cota de diárias) | 1250005 |
 | Crédito/cota orçamentária (pedido) | PM6 (informado pelo usuário em 27/10/2026); diárias vêm da DRH |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
+| CNPJ PMMG (contratante, inclusive nos contratos do CPE) | 16.695.025/0001-97 (confirmado no DOE 14/11/2026) |
 
 ## Fontes e contas para pagamento
 
@@ -53,6 +54,12 @@ Processo da Ticket no SEI (ex. 1250.01.0026253/2026-74): ofício da Seção Frot
 
 Despesas da fonte 73.10 (PRF) para pesquisar saldo de empenho (lista da SOFi, out/2026):
 37.01 conservação/limpeza · 39.19 reprografia · 39.21 manutenção usina fotovoltaica · 39.22 manutenção plataforma elevatória · 39.52 estagiários · 39.43 Ticket Log BPMRv · 40.04 internet · 47.07 taxa de resíduos sólidos
+
+## Convênio PRF (fonte 73.10)
+
+- Convênio PMMG x Superintendência da PRF em MG nº 01/2017 = nº SIAFI 9210809 (auxiliar da conta BB traz "2017·11·9210809")
+- 14º TA (assinado 09/11/2026, DOE 14/11/2026): prestação de contas das metas do 4º tri/2026 antecipada para 30/11/2026 (metas proporcionais a out–nov); repasse do 4º tri antecipado para ser executado ainda em 2026 (encerramento do exercício 31/12/2026); término do convênio mantido em 05/01/2027
+- Contratos do CPE p/ o BPMRv (Pregão 0250457 000036/2026, SEI 1250.01.0024222/2026-09): nº 9525645 Tech Master (CNPJ 49.835.498/0001-00), 93 scanners OBD2 + 93 kits ferramentas + 93 parafusadeiras + 93 boroscópios, 126.237,27, vig. 13/11/2026–12/11/2027 · nº 9525660 Epinet (CNPJ 14.984.352/0001-33), 200 cones tipo barril, 37.600,00, vig. 16/11/2026–15/11/2027
 
 ## Dotação (PARO 2026, Anexo VII e VIII)
 
