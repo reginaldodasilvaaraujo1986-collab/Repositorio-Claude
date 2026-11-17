@@ -50,6 +50,13 @@ Sempre que o usuário informar uma conta nova, atualize esta tabela.
 
 Nota da Ticket (NFS-e Campo Bom/RS, quinzenal): pág. 2 "Informações adicionais" traz BASE (unidade → empenho: 25º BPM MAmb = SEMAD 718; BPMRv = PRF 862), CONTRATO 9422290, período das transações e o "VALOR A SER LIQUIDADO NO PORTAL" (= bruto da liquidação). Retenções informadas na nota: ISSQN dos estabelecimentos + IRRF serviço 4,8% (cód. 6190) + IRRF peça 1,2% (cód. 6147); líquido = duplicata. Ex. NFS-e 48777033 (01–15/10/2026, 25º BPM MAmb): liquidar 80.252,89 − ISS 237,80 − IR serv. 336,09 − IR peça 248,11 = 79.430,89 (venc. 16/11/2026)
 
+Pagamento da Ticket (OP 71) — contas fixas:
+| Empenho | Debitar (sai) | Creditar (Ticket) |
+|---|---|---|
+| 862 – BPMRv, fonte 73 | 001 · 01615-2 · 22085-X (PRF) | 001 · 01913-5 · 5455-0 |
+| 718 – MAmb, fonte 52 | 999 · 09001-9 · 900158-6 (SEMAD) | 001 · 01913-5 · 5455-0 |
+Credor CNPJ 08.273.364/0001-57 · IRRF S + qtde de oficinas (DIRF) · depois DAE do IRRF pela mesma conta de débito
+
 Processo da Ticket no SEI (ex. 1250.01.0026253/2026-74): ofício da Seção Frota CPE + planilha RAD (aba "RAD UNIAO", colunas ICMS deduzido, IRRF peça, ISS retido/responsável, IRRF serviço, Valor Aprovado, Valor Líquido, Valor Adm) + NF Ticket + NFs das oficinas + declaração de conformidade da CPARM + especificação SIAD (conformidade orçamentária). Conferência por unidade: Aprovado − ICMS deduzido = total NF; − Valor Adm (desconto contratual) = valor a liquidar; − (ISS tomador + IRRF peça + IRRF serviço) = duplicata. 1ª quinzena out/2026: BPMAMB aprovado 91.177,63 (NF 48777033, emp. 718, espec. SIAD 7275035, liquidar 80.252,89) · BPMRV: SEI 1250.01.0026266/2026-14, NF 48777081, emp. 862, convênio 9210809/2024, aprovado 248.193,86 − ICMS 3.209,38 − Adm 19.607,29 = liquidar 225.377,19 em 2 especificações SIAD (7275225 = 125.377,19 e 7275259 = 100.000,00); retenções da NF: ISS 820,88 · IRRF serv. 623,35 · IRRF peça 753,31 (=2.197,54); duplicata 223.179,65, venc. 16/11/2026
 
 Despesas da fonte 73.10 (PRF) para pesquisar saldo de empenho (lista da SOFi, out/2026):
