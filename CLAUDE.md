@@ -56,6 +56,7 @@ Pagamento da Ticket (OP 71) — contas fixas:
 | 862 – BPMRv, fonte 73 | 001 · 01615-2 · 22085-X (PRF) | 001 · 01913-5 · 5455-0 |
 | 718 – MAmb, fonte 52 | 999 · 09001-9 · 900158-6 (SEMAD) | 001 · 01913-5 · 5455-0 |
 Credor CNPJ 08.273.364/0001-57 · IRRF S + qtde de oficinas (DIRF) · depois DAE do IRRF pela mesma conta de débito
+Forma de pagamento (informada pelo usuário em 17/11/2026): o valor da nota é dividido em 2 especificações/liquidações — uma da parte SERVIÇO (IRRF 4,8%) e outra da parte PEÇA (IRRF 1,2%); cada uma gera sua OP com o IRRF da sua alíquota, lançado por oficina na tela da DIRF
 
 Processo da Ticket no SEI (ex. 1250.01.0026253/2026-74): ofício da Seção Frota CPE + planilha RAD (aba "RAD UNIAO", colunas ICMS deduzido, IRRF peça, ISS retido/responsável, IRRF serviço, Valor Aprovado, Valor Líquido, Valor Adm) + NF Ticket + NFs das oficinas + declaração de conformidade da CPARM + especificação SIAD (conformidade orçamentária). Conferência por unidade: Aprovado − ICMS deduzido = total NF; − Valor Adm (desconto contratual) = valor a liquidar; − (ISS tomador + IRRF peça + IRRF serviço) = duplicata. 1ª quinzena out/2026: BPMAMB aprovado 91.177,63 (NF 48777033, emp. 718, espec. SIAD 7275035, liquidar 80.252,89) · BPMRV: SEI 1250.01.0026266/2026-14, NF 48777081, emp. 862, convênio 9210809/2024, aprovado 248.193,86 − ICMS 3.209,38 − Adm 19.607,29 = liquidar 225.377,19 em 2 especificações SIAD (7275225 = 125.377,19 e 7275259 = 100.000,00); retenções da NF: ISS 820,88 · IRRF serv. 623,35 · IRRF peça 753,31 (=2.197,54); duplicata 223.179,65, venc. 16/11/2026
 
@@ -121,7 +122,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - IRRF retido em fonte vinculada (52, 60, 73, 83): recolher ao Tesouro por DAE — DAE Online SEF/MG (daeonline1.fazenda.mg.gov.br) › Receita de Órgãos Estaduais › órgão TESOURO ESTADUAL EGE/SEF › serviço IMPOSTO RENDA RETIDO NA FONTE-OUTROS (não usar "– FOLHA"); pagar no SIAFI pela mesma fonte: 71 › 04 Pagamento por Código de Barras → credor CNPJ 18715615 0001 60 (Estado de MG) → Leitora ótica S → Selecione Tributos → DAE → Enter → ler o código de barras (telas vistas em 13/11/2026; seguintes a confirmar). Na 71 › 04, Tributos = guias que começam com 8 (DAE, água/luz/telefone, convênios); Títulos = boleto bancário
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
 - INSS vence dia 20; ISS conforme cada prefeitura
-- SIAFI aceita no máximo 5 prefeituras (ISS) por liquidação: com mais, dividir a nota em 2+ especificações/liquidações (ex. Ticket BPMRV 1ª quinz. out/2026: 7 municípios → espec. 125.377,19 + 100.000,00). ISS BPMRV: BH 494,77 · Formiga 163,00 · Frutal 78,57 · Almenara 48,78 · Contagem 19,29 · Teófilo Otoni 14,55 · Pedra Azul 1,92
+- SIAFI aceita no máximo 5 prefeituras (ISS) por liquidação: com mais, dividir a nota em 2+ especificações/liquidações (regra do SIAFI; na Ticket, porém, as 2 especificações — ex. BPMRV 1ª quinz. out/2026: 125.377,19 + 100.000,00 — são a divisão serviço 4,8% × peça 1,2%, não o limite de prefeituras). ISS BPMRV: BH 494,77 · Formiga 163,00 · Frutal 78,57 · Almenara 48,78 · Contagem 19,29 · Teófilo Otoni 14,55 · Pedra Azul 1,92
 - EFD-Reinf: confirmar com a DF se o envio é centralizado
 - A guia de retenção sai da mesma fonte da despesa
 
