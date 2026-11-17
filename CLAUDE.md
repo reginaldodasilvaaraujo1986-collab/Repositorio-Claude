@@ -108,6 +108,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - INSS retido: 2.1.8.8.1.03 · ISS: 2.1.8.8.1.88 (aux.: ano/CNPJ prefeitura/GMIFP) · IRRF: 2.1.8.8.1.01 (credor Estado de MG 18.715.615/0001-60)
 
 - IRRF na OP sobre o bruto: 1,2% material, 4,8% serviço
+- Tela da OP com IRRF (SFCAEKIA "Ordem de Pagamento / Quitação com Retenção de IRRF"): Valor Bruto − Valor Total IRRF = Valor da OP; depois "Informações Adicionais para DIRF" (várias páginas, PF7/PF8): uma linha por contribuinte (CNPJ da OFICINA, na Ticket) com Cód., Vl. IRRF e Vl. Trib. (base), digitados sem vírgula (centavos implícitos). A soma das linhas = Valor Total IRRF. Ex. 17/11/2026, emp. 862: bruto 111.776,82, IRRF 550,03, OP 111.226,79; linhas com cód. 6256 e IRRF = 4,8% da base
 - IRRF retido em fonte vinculada (52, 60, 73, 83): recolher ao Tesouro por DAE — DAE Online SEF/MG (daeonline1.fazenda.mg.gov.br) › Receita de Órgãos Estaduais › órgão TESOURO ESTADUAL EGE/SEF › serviço IMPOSTO RENDA RETIDO NA FONTE-OUTROS (não usar "– FOLHA"); pagar no SIAFI pela mesma fonte: 71 › 04 Pagamento por Código de Barras → credor CNPJ 18715615 0001 60 (Estado de MG) → Leitora ótica S → Selecione Tributos → DAE → Enter → ler o código de barras (telas vistas em 13/11/2026; seguintes a confirmar). Na 71 › 04, Tributos = guias que começam com 8 (DAE, água/luz/telefone, convênios); Títulos = boleto bancário
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
 - INSS vence dia 20; ISS conforme cada prefeitura
