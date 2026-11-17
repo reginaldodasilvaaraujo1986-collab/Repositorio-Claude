@@ -151,6 +151,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Demais regras: Instrução Conjunta DF-DAL (a publicar)
 
 ## Regras
+- Dispensa por valor 2026 (Lei 14.133 art. 75, valores do Dec. federal 12.807/2025, vigentes desde 01/01/2026, conferir texto oficial): I obras/serviços de engenharia e manutenção de veículos R$ 130.984,20 · II demais compras/serviços R$ 65.492,11 · §7º manutenção de veículos (peças) R$ 10.478,74. Limite somado no exercício por unidade gestora e mesmo ramo de atividade (§1º, fracionamento)
 
 - Empenho 90 dias sem movimento é anulado (Dec. 37.924/96)
 - Sempre que citar conta contábil (respostas e quizzes), trazer número + nome (ex.: 2.1.8.8.1.03 – INSS retido)
