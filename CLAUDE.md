@@ -155,6 +155,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 ## Encerramento do exercício 2026 (mensagem DF, nov/2026; decreto ainda não publicado)
 
 - Até 19/11/2026: o Ordenador nomeia no mínimo 2 subcomissões (segregação de funções), publicadas em BI, com um relatório de cada arquivado na UE: (A) almoxarifado + bens patrimoniais, inclusive imóveis e cessões (itens II e III); (B) caixa/documentos conversíveis, Passivo Circulante e Não Circulante, Restos a Pagar Não Processados e contas de controle dos atos potenciais (itens I, IV e V)
+- Conferência RCC (validada no balancete de out/2026): 2.1.3.1.1.01 Fornecedores + 2.1.8.9.1.01 Obrig. liq. a pagar investimentos = 6.2.2.1.3.02 Em liquidação + 6.2.2.1.3.03 Liquidado a pagar + RP liquidados (6.3.1.3 + 6.3.2.1). Capital liquidado não vai p/ Fornecedores, vai p/ 2.1.8.9.1.01. Balancete: nav. 99 › 03 (PCASP), acumulado ou mensal, nível 5. Análise: controle/analise-balancete-2026-10.md
 - Saldos de referência: 30/11/2026 — SIAFI nav. 99 › 05, balancete de verificação e saldos/extratos no Módulo Contábil (exportar para Excel)
 - Demais regras: Instrução Conjunta DF-DAL (a publicar)
 
