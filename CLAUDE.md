@@ -161,6 +161,9 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 
 - [ ] Planilha de empenhos de juros/multas de ISS atrasado por prefeitura (pedido em 23/11/2026). Colunas: prefeitura · CNPJ · competência · nº guia/DAM · ISS principal · juros · multa · total · vencimento · fonte (da despesa original) · nº empenho de encargos · natureza (39.26? confirmar com DF) · OP/data de pagamento · origem (fornecedor/NF). Primeiro caso: Uberaba, DAM 2095157, comp. 05/2026, 90,36 + 4,93 + 18,07 = 113,36
 
+- [ ] Anular saldos (decidido em 23/11/2026): 321 (64,38) e 331 (771,06) — limpeza Tática fonte 60 sem movimento desde 29/04 e 31/08; 2446 (155,60), 2447 (23,37), 2448 (5,99), 2449 (14,15), 2450 (3,29) — diferenças de diária fonte 60 de 13/08, nunca liquidadas. Total 1.037,84. Opção de anulação de empenho na nav. 51 a confirmar
+- [ ] Reforçar emp. 320 (Tática fonte 60) em ~2.230,77 para a parcela de dezembro; pedir repasse à DF da liq. de 09/11 (3.447,25 líquido)
+
 ## Regras
 - Dispensa por valor 2026 (Lei 14.133 art. 75, valores do Dec. federal 12.807/2025, vigentes desde 01/01/2026, conferir texto oficial): I obras/serviços de engenharia e manutenção de veículos R$ 130.984,20 · II demais compras/serviços R$ 65.492,11. Limite somado no exercício por unidade gestora e mesmo ramo de atividade (§1º, fracionamento); §7º: manutenção de veículos do órgão até R$ 10.478,74 (com peças) fica fora dessa soma
 
