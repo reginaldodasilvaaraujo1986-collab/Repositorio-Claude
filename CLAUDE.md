@@ -20,7 +20,7 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 
 ## Fontes e contas para pagamento
 
-GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
+GMIFP = grupo (3900 custeio · 4900 capital) + fonte (2 dígitos) + IPU (1 dígito). Ex.: 4900731 = capital PRF
 
 | Fonte | GMIFP | Banco | Agência | Conta | Paga hoje |
 |---|---|---|---|---|---|
