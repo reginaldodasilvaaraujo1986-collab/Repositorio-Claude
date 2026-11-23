@@ -31,6 +31,8 @@ GMIFP = grupo (3900) + fonte (2 dígitos) + IPU (1 dígito).
 | Fonte 10 | 3900101 | Conta Única | — | — | Diárias, Simpress RP 2025, BSC LPR (espec. SIAD 7256852) |
 
 Saldos 96›09 em 22/10/2026: PRF 174.868,20 (sem aplicação) · SEMAD 209.926,42 · fonte 60 4.836,05 · DER 2.568,37
+Saldos 96›09 em 23/11/2026: PRF 11.853,02 (nov: entrou 608.932,09, saiu 904.908,57) · SEMAD 201.263,42 · fonte 60 (900795-5) 134,12 · DER 6.973,38 · fonte 60.2 IPSM (900747-6) 11,44 (sem movimento em nov)
+5ª conta interna: 999 · 09001-9 · 900747-6 = FONTE 60.2 IPSM
 
 Unidade financiadora no EMPENHO (51 › 01): fonte 83.20 (DER) → 4381 · fonte 60.20 (PMMG) → 4031 · fonte 52.20 (SEMAD) → 2091
 
@@ -92,7 +94,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - 6.2.2.1.3.04 Crédito empenhado liquidado PAGO (auxiliar até o ITEM: …natureza(6) item(2) fonte(2) IPU IPE). Pago 2026 até 22/10: 5.275.506,03 — diárias 15.01 52,5% · Ticket 39.43 21,8% (1.150.563,66) · limpeza 37.01 11,4% · eventos 39.55 5,7% · estagiários 39.52 3,7% · água 39.13 1,7% · demais <1%. Por fonte: 73 51,1% · 52 31,8% · 83 11,6% · 60 5,4% · 10 0,1%
 - 6.2.2.1.3.03 Liquidado a pagar em 22/10/2026: 261.007,42 — 339039.43 fonte 73 (Ticket) 229.064,56 (87,8%) · 4366 449052.07 fonte 10 24.331,88 (capital; não aparece em 2.1.3.1.1.01) · 39.13 DER 3.330,09 · 40.04 PRF 1.916,66 · 39.12 DER 1.299,42 · 15.01 SEMAD 822,00 · 39.26 242,81. Fornecedores 237.345,65 = 261.007,42 − 24.331,88 + 670,11 (RP 2025)
 - 1.1.1.1.1.02 Bancos conta movimento: só a conta BB da PRF (aux. 03·001·01615-2·000000022085X·2017·11·9210809 = banco/agência/conta + convênio entrada tipo 11 nº 9210809). 26/10/2026: 99.206,24 D. As contas internas 999 (fontes 52, 60, 83) não aparecem aqui
-- 1.1.1.1.2.01.02 Contas de movimentação interna – CMI/CIT: contas internas banco 999 (aux. 16·999·09001-9·conta). 26/10/2026: 900158-6 SEMAD 200.541,96 · 900673-4 DER 3.553,12 · 900747-6 (fonte a identificar; repasse DF doc 6811 em 19/10 = 340,20 pago na OP 4287 com IRRF 4,8%; sobra antiga 11,44) 11,44 · 900795-5 fonte 60 2.288,84 = 206.395,36 D
+- 1.1.1.1.2.01.02 Contas de movimentação interna – CMI/CIT: contas internas banco 999 (aux. 16·999·09001-9·conta). 26/10/2026: 900158-6 SEMAD 200.541,96 · 900673-4 DER 3.553,12 · 900747-6 (SIAFI: "FONTE 60.2 IPSM", tipo CITTV — confirmado 23/11/2026; repasse DF doc 6811 em 19/10 = 340,20 pago na OP 4287 com IRRF 4,8%; sobra antiga 11,44) 11,44 · 900795-5 fonte 60 2.288,84 = 206.395,36 D
 - 1.1.1.1.2.02.01.01.01 Cota financeira a utilizar: só fonte 10 (Conta Única), aux. ano/UO/GMIFP/elemento-item. 26/10/2026: 1.048,73 D (sobras 2025: geral 241,78 · 37.01 801,28 · 39.19 5,67)
 - Repasse financeiro da DF (doc tipo "Descentralização de recursos conta movimento bancária da unidade", origem UE 1250002): LCP 661 descentralização escritural cota financeira – CITTV + LCP 2474 descentralização de recursos liberados unidade tesouraria; entra a D na 1.1.1.1.2.01.02
 - Lançamentos de uma OP (ex. OP 4446 COPASA, 26/10/2026): LCP 391 baixa passivo circulante (Fornecedores) · 1059 OPB – CIUTTV NV2 unidade tesouraria (saída da conta interna) · 1349 IRRF retido na fonte – transferências vinculadas · 1798 OP – controle orçamentário (liquidado a pagar → pago) · 2476 baixa de recursos liberados unidade tesouraria através de OPB
