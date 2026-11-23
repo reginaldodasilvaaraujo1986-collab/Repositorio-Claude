@@ -30,3 +30,6 @@
 - Ticket 716 (DER): 650.000,00 nunca usado (250 dias) → anular ou justificar
 - Limpeza 863: saldo 16.768,71 = 1 parcela mensal → coerente; conferir 886, 983, 984 com o valor mensal de cada contrato
 - Estimativas de Ticket: confirmar valor médio das quinzenas com a Seção de Frota
+
+## Lição (23/11/2026)
+- A data da 95 › 04 é a da EMISSÃO do empenho, não do último movimento. "Parado" só se confirma no extrato (95 › 01). Ex.: emp. 320 (Tática, fonte 60) emitido em 13/02, mas com liquidação mensal até 09/11.
