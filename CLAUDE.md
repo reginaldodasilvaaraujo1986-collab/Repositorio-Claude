@@ -129,6 +129,7 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - INSS 11% (cessão de mão de obra) e ISS na liquidação
 - INSS vence dia 20; ISS conforme cada prefeitura
 - SIAFI aceita no máximo 5 prefeituras (ISS) por liquidação: com mais, dividir a nota em 2+ especificações/liquidações (regra do SIAFI; na Ticket, porém, as 2 especificações — ex. BPMRV 1ª quinz. out/2026: 125.377,19 + 100.000,00 — são um corte arbitrário para separar o IRRF de serviço (4,8%) do de peça (1,2%) em OPs diferentes). ISS BPMRV: BH 494,77 · Formiga 163,00 · Frutal 78,57 · Almenara 48,78 · Contagem 19,29 · Teófilo Otoni 14,55 · Pedra Azul 1,92
+- ISS Uberaba: DAM da Prefeitura (Secretaria de Fazenda, Central Tributária ISSQN), beneficiário CNPJ 18.428.839/0001-90, PMMG com inscrição municipal 142177 (CNPJ 16.695.025/0001-97); a guia é boleto do BB (linha digitável começa com 001) → na 71 › 04 marcar "Título Bancário", não DAE. Ex.: DAM 2095157, competência 05/2026, ISS 90,36 + juros 4,93 + multa 18,07 = 113,36 (venc. 26/11/2026) — juros/multa não saem da retenção (precisam de empenho próprio de encargos, confirmar natureza com a DF)
 - EFD-Reinf: confirmar com a DF se o envio é centralizado
 - A guia de retenção sai da mesma fonte da despesa
 
