@@ -156,6 +156,10 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Saldos de referência: 30/11/2026 — SIAFI nav. 99 › 05, balancete de verificação e saldos/extratos no Módulo Contábil (exportar para Excel)
 - Demais regras: Instrução Conjunta DF-DAL (a publicar)
 
+## Pendências da SOFi
+
+- [ ] Planilha de empenhos de juros/multas de ISS atrasado por prefeitura (pedido em 23/11/2026). Colunas: prefeitura · CNPJ · competência · nº guia/DAM · ISS principal · juros · multa · total · vencimento · fonte (da despesa original) · nº empenho de encargos · natureza (39.26? confirmar com DF) · OP/data de pagamento · origem (fornecedor/NF). Primeiro caso: Uberaba, DAM 2095157, comp. 05/2026, 90,36 + 4,93 + 18,07 = 113,36
+
 ## Regras
 - Dispensa por valor 2026 (Lei 14.133 art. 75, valores do Dec. federal 12.807/2025, vigentes desde 01/01/2026, conferir texto oficial): I obras/serviços de engenharia e manutenção de veículos R$ 130.984,20 · II demais compras/serviços R$ 65.492,11. Limite somado no exercício por unidade gestora e mesmo ramo de atividade (§1º, fracionamento); §7º: manutenção de veículos do órgão até R$ 10.478,74 (com peças) fica fora dessa soma
 
