@@ -152,12 +152,29 @@ Linha do SIAFI: UO · função subfunção programa P/A C/A · natureza · item 
 - Diárias: pode ir o total por GMIFP com credor "DIVERSOS"
 - Nunca deixar vazios o nº do empenho e a data da liquidação
 
-## Encerramento do exercício 2026 (mensagem DF, nov/2026; decreto ainda não publicado)
+## Encerramento do exercício 2026 (Instrução Conjunta nº 01/2026-DF/DAL, de 19/11/2026; Decreto estadual nº 49.312, de 14/11/2026)
 
-- Até 19/11/2026: o Ordenador nomeia no mínimo 2 subcomissões (segregação de funções), publicadas em BI, com um relatório de cada arquivado na UE: (A) almoxarifado + bens patrimoniais, inclusive imóveis e cessões (itens II e III); (B) caixa/documentos conversíveis, Passivo Circulante e Não Circulante, Restos a Pagar Não Processados e contas de controle dos atos potenciais (itens I, IV e V)
-- Conferência RCC (validada no balancete de out/2026): 2.1.3.1.1.01 Fornecedores + 2.1.8.9.1.01 Obrig. liq. a pagar investimentos = 6.2.2.1.3.02 Em liquidação + 6.2.2.1.3.03 Liquidado a pagar + RP liquidados (6.3.1.3 + 6.3.2.1). Capital liquidado não vai p/ Fornecedores, vai p/ 2.1.8.9.1.01. Balancete: nav. 99 › 03 (PCASP), acumulado ou mensal, nível 5. Análise: controle/analise-balancete-2026-10.md
-- Saldos de referência: 30/11/2026 — SIAFI nav. 99 › 05, balancete de verificação e saldos/extratos no Módulo Contábil (exportar para Excel)
-- Demais regras: Instrução Conjunta DF-DAL (a publicar)
+Arquivo: controle/Instrucao-Conjunta-01-2026-DF-DAL.pdf. Perder prazo = responsabilização funcional (art. 1º do Decreto). SOFi tem prioridade nas atividades de encerramento.
+
+Prazos (Anexo A):
+- 19/11/2026: subcomissões nomeadas (mín. 2; Anexo D: mín. 3 membros cada, nenhum de férias), publicadas em BI — (A) itens II almoxarifado e III bens → relatório à DAL; (B) itens I caixa, IV Passivo Circulante/Não Circulante e RPNP, V atos potenciais → relatório à DF/2
+- 30/11/2026: saldos de referência — SIAFI 99 › 05 + balancete + extratos do Módulo Contábil (Excel); conferir no balancete de NOVEMBRO a subsistência das liquidações a pagar (item 2.5)
+- 11/12/2026: ANULAR saldos de empenho insubsistentes e disponibilizar o crédito ao gestor/PM6 (depois disso, saldo ocioso acima da estimativa pode gerar responsabilização) · pedir crédito complementar para despesas obrigatórias/contratuais de competência 2026 (água, luz, telefone, aluguel, limpeza) · pedir ao gestor, fundamentado, manutenção de saldos ociosos das fontes do tesouro (10.1, 52.2, 60.1, 60.2, 82.1, 83.2)
+- 15/12/2026: saldos ociosos não justificados dessas fontes são recolhidos pelo gestor ao EMPM
+- 29/12/2026: último registro de OP (só OPs assinadas digitalmente pelo Ordenador; transmissão até 12h)
+- 30/12/2026: aplicação/recolhimento de saldos de adiantamentos com comprovação no SIAFI
+- 31/12/2026: limite para empenho, reforço e liquidação (NF lançada no Portal de Compras/SIAD tem de estar liquidada no SIAFI)
+- 06/01/2027: irregularidades contábeis à DF (PA, caixa DF2/ENCERRAMENTO EXERC. FINANCEIRO; fones 3915-7906/7907/7918/7919) · 08/01/2027: ajustes contábeis à DF; inventários à DAL-2
+- 15/01/2027: relatórios dos itens I, IV e V (saldos de 31/12/2026, Anexo B com conta número + nome + saldo + nota explicativa) à DF
+Regras:
+- Diárias e adiantamentos: saldo de empenho NÃO vira RPNP → anular até 31/12; adiantamento liquidado a pagar não vira RPP → anular
+- RPNP: não se inscrevem empenhos com saldo até R$ 100,00; RPNP de 2026 só podem ser liquidados até 30/04/2027, depois podem ser cancelados (COFIN); chefe da SOFi certifica e cancela saldos insubsistentes com aquiescência do gestor
+- Despesa concluída: liquidar logo, para inscrever como RPP (processado)
+- Contas que devem estar ZERADAS em 31/12: 6.2.2.1.3.02 – Crédito empenhado em liquidação · 6.3.1.2 – RPNP em liquidação · 9.9.8.0.2.14 – Controle de empenho/RPNP – recebimento provisório pendente de OLP (cancelar recebimento provisório ou liquidar)
+- DEA (despesa de 2026 sem empenho paga em 2027) consome orçamento de 2027 (Dec. 37.924/96 art. 36/36-A, Dec. 47.036/2016)
+- Item 5.1 cita o CPE: confirmar que a transferência de escrituração (carga patrimonial) das unidades apoiadas terminou; unificação de UE (ex. 1250058) pedir à DF2 pelo Painel Administrativo
+- Anexo H: Termo de Conciliação SIAFI × SIAD (estoques 1.1.5.6.1.01/.02/.04, bens móveis 1.2.3.1.1.01/.03/.04, imóveis 1.2.3.2.1.03/.06), assinado por almoxarife, chefe da SOFi, P/4 e ordenador
+- Convênios: recursos depositados em nov/dez sem aplicação → informar à DF/4 a destinação (corrente/capital)
 
 ## Pendências da SOFi
 
