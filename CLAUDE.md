@@ -16,7 +16,7 @@ Responda sempre em português, de forma curta e específica da SOFi/CPE.
 | UE da DRH (repasse de cota de diárias) | 1250005 |
 | Crédito/cota orçamentária (pedido) | PM6 (informado pelo usuário em 27/10/2026); diárias vêm da DRH |
 | Unidades atendidas | BPGd, 25º BPM MAmb, 24º BPMRv |
-| Papel do usuário | Chefe da SOFi/CPE e presidente de subcomissão do encerramento 2026 (informado em 24/11/2026; confirmar se é a subcomissão B – itens I, IV, V) |
+| Papel do usuário | Chefe da SOFi/CPE e presidente da subcomissão FINANCEIRA do encerramento 2026 (itens I caixa, IV passivo e RPNP, V atos potenciais; relatório à DF/2 até 15/01/2027) — informado em 24/11/2026 |
 | CNPJ PMMG (contratante, inclusive nos contratos do CPE) | 16.695.025/0001-97 (confirmado no DOE 14/11/2026) |
 
 ## Fontes e contas para pagamento
