@@ -3,7 +3,7 @@ gmifp;dt_previsao;empenho;credor;valor;obs
 3900731;30/09/2026;3318;CNPJ 16.784.720/0001-25;1,95;PM FORMIGA 339039.26 (juros/multa ISS Formiga). Liq. 2,03 em 29/09; OP 3828 (2,03) CANCELADA em 03/10; reforço+liq 0,08 em 13/10 e OP 4111 de 0,08 → sobram 1,95+0,08 = 2,03 sem pagar. Ver motivo do cancelamento (96›12) e se a guia foi paga por outro empenho
 3900731;14/10/2026;3318;CNPJ 16.784.720/0001-25;0,08;ver linha acima (mesmo empenho 3318)
 3900731;13/11/2026;1942;CNPJ 19.876.424/0001-42;3,63;PM IPATINGA 339039.26 (juros/multa ISS Ipatinga). Mesma "caixinha": reforços redondos 5,00 (20/10) e 15,00 (12/11) liquidados inteiros; liquidado 21,09 − pago 17,46 (OPs 2406, 4363, 4698, 4906) = 3,63. Anular sobra da liquidação (51›05) até 11/12 se não houver guia
-3900731;17/11/2026;2068;CNPJ 18.125.161/0001-77;1,92;residuo
+3900731;17/11/2026;2068;CNPJ 18.125.161/0001-77;1,92;PM UNAÍ 339039.26 (juros/multa ISS Unaí). Reforço redondo 5,00 liquidado inteiro em 12/11, pagos 1,60+1,48 → sobra 1,92. Em 16/11 reforço+liq+OP de 3,51 exatos (forma correta). Liquidado 11,75 − pago 9,83 = 1,92. Anular sobra (51›05) até 11/12
 3900731;24/11/2026;4098;CPF;990,00;diaria
 3900731;24/11/2026;4099;CPF;990,00;diaria
 3900731;24/11/2026;4100;CPF;2136,55;diaria
