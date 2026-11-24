@@ -177,6 +177,14 @@ Regras:
 - Anexo H: Termo de Conciliação SIAFI × SIAD (estoques 1.1.5.6.1.01/.02/.04, bens móveis 1.2.3.1.1.01/.03/.04, imóveis 1.2.3.2.1.03/.06), assinado por almoxarife, chefe da SOFi, P/4 e ordenador
 - Convênios: recursos depositados em nov/dez sem aplicação → informar à DF/4 a destinação (corrente/capital)
 
+Memorando nº 600.522.2/2026-EMPM (23/11/2026, controle/Memorando-600.522.2-2026-EMPM.pdf):
+- Fontes do Tesouro (10.1, 15.0, 45.1, 48.0, 52.2, 60.1, 60.2, 82.1, 83.2): comunicar cotas ociosas ao gestor até 11/12; gestor empenha até 15/12; PM6 recolhe/anula a partir de 16/12. Sobra de 52.2, 60.2 e 83.2 NÃO passa para 2027
+- Convênios/emendas/fundos/TDCO (fontes 10.3, 10.4, 10.8, 15.1, 24.1, 57.1, 68.1, 69.1, 70.1, 73.1, 80.1, 95.1, 97.1, 98.1): executar até 31/12/2026; o não usado pode ir para 2027 só se o instrumento estiver vigente (convênio PRF termina 05/01/2027). A fonte 98.1 (drones) está nesse grupo
+- Pedidos de cota de convênio à Caixa Administrativa da PM6 – Adjuntoria de Convênios (cópia DF4-Convênios): capital e viaturas até 30/11/2026; custeio até 04/12/2026 (só se houver condição de empenho em 2026)
+- Depósito novo de convênio que não der para empenhar em 2026: informar à DF4 a dotação (custeio/capital) para arrecadação; uso em 2027 via superávit
+- Emendas parlamentares estaduais: empenhar até 31/12/2026, sob pena de perda
+- Pessoal: a partir de 15/12 SOFi dispensada de escalas operacionais; 28 a 31/12 plantão (Compras, SOFi)
+
 ## Pendências da SOFi
 
 - [ ] Planilha de empenhos de juros/multas de ISS atrasado por prefeitura (pedido em 23/11/2026). Colunas: prefeitura · CNPJ · competência · nº guia/DAM · ISS principal · juros · multa · total · vencimento · fonte (da despesa original) · nº empenho de encargos · natureza (39.26? confirmar com DF) · OP/data de pagamento · origem (fornecedor/NF). Primeiro caso: Uberaba, DAM 2095157, comp. 05/2026, 90,36 + 4,93 + 18,07 = 113,36
