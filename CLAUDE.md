@@ -187,7 +187,7 @@ Memorando nº 600.522.2/2026-EMPM (23/11/2026, controle/Memorando-600.522.2-2026
 
 ## Pendências da SOFi
 
-- [ ] Planilha de empenhos de juros/multas de ISS atrasado por prefeitura (pedido em 23/11/2026). Colunas: prefeitura · CNPJ · competência · nº guia/DAM · ISS principal · juros · multa · total · vencimento · fonte (da despesa original) · nº empenho de encargos · natureza (39.26? confirmar com DF) · OP/data de pagamento · origem (fornecedor/NF). Primeiro caso: Uberaba, DAM 2095157, comp. 05/2026, 90,36 + 4,93 + 18,07 = 113,36
+- [ ] Planilha de empenhos de juros/multas de ISS atrasado por prefeitura (pedido em 23/11/2026). Colunas: prefeitura · CNPJ · competência · nº guia/DAM · ISS principal · juros · multa · total · vencimento · fonte (da despesa original) · nº empenho de encargos · natureza (39.26? confirmar com DF) · OP/data de pagamento · origem (fornecedor/NF). Primeiro caso: Uberaba, DAM 2095157, comp. 05/2026, 90,36 + 4,93 + 18,07 = 113,36. Precedente BH: emp. 1943 (339039.26 fonte 73·1·0, credor PM Belo Horizonte CNPJ 18.715.383/0001-40) — empenho 13,85 + reforços 5,05 e 186,00; o reforço de 26/08 foi liquidado inteiro e é consumido por OPs pequenas (saldo liquidado a pagar 132,56 em 24/11) → natureza usada na prática = 39.26; sobra da liquidação anular (51›05) até 31/12
 
 - [ ] Anular saldos (decidido em 23/11/2026): 321 (64,38) e 331 (771,06) — limpeza Tática fonte 60 sem movimento desde 29/04 e 31/08; 2446 (155,60), 2447 (23,37), 2448 (5,99), 2449 (14,15), 2450 (3,29) — diferenças de diária fonte 60 de 13/08, nunca liquidadas. Total 1.037,84. Opção de anulação de empenho na nav. 51 a confirmar
 - [ ] Reforçar emp. 320 (Tática fonte 60) em ~2.230,77 para a parcela de dezembro; pedir repasse à DF da liq. de 09/11 (3.447,25 líquido)
