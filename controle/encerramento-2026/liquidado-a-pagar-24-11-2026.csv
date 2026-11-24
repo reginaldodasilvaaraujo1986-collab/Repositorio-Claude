@@ -34,3 +34,6 @@ gmifp;dt_previsao;empenho;credor;valor;obs
 3900522;19/11/2026;3285;CNPJ 49.039.321/0001-99;1747,45;PJ recente – identificar objeto; pagar
 3900522;25/11/2026;3874-3931 (6);CPF;9227,78;diárias pág.1
 3900522;25/11/2026;3932-4013 (26);CPF;56750,89;diárias pág.2-4 (3985 = 8.816,63 conferir)
+3900832;21/07/2026;1945;PM BELO HORIZONTE CNPJ 18.715.383/0001-40;1,47;provável "caixinha" juros/multa ISS BH (fonte 83) – anular sobra (51›05) até 11/12
+3900832;10/08/2026;561;PM BELO HORIZONTE CNPJ 18.715.383/0001-40;16,47;credor BH, empenho antigo – confirmar natureza (39.26 ou taxa/outro) na 95›02
+3900832;19/08/2026;561;PM BELO HORIZONTE CNPJ 18.715.383/0001-40;0,40;idem 561
