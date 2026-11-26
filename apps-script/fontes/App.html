@@ -21,6 +21,7 @@
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
+    logistica:  ['Logística', 'Material de cada curso, quantidades por turma e avisos 30 e 15 dias antes do início'],
     espacos:    ['Espaços', 'Auditório, sala de reuniões e estande — manhã e tarde de cada dia'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
@@ -263,6 +264,9 @@
     d.turmas.forEach(t => { t.st.pct = t.st.total ? t.st.feito / t.st.total * 100 : 0; });
     const venc = d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && e.fase === 'ANTES' && !concluida(e) && dias(e.prazo) < 0).length;
     $('#navBadge').textContent = venc || '';
+    const al = alertasLogistica();
+    const nb = $('#navLog');
+    if (nb) { nb.textContent = al.length || ''; nb.classList.toggle('urg', al.some(x => x.nivel === 15)); }
   }
 
   function atualizarSync() {
@@ -445,7 +449,7 @@
     $('#pageTitle').textContent = v[0];
     $('#pageSub').textContent = v[1];
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
-    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras, espacos: vEspacos }[S.view];
+    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras, espacos: vEspacos, logistica: vLogistica }[S.view];
     // Animação de entrada só ao trocar de tela; atualizações (status, gravações, recarga) trocam o conteúdo no lugar.
     const trocou = S._viewDesenhada !== S.view;
     S._viewDesenhada = S.view;
@@ -687,6 +691,7 @@
         '<div class="bar" style="flex:1"><i class="f" style="width:' + pctA + '%"></i></div>' +
         '<span class="pct">' + a.antesFeito + '/' + a.antesTot + '</span>' +
         (a.vencAntes ? '<span class="alerta">⚠ ' + a.vencAntes + ' vencida' + (a.vencAntes > 1 ? 's' : '') + '</span>' : '<span class="ok">em dia</span>') +
+        (avisoLog(t) ? '<span class="lg-tag n' + avisoLog(t) + '" data-goto="logistica" data-tip="<b>Logística ' + esc(situacaoLog(t).toLowerCase()) + '</b>a turma começa em ' + dias(t.inicio) + ' dia(s)">📦 logística</span>' : '') +
         '</div></div></div>';
     };
     const html = exec.concat(prox).map(item).join('');
@@ -1374,6 +1379,93 @@
       }
       fim('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')');
     });
+  }
+
+  /* ---------- Logística dos cursos ---------- */
+
+  const BRL = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const chaveT = s => norm(s).replace(/\s+/g, ' ').replace(/[–—]/g, '-').replace(/\s*-\s*/g, '-');
+  const LOG = () => (S.dados && S.dados.logistica) || { itens: [], status: {}, situacoes: ['Pendente', 'Solicitado', 'Recebido', 'Não se aplica'] };
+  /** Itens de material do curso da turma (aba Logística, pelo nome do curso no SiGE). */
+  function itensLog(t) {
+    const n = norm(nomeCurso(t));
+    return LOG().itens.filter(x => norm(x.curso) === n);
+  }
+  const situacaoLog = t => (LOG().status[chaveT(t.turma)] || {}).situacao || 'Pendente';
+  /** Alunos da turma: matriculados (aba Formandos) ou a estimativa da Resolução. */
+  function alunosLog(t) {
+    const f = (S.dados.formandos || []).find(x => turmaDoFormando(x) === t);
+    if (f && f.matriculados != null) return { n: f.matriculados, fonte: 'matriculados' };
+    const est = estimativaPorTurma(resolucaoDoAno(anoRef()).find(r => r.grupo === nomeCurso(t)));
+    return est ? { n: est, fonte: 'estimativa da Resolução' } : { n: 0, fonte: 'sem nº de alunos' };
+  }
+  /** Aviso: 15 (≤ 15 dias) ou 30 (≤ 30 dias) antes do início, enquanto a logística não estiver recebida. */
+  function avisoLog(t) {
+    if (!t || t.sit === 'canc' || !itensLog(t).length || /recebido|nao se aplica/.test(norm(situacaoLog(t)))) return 0;
+    const n = dias(t.inicio);
+    if (n === null || n < 0) return 0;
+    return n <= 15 ? 15 : n <= 30 ? 30 : 0;
+  }
+  function alertasLogistica() {
+    if (!S.dados) return [];
+    return S.dados.turmas.map(t => ({ t: t, nivel: avisoLog(t) })).filter(x => x.nivel);
+  }
+  function calcLog(t) {
+    const al = alunosLog(t);
+    const linhas = itensLog(t).map(x => { const q = x.aluno * al.n + x.turma; return Object.assign({ qtd: q, sub: q * x.valor }, x); });
+    return { alunos: al, linhas: linhas, total: soma(linhas, l => l.sub) };
+  }
+
+  function vLogistica() {
+    const todas = turmasF().filter(t => itensLog(t).length);
+    const ver = S.logVer || 'proximas';
+    const lista = todas.filter(t => ver === 'todas' || t.sit === 'plan' || t.sit === 'exec')
+      .sort((p, q) => (avisoLog(q) ? 100 - avisoLog(q) : 0) - (avisoLog(p) ? 100 - avisoLog(p) : 0) || String(p.inicio).localeCompare(String(q.inicio)));
+    if (!S.logSel || !lista.some(t => t.id === S.logSel)) S.logSel = lista.length ? lista[0].id : null;
+    const al = alertasLogistica();
+    const a15 = al.filter(x => x.nivel === 15).length, a30 = al.filter(x => x.nivel === 30).length;
+    const aIniciar = todas.filter(t => t.sit === 'plan');
+    const cursos = Array.from(new Set(LOG().itens.map(x => x.curso)));
+    const ops = LOG().situacoes;
+    const pode = S.dados.podeEditar;
+
+    const linha = t => {
+      const c = calcLog(t), av = avisoLog(t), n = dias(t.inicio), sit = situacaoLog(t);
+      return '<div class="lg-t' + (t.id === S.logSel ? ' on' : '') + (av ? ' n' + av : '') + (t.sit === 'enc' ? ' pass' : '') + '" data-logsel="' + t.id + '">' +
+        blocoData(t.inicio, av === 15 ? 'late' : av === 30 ? 'soon' : '', t.sit === 'exec' ? 'agora' : n !== null && n >= 0 ? n + 'd' : '') +
+        '<div class="lg-c"><b title="' + esc(nomeCurso(t)) + '">' + esc(nomeCurso(t)) + '</b><span>' + (t.onde ? esc(t.onde) + ' · ' : '') + fmt(t.inicio) + ' a ' + fmt(t.fim) +
+          ' · ' + c.alunos.n + ' alunos · ' + c.linhas.length + ' itens</span>' +
+          (av ? '<em class="n' + av + '">' + (av === 15 ? '⚠ 15 dias' : '⚑ 30 dias') + ' — logística ' + esc(sit.toLowerCase()) + '</em>' : '') + '</div>' +
+        '<div class="lg-r"><b>' + BRL(c.total) + '</b>' +
+          '<select class="lg-sel s-' + norm(sit).replace(/\s+/g, '-') + '" data-logsit="' + t.id + '"' + (pode ? '' : ' disabled') + '>' + ops.map(o => '<option' + (o === sit ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></div></div>';
+    };
+
+    const sel = S.turmaIdx[S.logSel];
+    let det = '<div class="empty">Nenhuma turma com logística cadastrada.</div>';
+    if (sel) {
+      const c = calcLog(sel);
+      det = '<div class="lg-dh"><div><b>' + esc(nomeCurso(sel)) + '</b><span>' + (sel.onde ? esc(sel.onde) + ' · ' : '') + fmtAno(sel.inicio) + ' a ' + fmtAno(sel.fim) + ' · ' + esc(sel.unidade || '') + '</span></div>' +
+        '<div class="lg-al"><b>' + c.alunos.n + '</b><span>alunos<br><small>' + esc(c.alunos.fonte) + '</small></span></div></div>' +
+        '<div class="lg-tab"><div class="lg-th"><span>Item</span><span>Por aluno</span><span>Por turma</span><span>Total</span><span>Valor un.</span><span>Subtotal</span></div>' +
+        c.linhas.map(l => '<div class="lg-tr"><span title="' + esc(l.item) + '">' + esc(l.item) + '</span><span>' + (l.aluno || '—') + '</span><span>' + (l.turma || '—') + '</span>' +
+          '<b>' + l.qtd.toLocaleString('pt-BR') + '</b><span>' + BRL(l.valor) + '</span><span>' + BRL(l.sub) + '</span></div>').join('') +
+        '<div class="lg-tf"><span>Custo estimado da turma</span><b>' + BRL(c.total) + '</b></div></div>' +
+        (c.alunos.n ? '' : '<div class="hint danger" style="margin-top:8px">Sem número de alunos: informe os matriculados desta turma na tela <b>Cursados</b> para calcular a munição por aluno.</div>') +
+        '<div class="hint" style="margin-top:8px">Total = por aluno × alunos + por turma. Itens e valores vêm da aba <b>Logística</b> da planilha (edite lá).</div>';
+    }
+    return '<div class="toolbar"><div class="seg"><button data-logver="proximas" class="' + (ver === 'proximas' ? 'on' : '') + '">A realizar</button><button data-logver="todas" class="' + (ver === 'todas' ? 'on' : '') + '">Todas</button></div>' +
+      '<span class="dim" style="font-size:12.5px">' + cursos.length + ' curso(s) com material cadastrado · aviso 30 e 15 dias antes do início até a logística estar “Recebido”</span></div>' +
+      '<div class="grid g-kpi k4">' +
+        kpi('Avisos · 15 dias', a15, '', 'turma(s) começam em até 15 dias', null, a15 ? 'danger' : '') +
+        kpi('Avisos · 30 dias', a30, '', 'turma(s) começam em 16 a 30 dias', null, a30 ? 'warn' : '') +
+        kpi('Turmas a realizar', aIniciar.length, '', 'com material cadastrado') +
+        kpi('Custo estimado', '<span style="font-size:24px">' + BRL(soma(aIniciar, t => calcLog(t).total)) + '</span>', '', 'turmas a realizar') +
+      '</div>' +
+      '<div class="grid grow" style="grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);grid-template-rows:minmax(0,1fr)">' +
+        '<div class="card panel flush"><div class="card-head"><h2>Turmas</h2><span class="meta">' + lista.length + '</span>' + pager('lg-lista') + '</div>' +
+          caixa('lg-lista', lista.map(linha).join('') || '<div class="empty">Nenhuma turma ' + (ver === 'todas' ? '' : 'a realizar ') + 'com logística.</div>', 'lg-lista') + '</div>' +
+        '<div class="card panel"><div class="card-head"><h2>Material da turma</h2></div>' + det + '</div>' +
+      '</div>';
   }
 
   /* ---------- Regras ---------- */
@@ -2143,6 +2235,10 @@
     if (es) { S.espaco = es.dataset.esp; return render(); }
     const am = el.closest('[data-agmes]');
     if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
+    const ls = el.closest('[data-logsel]');
+    if (ls && !el.closest('select')) { S.logSel = ls.dataset.logsel; return render(); }
+    const lv = el.closest('[data-logver]');
+    if (lv) { S.logVer = lv.dataset.logver; S.pg = {}; return render(); }
     const ae = el.closest('[data-agedit]');
     if (ae) { if (ae.dataset.agesp) S.espaco = ae.dataset.agesp; return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha); }
     const ad = el.closest('[data-agdia]');
@@ -2184,6 +2280,13 @@
     const el = ev.target;
     if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
     if (el.matches('select[data-resp-etapa]')) return mudarResponsavel(el.dataset.respEtapa, el.value, el);
+    if (el.matches('select[data-logsit]')) {
+      const t = S.turmaIdx[el.dataset.logsit], novo = el.value, k = chaveT(t.turma), antes = LOG().status[k];
+      return gravarNoServidor('salvarLogisticaTurma', { turma: t.turma, situacao: novo }, () => {
+        LOG().status[k] = Object.assign({}, antes, { situacao: novo });
+        recalcular(); toast('✓ Logística de ' + nomeCurto(t) + ': ' + novo); refrescar();
+      }, () => { el.value = (antes && antes.situacao) || 'Pendente'; });
+    }
     if (el.matches('input[data-formando]')) return salvarFormados(el);
     if (el.id === 'selAno') {
       if (el.value === 'novo') {
@@ -2301,7 +2404,7 @@
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos', 5: 'espacos' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos', 5: 'espacos', 6: 'logistica' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 

@@ -24,6 +24,8 @@ const CONFIG = {
   ABA_HISTORICO: 'Histórico Painel',
   ABA_RESOLUCAO: 'Resolução', // cursos aprovados no SiGE por ano (criada pelo painel com os dados iniciais)
   ABA_PRAZOS: 'Prazos padrão', // prazo de cada etapa (dias antes do início), editável na planilha
+  ABA_LOGISTICA: 'Logística', // material de cada curso (por aluno e por turma), editável na planilha
+  ABA_LOG_TURMAS: 'Logística turmas', // situação da logística de cada turma (gravada pelo painel)
 
   // Abas que nunca são tratadas como operacionais.
   ABAS_IGNORADAS: ['Painel Geral'],
@@ -578,6 +580,7 @@ function montarDados_(ss) {
     responsaveis: lerResponsaveis_(ss),
     unidades: CONFIG.UNIDADES,
     resolucao: resolucao,
+    logistica: lerLogistica_(ss),
     avisos: avisos
   };
 }
@@ -630,7 +633,7 @@ function lerCadastro_(ss, avisos) {
  */
 function lerAbasOperacionais_(ss, avisos) {
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -1459,7 +1462,7 @@ function criarAnoSeguinte(req) {
     const ss = SpreadsheetApp.openById(copia.getId());
 
     const af = abaFormandos_(ss);
-    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
+    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
 
     ss.getSheets().forEach(aba => {
       const nomeAba = aba.getName();
@@ -1566,6 +1569,10 @@ function criarAnoSeguinte(req) {
     }
 
     avancarCalendario_(ss, avancar, novoAno);
+
+    // Situação da logística começa vazia no ano novo.
+    const lt = ss.getSheetByName(CONFIG.ABA_LOG_TURMAS);
+    if (lt && lt.getLastRow() > 1) lt.deleteRows(2, lt.getLastRow() - 1);
 
     // Histórico do painel começa vazio no ano novo.
     const hist = ss.getSheetByName(CONFIG.ABA_HISTORICO);
@@ -2302,6 +2309,87 @@ function preencherCursosUi() {
 }
 
 /* ================================================================== */
+/* Logística dos cursos (material por aluno e por turma)               */
+/* ================================================================== */
+
+// Dados iniciais da aba "Logística" (materiais do SiGE). Depois de criada, a aba é a fonte.
+const LOGISTICA_INICIAL = [
+  // curso (nome no SiGE), item, qtd por aluno, qtd por turma, valor unitário
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'MUNIÇÃO CALIBRE 7,62X51MM COMUM NATO', 15, 0, 6.04],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'MUNIÇÃO AM 403 P/SR', 1, 0, 28.20],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'MUNIÇÃO AM 403/P', 1, 0, 13.00],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'GRANADA GL 300T', 0, 5, 374.34],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'GRANADA EXPLOSIVA LACRIMOGÊNEA GL 305', 0, 4, 451.37],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'ESPARGIDOR - GPIM SUPER B (450g)', 0, 40, 333.00],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'MUNIÇÃO CALIBRE .40 RECARREGADA', 40, 0, 2.81],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'MUNIÇÃO CALIBRE 5.56', 15, 0, 5.84],
+  ['Curso de Radiopatrulhamento Tático Rodoviário', 'GRANADA INDOOR - GB 707', 0, 4, 420.79],
+  ['Estágio Tático Rodoviário', 'MUNIÇÃO AM 403 P/SR', 3, 0, 28.20],
+  ['Estágio Tático Rodoviário', 'Espargidor de Pimenta - GL-108 ADVANTAGE MAX (450g)', 0, 5, 404.80],
+  ['Estágio Tático Rodoviário', 'GRANADA GL 300T', 0, 5, 374.34],
+  ['Estágio Tático Rodoviário', 'MUNIÇÃO AM 403/P', 3, 0, 13.00],
+  ['Credenciamento ao Uso Operacional de Armas Portáteis de Alta Energia', 'MUNIÇÃO CALIBRE 5.56', 21, 0, 5.84]
+];
+const LOGISTICA_SITUACOES = ['Pendente', 'Solicitado', 'Recebido', 'Não se aplica'];
+
+/** Lê a aba "Logística" (cria com os dados iniciais na primeira vez) e a situação de cada turma. */
+function lerLogistica_(ss) {
+  let aba = ss.getSheetByName(CONFIG.ABA_LOGISTICA);
+  if (!aba) {
+    aba = ss.insertSheet(CONFIG.ABA_LOGISTICA);
+    const cab = ['Curso (SiGE)', 'Item', 'Qtd por aluno', 'Qtd por turma', 'Valor unitário'];
+    aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    aba.getRange(2, 1, LOGISTICA_INICIAL.length, cab.length).setValues(LOGISTICA_INICIAL);
+    aba.getRange(2, 5, LOGISTICA_INICIAL.length, 1).setNumberFormat('"R$" #,##0.00');
+    aba.setFrozenRows(1);
+    aba.setColumnWidth(1, 420); aba.setColumnWidth(2, 380);
+  }
+  const v = aba.getDataRange().getValues();
+  const h = acharCabecalho_(v, ['item'], 5);
+  const itens = [];
+  if (h >= 0) {
+    const c = indice_(v[h]);
+    const kc = Object.keys(c).find(k => /^curso/.test(k)), kv = Object.keys(c).find(k => /^valor/.test(k));
+    const ka = Object.keys(c).find(k => /por aluno/.test(k)), kt = Object.keys(c).find(k => /por turma/.test(k));
+    for (let i = h + 1; i < v.length; i++) {
+      const curso = nomeCurso_(v[i][c[kc]]), item = texto_(v[i][c['item']]);
+      if (!curso || !item) continue;
+      itens.push({ curso: curso, item: item, aluno: numero_(v[i][c[ka]]) || 0, turma: numero_(v[i][c[kt]]) || 0, valor: numero_(v[i][c[kv]]) || 0 });
+    }
+  }
+  const status = {};
+  const st = ss.getSheetByName(CONFIG.ABA_LOG_TURMAS);
+  if (st && st.getLastRow() > 1) {
+    st.getRange(2, 1, st.getLastRow() - 1, 4).getValues().forEach(r => {
+      const t = texto_(r[0]);
+      if (t) status[chave_(t)] = { situacao: texto_(r[1]) || 'Pendente', obs: texto_(r[2]), em: texto_(r[3]) };
+    });
+  }
+  return { itens: itens, status: status, situacoes: LOGISTICA_SITUACOES };
+}
+
+/** Grava a situação da logística de uma turma (aba "Logística turmas": Turma | Situação | Observações | Atualizado em). */
+function salvarLogisticaTurma(req) {
+  return comTrava_(ss => {
+    if (LOGISTICA_SITUACOES.indexOf(req.situacao) < 0) throw new Error('Situação inválida: ' + req.situacao);
+    let aba = ss.getSheetByName(CONFIG.ABA_LOG_TURMAS);
+    if (!aba) {
+      aba = ss.insertSheet(CONFIG.ABA_LOG_TURMAS);
+      aba.getRange(1, 1, 1, 4).setValues([['Turma', 'Situação', 'Observações', 'Atualizado em']]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+      aba.setFrozenRows(1); aba.setColumnWidth(1, 360); aba.setColumnWidth(3, 360);
+    }
+    const n = aba.getLastRow();
+    const nomes = n > 1 ? aba.getRange(2, 1, n - 1, 1).getValues().map(r => chave_(texto_(r[0]))) : [];
+    let linha = nomes.indexOf(chave_(req.turma)) + 2;
+    const antes = linha > 1 ? texto_(aba.getRange(linha, 2).getValue()) : '';
+    if (linha < 2) linha = n + 1;
+    aba.getRange(linha, 1, 1, 4).setValues([[req.turma, req.situacao, String(req.obs || '').trim(), new Date()]]);
+    historico_(ss, CONFIG.ABA_LOG_TURMAS, linha, req.turma, '', 'Logística', (antes || '—') + ' → ' + req.situacao);
+    return { ok: true };
+  }, req.ano);
+}
+
+/* ================================================================== */
 /* Reorganização por unidade executora                                 */
 /* ================================================================== */
 
@@ -2378,7 +2466,7 @@ function reorganizarPorUnidadeUi() {
 function reorganizar_(ss, ano) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
   const etapasAntes = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
 
   // Unidade de cada turma (Cadastro; sem cadastro: regra padrão).
@@ -2584,7 +2672,7 @@ function responsavelPadrao_(txt, equipe) {
 function colunasResponsavel_(ss) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
   const out = [];
   ss.getSheets().forEach(aba => {
     if (fixas.indexOf(aba.getName()) >= 0) return;
@@ -2689,7 +2777,7 @@ function padronizarResponsaveisUi() {
 function corrigirReferencias(aplicar, ano) {
   const ss = ano && typeof ano === 'object' ? ano : planilha_(ano); // menu: a planilha aberta
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const correcoes = [], manuais = [];
 
