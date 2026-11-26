@@ -42,7 +42,10 @@ const CONFIG = {
 
   // Planilha "AGENDAMENTO DE REUNIÕES" (uma linha por dia em cada aba).
   AGENDA_ID: '1j9HA6N9q1hExfqsxPJOi1EAauYNUU-Oc8MAmBdJGVUk',
-  AGENDA_ESPACOS: { aud: 'auditório', sr: 'sala de reunião' }
+  AGENDA_ESPACOS: { aud: 'auditório', sr: 'sala de reunião' },
+
+  // Planilha "AGENDA 2026 - ESTANDES CMB" (só leitura): uma aba por mês (NOV26, DEZ26...).
+  ESTANDE_ID: '1iIBGQe5trP6etT9tAqywNA206ZeP5zX2Q9Y6hxMbB9k'
 };
 
 /* ================================================================== */
@@ -1019,6 +1022,79 @@ function editarAgenda(req) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ---------- Estande de tiro (planilha da CMB, somente leitura) ---------- */
+
+const ESTANDE_CACHE = 'estande_v1';
+const MESES_ABA_ = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+/**
+ * Lê uma aba mensal do estande. Cada bloco (Gameleira, CIPM) começa numa coluna "data", seguida de "dia" e
+ * "horário"; as linhas de tiro são as colunas "OPM" (a de baixo do nome da linha) até o próximo bloco.
+ * Cada dia tem três linhas: manhã, tarde e noite. Célula: '' = livre, 'X' = interditado, 'OPM|turma' = reservado.
+ */
+function lerMesEstande_(aba, ano, mes) {
+  const v = aba.getRange(1, 1, aba.getLastRow(), aba.getLastColumn()).getDisplayValues();
+  const cab = v[1] || [], opm = v[3] || [], nomes = v[2] || [], tit = v[0] || [];
+  const ini = [];
+  cab.forEach((x, j) => { if (semAcento_(x) === 'data') ini.push(j); });
+  const blocos = ini.map((c, k) => {
+    const fim = k + 1 < ini.length ? ini[k + 1] : cab.length;
+    let hor = -1;
+    for (let j = c; j < fim; j++) if (semAcento_(cab[j]) === 'horario') { hor = j; break; }
+    let titulo = '';
+    for (let j = c; j < fim && !titulo; j++) { const t = String(tit[j] || ''); if (/\s-\s/.test(t)) titulo = t; }
+    const nome = titulo.split(' - ')[0].replace(/\s+/g, '');
+    const horario = (titulo.match(/\(([^)]*)\)/) || [])[1] || '';
+    const linhas = [];
+    for (let j = hor + 1; j < fim; j++) {
+      if (semAcento_(opm[j]) !== 'opm') continue;
+      const n = String(nomes[j] || '').split('\n')[0].replace(/\s+/g, ' ').trim();
+      if (/sala de aula|outras/i.test(semAcento_(nomes[j]))) continue;
+      linhas.push({ col: j, nome: (n.match(/^[^)]*\)?/) || [n])[0].trim() });
+    }
+    return { nome: nome.charAt(0) + nome.slice(1).toLowerCase().replace(/^ipm$/, 'IPM'), sigla: nome, horario: horario, data: c, hor: hor, linhas: linhas };
+  }).filter(b => b.hor >= 0 && b.linhas.length);
+  blocos.forEach(b => { if (b.sigla === 'CIPM') b.nome = 'CIPM'; });
+
+  const dias = {};
+  const b0 = blocos[0];
+  let dia = null;
+  for (let i = 4; i < v.length && b0; i++) {
+    const n = Number(String(v[i][b0.data] || '').trim());
+    if (n >= 1 && n <= 31) dia = n;
+    const per = semAcento_(v[i][b0.hor]);
+    if (!dia || ['manha', 'tarde', 'noite'].indexOf(per) < 0) continue;
+    const iso = ano + '-' + ('0' + (mes + 1)).slice(-2) + '-' + ('0' + dia).slice(-2);
+    const d = dias[iso] = dias[iso] || { nota: '', p: {} };
+    const nota = String(v[i][b0.data + 1] || '').trim();
+    if (nota && !/feira|sabado|domingo/.test(semAcento_(nota))) d.nota = nota;
+    d.p[per] = blocos.map(b => b.linhas.map(l => {
+      const o = String(v[i][l.col] || '').trim(), t = String(v[i][l.col + 1] || '').trim();
+      if (/^interditad/i.test(o)) return 'X';
+      return o || t ? o + '|' + t : '';
+    }));
+  }
+  return { aba: aba.getName(), gid: aba.getSheetId(), blocos: blocos.map(b => ({ nome: b.nome, horario: b.horario, linhas: b.linhas.map(l => l.nome) })), dias: dias };
+}
+
+/** Estande: mês anterior, atual e os três seguintes (as abas que existirem), com cache de 10 minutos. */
+function getEstande(forcar) {
+  const cache = CacheService.getScriptCache();
+  if (!forcar) { const c = cache.get(ESTANDE_CACHE); if (c) return c; }
+  const ss = SpreadsheetApp.openById(CONFIG.ESTANDE_ID);
+  const hoje = new Date();
+  const out = { url: ss.getUrl(), meses: {}, geradoEm: new Date().toISOString() };
+  for (let k = -1; k <= 3; k++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + k, 1);
+    const nome = MESES_ABA_[d.getMonth()] + String(d.getFullYear()).slice(-2);
+    const aba = ss.getSheets().find(s => s.getName().replace(/\s+/g, '').toUpperCase() === nome);
+    if (aba) out.meses[d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)] = lerMesEstande_(aba, d.getFullYear(), d.getMonth());
+  }
+  const json = JSON.stringify(out);
+  if (json.length < 95000) cache.put(ESTANDE_CACHE, json, 600);
+  return json;
 }
 
 /* ================================================================== */
