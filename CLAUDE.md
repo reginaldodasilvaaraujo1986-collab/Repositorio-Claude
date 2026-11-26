@@ -175,7 +175,7 @@ Regras:
 - DEA (despesa de 2026 sem empenho paga em 2027) consome orçamento de 2027 (Dec. 37.924/96 art. 36/36-A, Dec. 47.036/2016)
 - Item 5.1 cita o CPE: confirmar que a transferência de escrituração (carga patrimonial) das unidades apoiadas terminou; unificação de UE (ex. 1250058) pedir à DF2 pelo Painel Administrativo
 - Anexo H: Termo de Conciliação SIAFI × SIAD (estoques 1.1.5.6.1.01/.02/.04, bens móveis 1.2.3.1.1.01/.03/.04, imóveis 1.2.3.2.1.03/.06), assinado por almoxarife, chefe da SOFi, P/4 e ordenador
-- Anexo B (15 contas da dívida de curto/longo prazo + 6.3.8.1 RPNP): pedir 99›05 de cada conta em 30/11 + balancete 99›03 + Módulo Contábil. Folha de pessoal é CENTRALIZADA no CAP (informado pelo usuário em 26/11/2026): o CPE não empenha folha → 2.1.1.1.1.01.01, 2.1.1.2.1.01, 2.1.1.4.1, 2.1.8.8.1.02 e 2.1.8.8.1.16 entram com 0,00. 2.1.1.1.1.02.02 (terceirizado/estagiário) conferir — o CPE paga estagiários 39.52
+- Anexo B (15 contas da dívida de curto/longo prazo + 6.3.8.1 RPNP): pedir 99›05 de cada conta em 30/11 + balancete 99›03 + Módulo Contábil. O CPE não empenha folha de pessoal (informado pelo usuário em 26/11/2026) → 2.1.1.1.1.01.01, 2.1.1.2.1.01, 2.1.1.4.1, 2.1.8.8.1.02 e 2.1.8.8.1.16 entram com 0,00. 2.1.1.1.1.02.02 (terceirizado/estagiário) conferir — o CPE paga estagiários 39.52
 - Convênios: recursos depositados em nov/dez sem aplicação → informar à DF/4 a destinação (corrente/capital)
 
 Memorando nº 600.522.2/2026-EMPM (23/11/2026, controle/Memorando-600.522.2-2026-EMPM.pdf):
