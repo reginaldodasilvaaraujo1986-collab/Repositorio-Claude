@@ -22,7 +22,7 @@
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
     logistica:  ['Logística', 'Material de cada curso, quantidades por turma e avisos 30 e 15 dias antes do início'],
-    espacos:    ['Espaços', 'Auditório, sala de reuniões e estande — manhã e tarde de cada dia'],
+    espacos:    ['Agendamentos', 'Auditório, sala de reuniões e estande — manhã e tarde de cada dia'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
   const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral (0 = desligada)
@@ -1217,6 +1217,7 @@
     if (S.agenda.erro) return '<div class="card empty">Não foi possível ler a planilha de agendamento.<br><small>' + esc(S.agenda.erro) + '</small>' +
       '<div class="form-acoes" style="justify-content:center"><button class="btn" data-agrecarregar>Tentar de novo</button></div></div>';
     const A = diasDoEspaco('aud'), R = diasDoEspaco('sr');
+    const esp = ['aud', 'sr', 'est'].indexOf(S.espaco) >= 0 ? S.espaco : 'aud';
     const hojeIso = S.dados.hoje, pode = S.dados.podeEditar;
     const base = new Date(HOJE.getFullYear(), HOJE.getMonth() + (S.agMes || 0), 1);
     const ano = base.getFullYear(), mes = base.getMonth(), nDias = new Date(ano, mes + 1, 0).getDate();
@@ -1241,27 +1242,27 @@
         const st = ST_AGENDA(r.status)[0];
         return '<span class="ec oc st-' + st + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha + '" data-agesp="' + esp : '') +
           '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + (r.hora ? ' · ' + esc(r.hora) : '') + '<br>' + esc(r.resp) + (r.status ? ' · ' + esc(r.status) : '') + (pode ? '<br><i>clique para editar</i>' : '') + '">' +
-          '<i>' + (r.periodo === 'dia' ? 'DIA' : r.periodo === 'manha' ? 'M' : 'T') + '</i>' + esc(curtoAgenda(r.assunto)) + '</span>';
+          '<i>' + (r.periodo === 'dia' ? 'Dia todo' : r.periodo === 'manha' ? 'Manhã' : 'Tarde') + '</i><span class="ec-t"><b>' + esc(curtoAgenda(r.assunto)) + '</b><small>' + esc(r.resp || '') + (r.hora ? ' · ' + esc(r.hora) : '') + '</small></span></span>';
       };
       const todo = d.res.find(r => r.periodo === 'dia');
       if (todo) return um(todo);
       return ['manha', 'tarde'].map(p => {
         const r = d.res.find(x => x.periodo === p);
         if (r) return um(r);
-        return '<span class="ec lv' + (pode && futuro ? ' click" data-agdia="' + iso + '" data-agper="' + p + '" data-agesp="' + esp + '" title="Reservar ' + PERIODOS[p].toLowerCase() : '') + '"><i>' + (p === 'manha' ? 'M' : 'T') + '</i>' + (pode && futuro ? '＋ livre' : 'livre') + '</span>';
+        return '<span class="ec lv' + (pode && futuro ? ' click" data-agdia="' + iso + '" data-agper="' + p + '" data-agesp="' + esp + '" title="Reservar ' + PERIODOS[p].toLowerCase() : '') + '"><i>' + (p === 'manha' ? 'Manhã' : 'Tarde') + '</i><span class="ec-t"><b>' + (pode && futuro ? '＋ Livre' : 'Livre') + '</b></span></span>';
       }).join('');
     };
     // estande: por bloco, nº de linhas livres de manhã e de tarde
     const chipEst = iso => {
       const m = estandeDia(iso, 'manha'), t = estandeDia(iso, 'tarde');
       if (!m && !t) return '<span class="ec na">' + (S.estande ? (S.estande.erro ? 'sem acesso' : 'sem agenda') : '…') + '</span>';
-      return (m || t).blocos.map((b, k) => '<span class="eb"><b title="' + esc(b.nome) + '">' + esc(b.nome.length > 5 ? b.nome.slice(0, 3).toUpperCase() : b.nome.toUpperCase()) + '</b>' + [['M', m], ['T', t]].map(([rot, x]) => {
+      return '<span class="eb eh"><b></b><span>Manhã</span><span>Tarde</span></span>' + (m || t).blocos.map((b, k) => '<span class="eb"><b title="' + esc(b.nome) + '">' + esc(b.nome) + '</b>' + [['M', m], ['T', t]].map(([rot, x]) => {
         const y = x && x.blocos[k];
         if (!y) return '<span class="en na">' + rot + ' –</span>';
         const fech = y.inter === y.tot, n = y.livres.length;
         const tip = '<b>' + esc(b.nome) + ' · ' + (rot === 'M' ? 'manhã' : 'tarde') + '</b>' + (fech ? 'interditado' : (n ? 'Livres: ' + esc(y.livres.join(', ')) : 'Nenhuma linha livre') +
           (y.ocup.length ? '<br>' + y.ocup.map(esc).join('<br>') : ''));
-        return '<span class="en ' + (fech ? 'na' : n ? 'lv' : 'oc') + (y.cpe.length ? ' cpe' : '') + '" data-tip="' + tip + '">' + rot + (fech ? '×' : n) + (y.cpe.length ? '★' : '') + '</span>';
+        return '<span class="en ' + (fech ? 'na' : n ? 'lv' : 'oc') + (y.cpe.length ? ' cpe' : '') + '" data-tip="' + tip + '">' + (fech ? 'interditado' : n ? n + ' livre' + (n > 1 ? 's' : '') : 'lotado') + (y.cpe.length ? ' ★' : '') + '</span>';
       }).join('') + '</span>').join('');
     };
     const cartao = iso => {
@@ -1269,21 +1270,24 @@
       const d = dt(iso), hoje = iso === hojeIso;
       const em = estandeDia(iso, 'manha');
       const nota = em && em.nota;
-      const tc = iso >= hojeIso && A[iso] && !A[iso].fds && !A[iso].res.length ? turmasNoCpe(iso) : [];
+      const tc = esp === 'aud' && iso >= hojeIso && A[iso] && !A[iso].fds && !A[iso].res.length ? turmasNoCpe(iso) : [];
       return '<div class="ed' + (hoje ? ' hoje' : '') + (iso < hojeIso ? ' pass' : '') + '">' +
         '<div class="ed-h"><small>' + DSL[d.getDay()] + '</small><b>' + d.getDate() + '</b>' + (nota ? '<span class="ed-nota" title="' + esc(nota) + '">' + esc(nota) + '</span>' : '') +
           (tc.length ? '<span class="ed-al" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠</span>' : '') + (hoje ? '<em>HOJE</em>' : '') + '</div>' +
-        '<div class="ed-r"><span class="ed-k"><span class="l">Auditório</span><span class="s">AUD</span></span><div class="ed-c">' + chipEsp('aud', A, iso) + '</div></div>' +
-        '<div class="ed-r"><span class="ed-k"><span class="l">Sala</span><span class="s">SALA</span></span><div class="ed-c">' + chipEsp('sr', R, iso) + '</div></div>' +
-        '<div class="ed-r"><span class="ed-k"><span class="l">Estande</span><span class="s">EST</span></span><div class="ed-c est">' + chipEst(iso) + '</div></div></div>';
+        '<div class="ed-b ' + esp + '">' + (esp === 'est' ? chipEst(iso) : chipEsp(esp, esp === 'aud' ? A : R, iso)) + '</div></div>';
     };
     const urlEst = S.estande && S.estande.url;
-    return '<div class="toolbar"><div class="ed-nav"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes].toUpperCase() + ' <span>' + ano + '</span></b><button data-agmes="1" title="Próximo mês">›</button>' +
+    const sel = '<div class="seg ed-esp">' + [['aud', 'Auditório'], ['sr', 'Sala de reuniões'], ['est', 'Estande (CMB)']].map(([k, l]) => '<button data-esp="' + k + '" class="' + (esp === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div>';
+    const leg = esp === 'est'
+      ? '<span><i class="lv"></i>linhas livres</span><span><i class="lt"></i>lotado</span><span>★ linha do CPE</span>'
+      : '<span><i class="lv"></i>livre</span><span><i class="oc"></i>reservado</span><span><i class="and"></i>em andamento</span><span><i class="conc"></i>concluído</span>';
+    return '<div class="toolbar">' + sel + '<div class="ed-nav"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes].toUpperCase() + ' <span>' + ano + '</span></b><button data-agmes="1" title="Próximo mês">›</button>' +
         (S.agMes ? '<button data-agmes="0" class="ed-hoje">hoje</button>' : '') + '</div>' +
-      '<div class="ed-leg"><span><i class="lv"></i>livre</span><span><i class="oc"></i>reservado</span><span><i class="and"></i>em andamento</span><span><i class="conc"></i>concluído</span><span title="Estande: número de linhas livres; ★ = linha reservada para o CPE">estande: linhas livres · ★ CPE</span></div>' +
-      '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Agenda auditório/sala ↗</a>' +
-      (urlEst ? '<a class="btn small" style="text-decoration:none" href="' + esc(urlEst) + '" target="_blank" rel="noopener" title="Somente leitura: a reserva do estande é solicitada à CMB">Estande CMB ↗</a>' : '') +
-      (pode ? '<button class="btn small primary" data-acao="agendar">＋ Agendar</button>' : '') + '</div>' +
+      '<div class="ed-leg">' + leg + '</div>' +
+      (esp === 'est'
+        ? (urlEst ? '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(urlEst) + '" target="_blank" rel="noopener" title="Somente leitura: a reserva do estande é solicitada à CMB">Planilha do estande ↗</a>' : '')
+        : '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Planilha ↗</a>' +
+          (pode ? '<button class="btn small primary" data-acao="agendar">＋ Agendar</button>' : '')) + '</div>' +
       '<div class="ed-cab">' + ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'].map(x => '<span>' + x + '</span>').join('') + '</div>' +
       '<div class="ed-g grow">' + semanas.map(s => '<div class="ed-w">' + s.map(cartao).join('') + '</div>').join('') + '</div>';
   }
