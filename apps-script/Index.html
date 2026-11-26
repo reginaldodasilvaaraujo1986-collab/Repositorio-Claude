@@ -1034,6 +1034,44 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   .ano-grid .tr-head.larga, .ano-grid .tr-row.larga { grid-template-columns: 74px minmax(0, 1.7fr) 38px minmax(0, .75fr); gap: 6px; padding: 0 8px; }
   .ano-grid .tr-head.larga { font-size: 9.5px; letter-spacing: .02em; }
 }
+
+/* ---------- auditório e sala de reuniões ---------- */
+.ag-mes { gap: 8px; } .ag-mes b { font: 700 13.5px var(--sans); color: var(--ink); padding: 0 4px; }
+.ag-kv { font-size: 19px; line-height: 1.25; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi.ag-livre-k .ag-kv { color: #1f8a55; }
+.ag-cal { display: flex; flex-direction: column; }
+.ag-grade { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 14px 14px; }
+.ag-sem { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.ag-cab { flex: 0 0 auto; } .ag-cab span { font: 700 10.5px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); padding: 2px; }
+.ag-d { border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: hidden; background: var(--surface); }
+.ag-d.fora { border: 0; background: transparent; }
+.ag-d.sem { background: var(--surface-2); }
+.ag-d.passado { opacity: .6; }
+.ag-d.hoje { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); opacity: 1; }
+.ag-d.livre { background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(31,138,85,.05) 8px 16px), var(--surface); }
+.ag-d.click { cursor: pointer; } .ag-d.click:hover { border-color: #1f8a55; }
+.ag-n { font: 700 12px var(--mono); color: var(--ink-2); }
+.ag-n em { font: 700 10px var(--sans); font-style: normal; color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+.ag-livre { font-size: 11px; color: #1f8a55; font-weight: 600; margin-top: auto; } .ag-livre.dim { color: var(--ink-3); font-weight: 500; }
+.ag-alerta { font-size: 10.5px; font-weight: 700; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e { border-left: 3px solid var(--s-plan); background: var(--s-plan-bg); border-radius: 5px; padding: 3px 6px; display: flex; flex-direction: column; min-width: 0; }
+.ag-e b { font: 700 10.5px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e span { font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e small { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e.st-conc { border-left-color: #9aa1ad; background: var(--surface-2); }
+.ag-e.st-and { border-left-color: var(--accent); background: var(--accent-soft); }
+.ag-e.turma { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.ag-lg { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 10px; vertical-align: -1px; background: var(--s-plan); }
+.ag-lg.st-conc { background: #9aa1ad; } .ag-lg.st-and { background: var(--accent); }
+.ag-lg.turma { background: transparent; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
+.fit.ag-prox { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 12px; }
+.ag-p { flex: none; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+.ag-pd { font: 800 15px var(--mono); text-align: center; line-height: 1.1; }
+.ag-pd small { display: block; font: 600 10px var(--sans); text-transform: uppercase; color: var(--ink-3); }
+.ag-pt { min-width: 0; } .ag-pt b { display: block; font-size: 13px; line-height: 1.25; }
+.ag-pt small { font-size: 11.5px; color: var(--ink-3); }
+.ag-avisos { flex: none; padding: 0 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.ag-aviso { padding: 9px 11px; border-radius: 9px; background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); font-size: 12px; line-height: 1.4; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -1052,6 +1090,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
         <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
         <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Cursados</span></button>
+        <button data-view="espacos"><span class="ico">▦</span><span class="lbl">Auditório</span></button>
       </nav>
       <div class="sidebar-foot">
         <div class="sync" id="syncInfo">Carregando…</div>
@@ -1067,7 +1106,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         </select>
         <a class="sheet-link" id="sheetLink" href="#" target="_blank" rel="noopener">Abrir planilha ↗</a>
         <button class="sheet-link link-btn" data-acao="equipe" title="Integrantes da seção (responsáveis das etapas)">👥 Equipe da seção</button>
-        <div class="keys"><kbd>1</kbd>–<kbd>4</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
+        <div class="keys"><kbd>1</kbd>–<kbd>5</kbd> telas · <kbd>/</kbd> busca<br><kbd>←</kbd><kbd>→</kbd> ou roda do mouse: páginas</div>
       </div>
     </aside>
 
@@ -1128,6 +1167,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
+    espacos:    ['Auditório', 'Agendamento do auditório e da sala de reuniões do CPE'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
   const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral (0 = desligada)
@@ -1551,7 +1591,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     $('#pageTitle').textContent = v[0];
     $('#pageSub').textContent = v[1];
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
-    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras }[S.view];
+    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras, espacos: vEspacos }[S.view];
     // Animação de entrada só ao trocar de tela; atualizações (status, gravações, recarga) trocam o conteúdo no lugar.
     const trocou = S._viewDesenhada !== S.view;
     S._viewDesenhada = S.view;
@@ -2245,6 +2285,171 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       caixa('f-turma', ordem.map(linha).join('') || '<div class="empty">Nenhuma turma na aba de formandos.</div>', 'fr-lista') + '</div>' + grafico + '</div>';
   }
 
+  /* ---------- Auditório e sala de reuniões ---------- */
+
+  const ESPACOS = { aud: 'Auditório', sr: 'Sala de reuniões' };
+  const ST_AGENDA = s => /conclu/.test(norm(s)) ? ['conc', 'Concluída'] : /andamento|execu/.test(norm(s)) ? ['and', 'Em andamento'] : ['nao', 'Agendada'];
+  const DSEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+  function carregarAgenda(forcar) {
+    if (S._agCarregando) return;
+    S._agCarregando = true;
+    const pronto = a => { S._agCarregando = false; S.agenda = a; if (S.view === 'espacos') render(); if (S.form === 'agendar') abrirForm('agendar'); };
+    if (RUN) {
+      google.script.run.withSuccessHandler(j => pronto(JSON.parse(j)))
+        .withFailureHandler(err => pronto({ erro: err.message || 'Não foi possível ler a planilha de agendamento.' }))
+        .getAgenda(!!forcar);
+    } else setTimeout(() => pronto(window.__AGENDA_DEMO__ ? JSON.parse(JSON.stringify(window.__AGENDA_DEMO__)) : { erro: 'Demonstração sem dados de agenda.' }), 100);
+  }
+
+  /** Dias do espaço indexados por data ISO. */
+  function diasDoEspaco(k) {
+    const m = {};
+    ((S.agenda && S.agenda.espacos && S.agenda.espacos[k] && S.agenda.espacos[k].dias) || []).forEach(d => { m[d.data] = d; });
+    return m;
+  }
+  const reservado = d => d && !d.fds && !!(d.resp || d.assunto);
+  const isoLocal = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  /** Turmas no CPE/BPMRv (não canceladas) em andamento num dia. */
+  const turmasNoCpe = iso => S.dados.turmas.filter(t => t.sit !== 'canc' && t.inicio && t.fim && t.inicio <= iso && t.fim >= iso &&
+    /bpmrv|\bcpe\b/i.test([t.local, t.cidade].join(' ')));
+
+  function vEspacos() {
+    if (!S.agenda) { carregarAgenda(false); return '<div class="loading"><div class="spinner"></div>Lendo a planilha de agendamento…</div>'; }
+    if (S.agenda.erro) return '<div class="card empty">Não foi possível ler a planilha de agendamento.<br><small>' + esc(S.agenda.erro) + '</small>' +
+      '<div class="form-acoes" style="justify-content:center"><button class="btn" data-agrecarregar>Tentar de novo</button></div></div>';
+    const esp = S.espaco || 'aud', outro = esp === 'aud' ? 'sr' : 'aud';
+    const M = diasDoEspaco(esp), O = diasDoEspaco(outro);
+    const hojeIso = S.dados.hoje;
+    const base = new Date(HOJE.getFullYear(), HOJE.getMonth() + (S.agMes || 0), 1);
+    const ano = base.getFullYear(), mes = base.getMonth(), nDias = new Date(ano, mes + 1, 0).getDate();
+    const uteis = [];
+    for (let d = 1; d <= nDias; d++) { const x = new Date(ano, mes, d); if (x.getDay() > 0 && x.getDay() < 6) uteis.push(isoLocal(x)); }
+    const naPlanilha = uteis.filter(i => M[i]);
+    const ocup = naPlanilha.filter(i => reservado(M[i])).length;
+    const livresDepois = naPlanilha.filter(i => i >= hojeIso && !reservado(M[i])).length;
+
+    // grade seg–sex
+    const semanas = []; let sem = [];
+    for (let d = 1; d <= nDias; d++) {
+      const w = new Date(ano, mes, d).getDay();
+      if (w === 0 || w === 6) continue;
+      if (w === 1 && sem.length) { semanas.push(sem); sem = []; }
+      if (!sem.length) for (let k = 1; k < w; k++) sem.push(null);
+      sem.push(isoLocal(new Date(ano, mes, d)));
+    }
+    if (sem.length) semanas.push(sem);
+    const pode = S.dados.podeEditar;
+    const dia = iso => {
+      if (!iso) return '<div class="ag-d fora"></div>';
+      const d = M[iso], n = Number(iso.slice(8, 10));
+      const cls = (iso === hojeIso ? ' hoje' : '') + (iso < hojeIso ? ' passado' : '');
+      const cab = '<span class="ag-n">' + n + (iso === hojeIso ? ' <em>hoje</em>' : '') + '</span>';
+      if (!d) return '<div class="ag-d sem' + cls + '">' + cab + '<div class="ag-livre dim">fora da planilha</div></div>';
+      if (!reservado(d)) {
+        const tc = iso >= hojeIso ? turmasNoCpe(iso) : [];
+        return '<div class="ag-d livre' + cls + (pode && iso >= hojeIso ? ' click" data-agdia="' + iso + '" title="Reservar este dia' : '') + '">' + cab +
+          (esp === 'aud' && tc.length ? '<div class="ag-alerta" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠ ' + esc(nomeCurto(tc[0])) + '</div>' : '') +
+          '<div class="ag-livre">' + (pode && iso >= hojeIso ? '＋ Livre' : 'Livre') + '</div></div>';
+      }
+      const st = ST_AGENDA(d.status);
+      const tc = turmasNoCpe(iso).length && /curso|est[aá]gio|credenciamento|treinamento|turma/i.test(d.assunto);
+      return '<div class="ag-d' + cls + '">' + cab + '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + '" data-tip="<b>' + esc(d.assunto) + '</b>' +
+        esc([d.hora, d.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(d.resp) + (d.status ? '<br>' + esc(d.status) : '') + '">' +
+        '<b>' + esc([d.hora, d.duracao].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(d.assunto || '(sem assunto)') + '</span><small>' + esc(d.resp) + '</small></div></div>';
+    };
+    const grade = '<div class="ag-sem ag-cab"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span></div>' +
+      semanas.map(s => { while (s.length < 5) s.push(null); return '<div class="ag-sem">' + s.map(dia).join('') + '</div>'; }).join('');
+
+    // próximos agendamentos (agrupa dias seguidos com o mesmo assunto e responsável)
+    const futuros = Object.keys(M).sort().filter(i => i >= hojeIso && reservado(M[i]));
+    const blocos = [];
+    futuros.forEach(i => {
+      const d = M[i], ult = blocos[blocos.length - 1];
+      if (ult && ult.assunto === d.assunto && ult.resp === d.resp && (dt(i) - dt(ult.fim)) / DIA <= 3) { ult.fim = i; ult.n++; }
+      else blocos.push({ ini: i, fim: i, n: 1, assunto: d.assunto, resp: d.resp, hora: d.hora, duracao: d.duracao });
+    });
+    const ddmm = i => i.slice(8, 10) + '/' + i.slice(5, 7);
+    const prox = blocos.map(b => '<div class="ag-p"><span class="ag-pd">' + ddmm(b.ini) + '<small>' + DSEM[dt(b.ini).getDay()] + '</small></span>' +
+      '<span class="ag-pt"><b>' + esc(b.assunto || '(sem assunto)') + '</b><small>' + esc([b.hora, b.duracao].filter(Boolean).join(' · ')) +
+      (b.n > 1 ? ' · até ' + ddmm(b.fim) + ' (' + b.n + ' dias)' : '') + ' · ' + esc(b.resp) + '</small></span></div>').join('');
+
+    // turmas no CPE com dias úteis livres no auditório (a partir de hoje)
+    const alertas = esp !== 'aud' ? [] : S.dados.turmas.filter(t => t.sit !== 'canc' && t.fim && t.fim >= hojeIso && /bpmrv|\bcpe\b/i.test([t.local, t.cidade].join(' '))).map(t => {
+      const livres = [];
+      for (let x = dt(t.inicio > hojeIso ? t.inicio : hojeIso); x <= dt(t.fim); x = new Date(x.getTime() + DIA)) {
+        const i = isoLocal(x), dd = M[i];
+        if (x.getDay() > 0 && x.getDay() < 6 && dd && !reservado(dd)) livres.push(ddmm(i));
+      }
+      return livres.length ? '<div class="ag-aviso" data-turma="' + t.id + '">⚠ <b>' + esc(nomeCurto(t)) + '</b> (' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '): auditório sem reserva em ' + livres.join(', ') + '.</div>' : '';
+    }).filter(Boolean);
+
+    const hj = M[hojeIso], ho = O[hojeIso];
+    const resumoDia = d => d && reservado(d) ? [d.assunto || '(sem assunto)', [d.hora, d.duracao, d.resp].filter(Boolean).join(' · ')] : ['Livre', d && d.fds ? 'fim de semana' : 'sem reserva hoje'];
+    const rh = resumoDia(hj), ro = resumoDia(ho);
+    const sel = '<div class="seg">' + Object.keys(ESPACOS).map(k => '<button data-esp="' + k + '" class="' + (esp === k ? 'on' : '') + '">' + ESPACOS[k] + '</button>').join('') + '</div>';
+    return '<div class="toolbar">' + sel +
+      '<div class="pager ag-mes"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes] + ' ' + ano + '</b><button data-agmes="1" title="Próximo mês">›</button>' +
+      (S.agMes ? '<button data-agmes="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') + '</div>' +
+      '<span style="color:var(--ink-3);font-size:12.5px">fonte: planilha AGENDAMENTO DE REUNIÕES</span>' +
+      '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Abrir planilha ↗</a>' +
+      (pode ? '<button class="btn small primary" data-acao="agendar">＋ Agendar</button>' : '') + '</div>' +
+      '<div class="grid g-kpi k4">' +
+        kpi('Hoje · ' + ESPACOS[esp], '<span class="ag-kv">' + esc(rh[0]) + '</span>', '', esc(rh[1]), null, hj && reservado(hj) ? '' : 'ag-livre-k') +
+        kpi('Ocupação em ' + MES_LONGO[mes].toLowerCase(), naPlanilha.length ? Math.round(ocup / naPlanilha.length * 100) : '—', naPlanilha.length ? '%' : '', ocup + ' de ' + naPlanilha.length + ' dias úteis reservados') +
+        kpi('Dias livres a partir de hoje', livresDepois, '', 'dias úteis sem reserva em ' + MES_LONGO[mes].toLowerCase()) +
+        kpi(ESPACOS[outro] + ' hoje', '<span class="ag-kv">' + esc(ro[0]) + '</span>', '', esc(ro[1])) +
+      '</div>' +
+      '<div class="grid grow" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)">' +
+        '<div class="card panel flush ag-cal"><div class="card-head"><h2>' + ESPACOS[esp] + ' · ' + MES_LONGO[mes] + '</h2>' +
+          '<span class="meta"><i class="ag-lg st-conc"></i>Concluída <i class="ag-lg st-and"></i>Em andamento <i class="ag-lg st-nao"></i>Agendada' + (esp === 'aud' ? ' <i class="ag-lg turma"></i>Turma do CPE' : '') + '</span></div>' +
+          '<div class="ag-grade">' + grade + '</div></div>' +
+        '<div class="card panel flush"><div class="card-head"><h2>Próximos agendamentos</h2><span class="meta">' + blocos.length + '</span>' + pager('ag-prox') + '</div>' +
+          caixa('ag-prox', prox || '<div class="empty">Nada agendado daqui para frente.</div>', 'ag-prox') +
+          (alertas.length ? '<div class="ag-avisos">' + alertas.slice(0, 2).join('') + (alertas.length > 2 ? '<div class="hint">+ ' + (alertas.length - 2) + ' turma(s)</div>' : '') + '</div>' : '') +
+        '</div></div>';
+  }
+
+  function abrirAgendar(iso) {
+    const esp = S.espaco || 'aud';
+    S.edit = { tipo: 'agendar', campos: { espaco: esp, data: iso || '', hora: '08:00', duracao: 'o dia todo', resp: '', assunto: '' } };
+    abrirForm('agendar');
+  }
+
+  function formAgendar(c) {
+    const M = diasDoEspaco(c.espaco), d = c.data ? M[c.data] : null;
+    const ocupado = d && (d.fds || reservado(d));
+    const aviso = !c.data ? '' : !d ? '<div class="hint danger">Esta data ainda não existe na aba "' + esc(ESPACOS[c.espaco]) + '" da planilha de agendamento.</div>'
+      : ocupado ? '<div class="hint danger">' + (d.fds ? 'Fim de semana.' : 'Já reservado: ' + esc(d.assunto) + ' (' + esc(d.resp) + ').') + '</div>'
+      : '<div class="hint" style="color:var(--s-enc)">✓ ' + esc(ESPACOS[c.espaco]) + ' livre em ' + fmtAno(c.data) + '.</div>';
+    const eq = (S.dados.responsaveis || []);
+    return '<h2>Agendar ' + esc(ESPACOS[c.espaco].toLowerCase()) + '</h2><div class="sub">A reserva é gravada na linha do dia na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”.</div>' +
+      '<div class="form" style="margin-top:16px">' +
+        campoSel('Espaço', 'espaco', c.espaco, Object.keys(ESPACOS).map(k => [k, ESPACOS[k]])) +
+        '<div class="form g2" style="margin-top:0">' + campo('Data', 'data', c.data, 'date') + campo('Hora', 'hora', c.hora, 'time') + '</div>' + aviso +
+        campoSel('Duração', 'duracao', c.duracao, [['o dia todo', 'O dia todo'], ['manhã', 'Manhã'], ['tarde', 'Tarde'], ['1 hora', '1 hora'], ['2 horas', '2 horas'], ['4 horas', '4 horas']]
+          .concat(['o dia todo', 'manhã', 'tarde', '1 hora', '2 horas', '4 horas'].indexOf(c.duracao) < 0 ? [[c.duracao, c.duracao]] : [])) +
+        campo('Responsável', 'resp', c.resp, 'text', ' list="dl-agresp" placeholder="Ex.: Ten Augusto"') +
+        '<datalist id="dl-agresp">' + eq.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' +
+        campo('Assunto', 'assunto', c.assunto, 'text', ' placeholder="Ex.: Instrução Semanal"') +
+      '</div><div class="form-acoes">' + botao('salvar-agenda', 'Reservar', 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
+  }
+
+  function salvarAgenda() {
+    const c = S.edit.campos;
+    if (!c.data) return toast('Escolha a data.', 'err');
+    if (!String(c.resp).trim() || !String(c.assunto).trim()) return toast('Informe o responsável e o assunto.', 'err');
+    const d = diasDoEspaco(c.espaco)[c.data];
+    if (d && (d.fds || reservado(d))) return toast('Este dia não está livre.', 'err');
+    gravarNoServidor('agendarEspaco', { espaco: c.espaco, data: c.data, hora: c.hora, duracao: c.duracao, resp: c.resp, assunto: c.assunto }, () => {
+      toast('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data));
+      if (!RUN && d) Object.assign(d, { resp: c.resp, assunto: c.assunto, hora: c.hora, duracao: c.duracao, status: 'Não iniciada' });
+      S.espaco = c.espaco;
+      fecharDrawer();
+      if (RUN) { S.agenda = null; carregarAgenda(true); } else render();
+    });
+  }
+
   /* ---------- Regras ---------- */
 
   function vRegras() {
@@ -2502,7 +2707,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     S.form = tipo; S.drawer = null;
     const c = S.edit ? S.edit.campos : {};
     let html;
-    if (tipo === 'equipe') {
+    if (tipo === 'agendar') {
+      html = formAgendar(c);
+    } else if (tipo === 'equipe') {
       const usados = {};
       S.dados.etapas.forEach(e => { if (e.respN) usados[e.respN] = (usados[e.respN] || 0) + 1; });
       const semResp = S.dados.etapas.filter(e => !e.respN).length;
@@ -2777,6 +2984,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (nome === 'equipe-del') { S.edit.campos.lista.splice(Number(el.dataset.i), 1); return abrirForm('equipe'); }
     if (nome === 'salvar-equipe') return salvarEquipe();
     if (nome === 'criar-ano') return criarAno();
+    if (nome === 'agendar') return abrirAgendar('');
+    if (nome === 'salvar-agenda') return salvarAgenda();
 
     if (nome === 'editar-etapa') {
       const e = S.idx[el.dataset.id]; if (!e) return;
@@ -3001,6 +3210,12 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const seg = el.closest('[data-seg] button');
     if (seg) { S[seg.parentNode.dataset.seg] = seg.dataset.val; return render(); }
 
+    const es = el.closest('[data-esp]');
+    if (es) { S.espaco = es.dataset.esp; return render(); }
+    const am = el.closest('[data-agmes]');
+    if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
+    const ad = el.closest('[data-agdia]');
+    if (ad) { return abrirAgendar(ad.dataset.agdia); }
     const sm = el.closest('[data-semestre]');
     if (sm) { S.semestre = Number(sm.dataset.semestre); S.pg = {}; return render(); }
 
@@ -3021,6 +3236,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const cal = el.closest('[data-cal]');
     if (cal) { const v = Number(cal.dataset.cal); S.calMes = v === 0 ? 0 : S.calMes + v; return render(); }
 
+    if (el.closest('[data-agrecarregar]')) { S.agenda = null; carregarAgenda(true); return render(); }
     if (el.closest('[data-toggle-todas]')) { S.critTodas = !S.critTodas; S.pg['g-prazos'] = 0; return render(); }
 
     const resp = el.closest('[data-resp]:not(select)');
@@ -3054,6 +3270,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       S.edit.campos.cursoOficial = cursoDoModelo(el.value, S.edit.campos.modelo);
       return abrirForm('nova');
     }
+    if (el.dataset && (el.dataset.campo === 'espaco' || el.dataset.campo === 'data') && S.form === 'agendar') { S.edit.campos[el.dataset.campo] = el.value; return abrirForm('agendar'); }
     if (el.dataset && el.dataset.campo === 'cursoOficial' && S.form === 'nova') { S.edit.campos.cursoOficial = el.value; return abrirForm('nova'); }
     if (el.matches('input[data-manter]')) {
       const m = S.edit.campos.manter, id = el.dataset.manter;
@@ -3099,7 +3316,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     $('#search').value = '';
     montarFiltros(); filtrosMudaram();
   });
-  $('#btnRefresh').addEventListener('click', () => carregar(true));
+  $('#btnRefresh').addEventListener('click', () => { carregar(true); if (S.view === 'espacos') carregarAgenda(true); });
   $('#btnCsv').addEventListener('click', exportarCsv);
   $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
   $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'aet';
@@ -3138,7 +3355,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (ev.key === 'Enter' && S.edit && !S.salvando && document.activeElement.tagName === 'INPUT' && document.activeElement.dataset.campo) {
       ev.preventDefault();
-      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova', 'nova-etapa': 'salvar-nova-etapa' }[S.edit.tipo] || '');
+      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova', 'nova-etapa': 'salvar-nova-etapa', agendar: 'salvar-agenda' }[S.edit.tipo] || '');
       return;
     }
     if (digitando) return;
@@ -3149,7 +3366,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos', 5: 'espacos' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 

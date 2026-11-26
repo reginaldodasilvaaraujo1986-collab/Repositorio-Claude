@@ -1024,4 +1024,42 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   .ano-grid .tr-head.larga, .ano-grid .tr-row.larga { grid-template-columns: 74px minmax(0, 1.7fr) 38px minmax(0, .75fr); gap: 6px; padding: 0 8px; }
   .ano-grid .tr-head.larga { font-size: 9.5px; letter-spacing: .02em; }
 }
+
+/* ---------- auditório e sala de reuniões ---------- */
+.ag-mes { gap: 8px; } .ag-mes b { font: 700 13.5px var(--sans); color: var(--ink); padding: 0 4px; }
+.ag-kv { font-size: 19px; line-height: 1.25; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi.ag-livre-k .ag-kv { color: #1f8a55; }
+.ag-cal { display: flex; flex-direction: column; }
+.ag-grade { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 0 14px 14px; }
+.ag-sem { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.ag-cab { flex: 0 0 auto; } .ag-cab span { font: 700 10.5px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); padding: 2px; }
+.ag-d { border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: hidden; background: var(--surface); }
+.ag-d.fora { border: 0; background: transparent; }
+.ag-d.sem { background: var(--surface-2); }
+.ag-d.passado { opacity: .6; }
+.ag-d.hoje { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); opacity: 1; }
+.ag-d.livre { background: repeating-linear-gradient(135deg, transparent 0 8px, rgba(31,138,85,.05) 8px 16px), var(--surface); }
+.ag-d.click { cursor: pointer; } .ag-d.click:hover { border-color: #1f8a55; }
+.ag-n { font: 700 12px var(--mono); color: var(--ink-2); }
+.ag-n em { font: 700 10px var(--sans); font-style: normal; color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+.ag-livre { font-size: 11px; color: #1f8a55; font-weight: 600; margin-top: auto; } .ag-livre.dim { color: var(--ink-3); font-weight: 500; }
+.ag-alerta { font-size: 10.5px; font-weight: 700; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e { border-left: 3px solid var(--s-plan); background: var(--s-plan-bg); border-radius: 5px; padding: 3px 6px; display: flex; flex-direction: column; min-width: 0; }
+.ag-e b { font: 700 10.5px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e span { font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e small { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-e.st-conc { border-left-color: #9aa1ad; background: var(--surface-2); }
+.ag-e.st-and { border-left-color: var(--accent); background: var(--accent-soft); }
+.ag-e.turma { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.ag-lg { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 10px; vertical-align: -1px; background: var(--s-plan); }
+.ag-lg.st-conc { background: #9aa1ad; } .ag-lg.st-and { background: var(--accent); }
+.ag-lg.turma { background: transparent; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
+.fit.ag-prox { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 12px; }
+.ag-p { flex: none; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+.ag-pd { font: 800 15px var(--mono); text-align: center; line-height: 1.1; }
+.ag-pd small { display: block; font: 600 10px var(--sans); text-transform: uppercase; color: var(--ink-3); }
+.ag-pt { min-width: 0; } .ag-pt b { display: block; font-size: 13px; line-height: 1.25; }
+.ag-pt small { font-size: 11.5px; color: var(--ink-3); }
+.ag-avisos { flex: none; padding: 0 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.ag-aviso { padding: 9px 11px; border-radius: 9px; background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); font-size: 12px; line-height: 1.4; cursor: pointer; }
 </style>

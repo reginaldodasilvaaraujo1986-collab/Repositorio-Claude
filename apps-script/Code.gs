@@ -38,7 +38,11 @@ const CONFIG = {
   // Ao alterar status pelo painel, grava uma linha na aba de histórico.
   REGISTRAR_HISTORICO: true,
 
-  CACHE_SEGUNDOS: 300
+  CACHE_SEGUNDOS: 300,
+
+  // Planilha "AGENDAMENTO DE REUNIÕES" (uma linha por dia em cada aba).
+  AGENDA_ID: '1j9HA6N9q1hExfqsxPJOi1EAauYNUU-Oc8MAmBdJGVUk',
+  AGENDA_ESPACOS: { aud: 'auditório', sr: 'sala de reunião' }
 };
 
 /* ================================================================== */
@@ -843,6 +847,93 @@ function registrarHistorico_(ss, linha) {
     aba.getRange(1, 1, 1, 8).setFontWeight('bold');
   }
   aba.appendRow(linha);
+}
+
+/* ================================================================== */
+/* Auditório e sala de reuniões (planilha AGENDAMENTO DE REUNIÕES)     */
+/* ================================================================== */
+
+const AGENDA_CACHE = 'agenda_v1';
+
+/** Aba de um espaço na planilha de agendamento (o nome é comparado sem acento). */
+function abaAgenda_(ss, espaco) {
+  const alvo = semAcento_(CONFIG.AGENDA_ESPACOS[espaco] || '');
+  if (!alvo) throw new Error('Espaço inválido: ' + espaco);
+  const aba = ss.getSheets().find(s => semAcento_(s.getName()) === alvo);
+  if (!aba) throw new Error('Aba "' + CONFIG.AGENDA_ESPACOS[espaco] + '" não encontrada na planilha de agendamento.');
+  return aba;
+}
+
+/**
+ * Lê as abas do auditório e da sala de reuniões. Cada linha com uma data na coluna A é um dia:
+ * B = responsável (ou SÁBADO/DOMINGO), C = status, D = hora, E = data de início, F = duração, G = assunto.
+ */
+function lerAgenda_() {
+  const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
+  const out = { url: ss.getUrl(), espacos: {} };
+  Object.keys(CONFIG.AGENDA_ESPACOS).forEach(k => {
+    const aba = abaAgenda_(ss, k);
+    const v = aba.getDataRange().getDisplayValues();
+    const dias = [];
+    for (let i = 0; i < v.length; i++) {
+      const m = String(v[i][0] || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (!m) continue;
+      const b = String(v[i][1] || '').trim();
+      const fds = /^(sabado|domingo)$/.test(semAcento_(b));
+      dias.push({
+        data: m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2),
+        linha: i + 1,
+        fds: fds,
+        resp: fds ? '' : b,
+        status: String(v[i][2] || '').trim(),
+        hora: String(v[i][3] || '').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1'),
+        duracao: String(v[i][5] || '').trim(),
+        assunto: String(v[i][6] || '').trim()
+      });
+    }
+    out.espacos[k] = { nome: aba.getName(), dias: dias };
+  });
+  out.geradoEm = new Date().toISOString();
+  return out;
+}
+
+/** Agenda do auditório e da sala de reuniões (JSON), com cache de 5 minutos. */
+function getAgenda(forcar) {
+  const cache = CacheService.getScriptCache();
+  if (!forcar) { const c = cache.get(AGENDA_CACHE); if (c) return c; }
+  const json = JSON.stringify(lerAgenda_());
+  if (json.length < 95000) cache.put(AGENDA_CACHE, json, CONFIG.CACHE_SEGUNDOS);
+  return json;
+}
+
+/**
+ * Reserva um dia no auditório ou na sala de reuniões: grava responsável, status "Não iniciada",
+ * hora, data, duração e assunto na linha do dia. Recusa dia já reservado ou fim de semana.
+ */
+function agendarEspaco(req) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const resp = String(req.resp || '').trim(), assunto = String(req.assunto || '').trim();
+    if (!resp || !assunto) throw new Error('Informe o responsável e o assunto.');
+    const d = dataIso_(req.data);
+    const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
+    const aba = abaAgenda_(ss, req.espaco);
+    const v = aba.getDataRange().getDisplayValues();
+    const alvo = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    const i = v.findIndex(r => String(r[0] || '').trim() === alvo);
+    if (i < 0) throw new Error('O dia ' + alvo + ' ainda não existe na aba "' + aba.getName() + '". Inclua o mês na planilha de agendamento.');
+    const atual = String(v[i][1] || '').trim();
+    if (/^(sabado|domingo)$/.test(semAcento_(atual))) throw new Error(alvo + ' é ' + atual.toLowerCase() + '.');
+    if (atual) throw new Error(aba.getName() + ' já reservado em ' + alvo + ': ' + (v[i][6] || '') + ' (' + atual + ').');
+    aba.getRange(i + 1, 2, 1, 3).setValues([[resp, 'Não iniciada', String(req.hora || '').trim()]]);
+    aba.getRange(i + 1, 5, 1, 3).setValues([[d, String(req.duracao || '').trim(), assunto]]);
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove(AGENDA_CACHE);
+    return JSON.stringify({ ok: true, linha: i + 1 });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ================================================================== */
