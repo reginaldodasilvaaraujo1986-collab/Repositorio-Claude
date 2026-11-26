@@ -1088,6 +1088,60 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .ag-e.click, .ag-p.click { cursor: pointer; }
 .ag-e.click:hover { filter: brightness(.96); box-shadow: 0 0 0 2px var(--accent-soft); }
 .ag-p.click:hover { border-color: var(--accent); }
+
+/* ---------- espaços: mês inteiro em cartões ---------- */
+.ed-nav { display: flex; align-items: center; gap: 10px; }
+.ed-nav b { font: 800 22px var(--sans); letter-spacing: .04em; color: var(--ink); text-align: center; white-space: nowrap; }
+.ed-nav b span { color: var(--accent); }
+.ed-nav button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 15px; }
+.ed-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.ed-nav .ed-hoje { width: auto; border-radius: 99px; padding: 0 10px; font: 700 11px var(--sans); }
+.ed-leg { display: flex; gap: 10px; font-size: 11px; color: var(--ink-3); flex-wrap: nowrap; white-space: nowrap; min-width: 0; overflow: hidden; }
+.ed-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.ed-leg i.lv { background: #2f9e66; } .ed-leg i.oc { background: var(--s-plan); } .ed-leg i.and { background: var(--accent); } .ed-leg i.conc { background: #9aa1ad; }
+.ed-cab { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; flex: none; margin-bottom: -6px; }
+.ed-cab span { font: 800 11px var(--sans); text-transform: uppercase; letter-spacing: .12em; color: var(--ink-2); border-bottom: 3px solid var(--line); padding-bottom: 4px; }
+.ed-g { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.ed-w { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.ed { background: var(--surface); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; box-shadow: var(--shadow); }
+.ed.vazio { background: transparent; border: 0; box-shadow: none; }
+.ed.pass { opacity: .55; } .ed.pass:hover { opacity: .9; }
+.ed.hoje { border: 2px solid var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); opacity: 1; }
+.ed-h { display: flex; align-items: center; gap: 7px; background: var(--grafite, #1c2028); color: #fff; padding: 3px 9px; flex: none; min-width: 0; }
+.ed.hoje .ed-h { background: var(--accent); }
+.ed.pass .ed-h { background: #6b7280; }
+.ed-h small { font: 800 10px var(--sans); letter-spacing: .12em; color: var(--laranja-claro, #ff8a55); } .ed.hoje .ed-h small { color: #fff; }
+.ed-h b { font: 800 19px/1.1 var(--sans); }
+.ed-h em { margin-left: auto; font: 800 9.5px var(--sans); font-style: normal; background: #fff; color: var(--accent); border-radius: 4px; padding: 1px 5px; }
+.ed-nota { font-size: 10px; color: #d7dbe4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ed-al { color: #ffcf5a; font-size: 13px; cursor: help; }
+.ed-r { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 5px; padding: 2px 6px; border-top: 1px solid var(--line); }
+.ed-r:first-of-type { border-top: 0; }
+.ed-k { font: 800 9px var(--sans); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); }
+.ed-c { display: flex; gap: 3px; min-width: 0; }
+.ec { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 4px; border-radius: 5px; padding: 2px 5px; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+.ec i { font: 800 9px var(--mono); font-style: normal; flex: none; opacity: .85; }
+.ec.lv { background: #e3f4ea; color: #1f7a4a; }
+.ec.oc { background: var(--s-plan-bg); color: var(--ink); } .ec.oc i { color: var(--s-plan); }
+.ec.oc.st-and { background: var(--accent-soft); } .ec.oc.st-and i { color: var(--accent); }
+.ec.oc.st-conc { background: var(--surface-2); color: var(--ink-3); } .ec.oc.st-conc i { color: var(--ink-3); }
+.ec.na { background: var(--surface-2); color: var(--ink-3); font-weight: 500; justify-content: center; }
+.ec.click { cursor: pointer; } .ec.click:hover { box-shadow: inset 0 0 0 1.5px currentColor; }
+.ed-c.est { gap: 6px; }
+.eb { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.eb b { font: 800 9.5px var(--sans); color: var(--ink-2); white-space: nowrap; }
+.en { font: 800 10px var(--mono); border-radius: 4px; padding: 1px 4px; white-space: nowrap; cursor: help; }
+.en.lv { background: #2f9e66; color: #fff; } .en.oc { background: #e5484d; color: #fff; } .en.na { background: var(--surface-3); color: var(--ink-3); }
+.en.cpe { box-shadow: 0 0 0 1.5px var(--accent); }
+.ed-k .s { display: none; }
+@media (max-width: 1400px) and (min-width: 861px) {
+  .ed-leg span:last-child { display: none; }
+  .ed-r { grid-template-columns: 30px minmax(0, 1fr); padding: 2px 4px; gap: 3px; }
+  .ed-k .l { display: none; } .ed-k .s { display: inline; }
+  .ed-c.est { gap: 4px; } .eb { gap: 2px; } .eb b { font-size: 8.5px; }
+  .en { font-size: 9px; padding: 1px 2px; }
+  .ec { font-size: 10.5px; padding: 1px 4px; }
+}
 </style>
 </head>
 <body>
@@ -1106,7 +1160,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
         <button data-view="cronograma"><span class="ico">▤</span><span class="lbl">Cronograma</span></button>
         <button data-view="etapas"><span class="ico">☰</span><span class="lbl">Etapas</span><span class="nav-badge" id="navBadge"></span></button>
         <button data-view="formandos"><span class="ico">✦</span><span class="lbl">Cursados</span></button>
-        <button data-view="espacos"><span class="ico">▦</span><span class="lbl">Auditório</span></button>
+        <button data-view="espacos"><span class="ico">▦</span><span class="lbl">Espaços</span></button>
       </nav>
       <div class="sidebar-foot">
         <div class="sync" id="syncInfo">Carregando…</div>
@@ -1183,7 +1237,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
-    espacos:    ['Auditório', 'Agendamento do auditório e da sala de reuniões do CPE'],
+    espacos:    ['Espaços', 'Auditório, sala de reuniões e estande — manhã e tarde de cada dia'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
   };
   const ROTACAO_MS = 12000; // troca automática de página nos cartões da visão geral (0 = desligada)
@@ -2338,22 +2392,46 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
   const turmasNoCpe = iso => S.dados.turmas.filter(t => t.sit !== 'canc' && t.inicio && t.fim && t.inicio <= iso && t.fim >= iso &&
     /bpmrv|\bcpe\b/i.test([t.local, t.cidade].join(' ')));
 
+  /* Estande de tiro (planilha da CMB, somente leitura) */
+  function carregarEstande(forcar) {
+    if (S._estCarregando) return;
+    S._estCarregando = true;
+    const pronto = e => { S._estCarregando = false; S.estande = e; if (S.view === 'espacos') render(); };
+    if (RUN) {
+      google.script.run.withSuccessHandler(j => pronto(JSON.parse(j)))
+        .withFailureHandler(err => pronto({ erro: err.message || 'Não foi possível ler a planilha do estande.', meses: {} }))
+        .getEstande(!!forcar);
+    } else setTimeout(() => pronto(window.__ESTANDE_DEMO__ ? JSON.parse(JSON.stringify(window.__ESTANDE_DEMO__)) : { erro: 'sem dados', meses: {} }), 100);
+  }
+  /** Estande num dia/período: por bloco (Gameleira, CIPM) as linhas livres, ocupadas e as do CPE. */
+  function estandeDia(iso, per) {
+    const m = S.estande && S.estande.meses && S.estande.meses[iso.slice(0, 7)];
+    const d = m && m.dias[iso];
+    if (!d || !d.p[per]) return null;
+    return { nota: d.nota, blocos: m.blocos.map((b, k) => {
+      const cel = d.p[per][k] || [];
+      const x = { nome: b.nome, livres: [], ocup: [], cpe: [], inter: 0, tot: b.linhas.length };
+      cel.forEach((c, i) => {
+        if (c === 'X') x.inter++;
+        else if (!c) x.livres.push(b.linhas[i]);
+        else { const o = c.split('|'); x.ocup.push(b.linhas[i] + ': ' + o[0] + (o[1] ? ' (' + o[1] + ')' : '')); if (/\bcpe\b/i.test(o[0])) x.cpe.push(b.linhas[i]); }
+      });
+      return x;
+    }) };
+  }
+
+  /** Mês inteiro (seg–sex): cada dia é um cartão com auditório, sala de reuniões e estande, manhã e tarde. */
   function vEspacos() {
-    if (!S.agenda) { carregarAgenda(false); return '<div class="loading"><div class="spinner"></div>Lendo a planilha de agendamento…</div>'; }
+    if (!S.agenda) carregarAgenda(false);
+    if (!S.estande) carregarEstande(false);
+    if (!S.agenda) return '<div class="loading"><div class="spinner"></div>Lendo as agendas…</div>';
     if (S.agenda.erro) return '<div class="card empty">Não foi possível ler a planilha de agendamento.<br><small>' + esc(S.agenda.erro) + '</small>' +
       '<div class="form-acoes" style="justify-content:center"><button class="btn" data-agrecarregar>Tentar de novo</button></div></div>';
-    const esp = S.espaco || 'aud', outro = esp === 'aud' ? 'sr' : 'aud';
-    const M = diasDoEspaco(esp), O = diasDoEspaco(outro);
-    const hojeIso = S.dados.hoje;
+    const A = diasDoEspaco('aud'), R = diasDoEspaco('sr');
+    const hojeIso = S.dados.hoje, pode = S.dados.podeEditar;
     const base = new Date(HOJE.getFullYear(), HOJE.getMonth() + (S.agMes || 0), 1);
     const ano = base.getFullYear(), mes = base.getMonth(), nDias = new Date(ano, mes + 1, 0).getDate();
-    const uteis = [];
-    for (let d = 1; d <= nDias; d++) { const x = new Date(ano, mes, d); if (x.getDay() > 0 && x.getDay() < 6) uteis.push(isoLocal(x)); }
-    const naPlanilha = uteis.filter(i => M[i] && !M[i].fds);
-    // ocupação em períodos (manhã e tarde de cada dia útil)
-    const ocupP = soma(naPlanilha, i => (ocupa(M[i], 'manha') ? 1 : 0) + (ocupa(M[i], 'tarde') ? 1 : 0));
-    const livresP = soma(naPlanilha.filter(i => i >= hojeIso), i => (livreEm(M[i], 'manha') ? 1 : 0) + (livreEm(M[i], 'tarde') ? 1 : 0));
-
+    const DSL = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
     const semanas = []; let sem = [];
     for (let d = 1; d <= nDias; d++) {
       const w = new Date(ano, mes, d).getDay();
@@ -2362,94 +2440,65 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       if (!sem.length) for (let k = 1; k < w; k++) sem.push(null);
       sem.push(isoLocal(new Date(ano, mes, d)));
     }
-    if (sem.length) semanas.push(sem);
-    const pode = S.dados.podeEditar;
-    const bloco = (r, iso) => {
-      const st = ST_AGENDA(r.status);
-      const tc = esp === 'aud' && turmasNoCpe(iso).length && /curso|est[aá]gio|credenciamento|treinamento|turma/i.test(r.assunto);
-      return '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha : '') + '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + ' · ' +
-        esc([r.hora, r.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(r.resp) + (r.status ? '<br>' + esc(r.status) : '') + (pode ? '<br><i>clique para editar ou cancelar</i>' : '') + '">' +
-        '<b>' + (r.periodo === 'dia' ? 'Dia todo' : PERIODOS[r.periodo]) + (r.hora ? ' · ' + esc(r.hora) : '') + '</b><span>' + esc(r.assunto || '(sem assunto)') + '</span><small>' + esc(r.resp) + '</small></div>';
-    };
-    const vago = (iso, p) => {
-      const ok = pode && iso >= hojeIso;
-      return '<div class="ag-v' + (ok ? ' click" data-agdia="' + iso + '" data-agper="' + p + '" title="Reservar ' + PERIODOS[p].toLowerCase() : '') + '">' +
-        '<b>' + PERIODOS[p] + '</b><span>' + (ok ? '＋ livre' : 'livre') + '</span></div>';
-    };
-    const dia = iso => {
-      if (!iso) return '<div class="ag-d fora"></div>';
-      const d = M[iso], n = Number(iso.slice(8, 10));
-      const cls = (iso === hojeIso ? ' hoje' : '') + (iso < hojeIso ? ' passado' : '');
-      const cab = '<span class="ag-n">' + n + (iso === hojeIso ? ' <em>hoje</em>' : '') + '</span>';
-      if (!d || d.fds) return '<div class="ag-d sem' + cls + '">' + cab + '<div class="ag-livre dim">' + (d ? 'fim de semana' : 'fora da planilha') + '</div></div>';
-      const tc = esp === 'aud' && iso >= hojeIso && !d.res.length ? turmasNoCpe(iso) : [];
-      const alerta = tc.length ? '<div class="ag-alerta" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠ ' + esc(nomeCurto(tc[0])) + '</div>' : '';
+    if (sem.length) { while (sem.length < 5) sem.push(null); semanas.push(sem); }
+
+    // auditório / sala: um chip por período (ou um só para o dia todo)
+    const chipEsp = (esp, M, iso) => {
+      const d = M[iso];
+      if (!d) return '<span class="ec na">—</span>';
+      if (d.fds) return '<span class="ec na">fim de semana</span>';
+      const futuro = iso >= hojeIso;
+      const um = r => {
+        const st = ST_AGENDA(r.status)[0];
+        return '<span class="ec oc st-' + st + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha + '" data-agesp="' + esp : '') +
+          '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + (r.hora ? ' · ' + esc(r.hora) : '') + '<br>' + esc(r.resp) + (r.status ? ' · ' + esc(r.status) : '') + (pode ? '<br><i>clique para editar</i>' : '') + '">' +
+          '<i>' + (r.periodo === 'dia' ? 'DIA' : r.periodo === 'manha' ? 'M' : 'T') + '</i>' + esc(curtoAgenda(r.assunto)) + '</span>';
+      };
       const todo = d.res.find(r => r.periodo === 'dia');
-      const corpo = todo ? bloco(todo, iso)
-        : ['manha', 'tarde'].map(p => { const r = d.res.find(x => x.periodo === p); return r ? bloco(r, iso) : vago(iso, p); }).join('');
-      return '<div class="ag-d' + (d.res.length ? '' : ' livre') + cls + '">' + cab + alerta + '<div class="ag-ps">' + corpo + '</div></div>';
+      if (todo) return um(todo);
+      return ['manha', 'tarde'].map(p => {
+        const r = d.res.find(x => x.periodo === p);
+        if (r) return um(r);
+        return '<span class="ec lv' + (pode && futuro ? ' click" data-agdia="' + iso + '" data-agper="' + p + '" data-agesp="' + esp + '" title="Reservar ' + PERIODOS[p].toLowerCase() : '') + '"><i>' + (p === 'manha' ? 'M' : 'T') + '</i>' + (pode && futuro ? '＋ livre' : 'livre') + '</span>';
+      }).join('');
     };
-    const grade = '<div class="ag-sem ag-cab"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span></div>' +
-      semanas.map(s => { while (s.length < 5) s.push(null); return '<div class="ag-sem">' + s.map(dia).join('') + '</div>'; }).join('');
-
-    // próximos agendamentos (junta dias seguidos com o mesmo assunto, responsável e período)
-    const futuras = [];
-    Object.keys(M).sort().filter(i => i >= hojeIso).forEach(i => M[i].res.forEach(r => futuras.push(Object.assign({ iso: i }, r))));
-    const blocos = [];
-    futuras.forEach(r => {
-      const ult = blocos.find(b => b.assunto === r.assunto && b.resp === r.resp && b.periodo === r.periodo && (dt(r.iso) - dt(b.fim)) / DIA <= 3 && (dt(r.iso) - dt(b.fim)) / DIA > 0);
-      if (ult) { ult.fim = r.iso; ult.n++; }
-      else blocos.push({ ini: r.iso, fim: r.iso, n: 1, assunto: r.assunto, resp: r.resp, hora: r.hora, periodo: r.periodo, linha: r.linha });
-    });
-    blocos.sort((p, q) => p.ini.localeCompare(q.ini) || ['manha', 'dia', 'tarde'].indexOf(p.periodo) - ['manha', 'dia', 'tarde'].indexOf(q.periodo));
-    const ddmm = i => i.slice(8, 10) + '/' + i.slice(5, 7);
-    const prox = blocos.map(b => '<div class="ag-p' + (pode ? ' click" data-agedit="' + b.ini + '" data-aglinha="' + b.linha + '" title="Editar ou cancelar' + (b.n > 1 ? ' (o dia ' + ddmm(b.ini) + ')' : '') : '') + '"><span class="ag-pd">' + ddmm(b.ini) + '<small>' + DSEM[dt(b.ini).getDay()] + '</small></span>' +
-      '<span class="ag-pt"><b>' + esc(b.assunto || '(sem assunto)') + '</b><small><span class="ag-tag p-' + b.periodo + '">' + PERIODOS[b.periodo] + '</span> ' +
-      esc(b.hora || '') + (b.n > 1 ? ' · até ' + ddmm(b.fim) + ' (' + b.n + ' dias)' : '') + ' · ' + esc(b.resp) + '</small></span></div>').join('');
-
-    // turmas no CPE com dias úteis sem nenhuma reserva no auditório (a partir de hoje)
-    const alertas = esp !== 'aud' ? [] : S.dados.turmas.filter(t => t.sit !== 'canc' && t.fim && t.fim >= hojeIso && /bpmrv|\bcpe\b/i.test([t.local, t.cidade].join(' '))).map(t => {
-      const livres = [];
-      for (let x = dt(t.inicio > hojeIso ? t.inicio : hojeIso); x <= dt(t.fim); x = new Date(x.getTime() + DIA)) {
-        const k = isoLocal(x), dd = M[k];
-        if (x.getDay() > 0 && x.getDay() < 6 && dd && !dd.fds && !dd.res.length) livres.push(ddmm(k));
-      }
-      return livres.length ? '<div class="ag-aviso" data-turma="' + t.id + '">⚠ <b>' + esc(nomeCurto(t)) + '</b> (' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '): auditório sem reserva em ' + livres.join(', ') + '.</div>' : '';
-    }).filter(Boolean);
-
-    // hoje: manhã e tarde
-    const resumoHoje = d => {
-      if (!d || d.fds) return ['Livre', d && d.fds ? 'fim de semana' : 'sem reserva hoje'];
-      const todo = d.res.find(r => r.periodo === 'dia');
-      if (todo) return [todo.assunto || '(sem assunto)', 'Dia todo · ' + [todo.hora, todo.resp].filter(Boolean).join(' · ')];
-      const m = d.res.find(r => r.periodo === 'manha'), t = d.res.find(r => r.periodo === 'tarde');
-      if (!m && !t) return ['Livre', 'manhã e tarde sem reserva'];
-      return [(m || t).assunto || '(sem assunto)', 'Manhã: ' + (m ? m.assunto || '—' : 'livre') + ' · Tarde: ' + (t ? t.assunto || '—' : 'livre')];
+    // estande: por bloco, nº de linhas livres de manhã e de tarde
+    const chipEst = iso => {
+      const m = estandeDia(iso, 'manha'), t = estandeDia(iso, 'tarde');
+      if (!m && !t) return '<span class="ec na">' + (S.estande ? (S.estande.erro ? 'sem acesso' : 'sem agenda') : '…') + '</span>';
+      return (m || t).blocos.map((b, k) => '<span class="eb"><b title="' + esc(b.nome) + '">' + esc(b.nome.length > 5 ? b.nome.slice(0, 3).toUpperCase() : b.nome.toUpperCase()) + '</b>' + [['M', m], ['T', t]].map(([rot, x]) => {
+        const y = x && x.blocos[k];
+        if (!y) return '<span class="en na">' + rot + ' –</span>';
+        const fech = y.inter === y.tot, n = y.livres.length;
+        const tip = '<b>' + esc(b.nome) + ' · ' + (rot === 'M' ? 'manhã' : 'tarde') + '</b>' + (fech ? 'interditado' : (n ? 'Livres: ' + esc(y.livres.join(', ')) : 'Nenhuma linha livre') +
+          (y.ocup.length ? '<br>' + y.ocup.map(esc).join('<br>') : ''));
+        return '<span class="en ' + (fech ? 'na' : n ? 'lv' : 'oc') + (y.cpe.length ? ' cpe' : '') + '" data-tip="' + tip + '">' + rot + (fech ? '×' : n) + (y.cpe.length ? '★' : '') + '</span>';
+      }).join('') + '</span>').join('');
     };
-    const hj = M[hojeIso], ho = O[hojeIso];
-    const rh = resumoHoje(hj), ro = resumoHoje(ho);
-    const sel = '<div class="seg">' + Object.keys(ESPACOS).map(k => '<button data-esp="' + k + '" class="' + (esp === k ? 'on' : '') + '">' + ESPACOS[k] + '</button>').join('') + '</div>';
-    return '<div class="toolbar">' + sel +
-      '<div class="pager ag-mes"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes] + ' ' + ano + '</b><button data-agmes="1" title="Próximo mês">›</button>' +
-      (S.agMes ? '<button data-agmes="0" class="cal-hoje" title="Voltar ao mês atual">hoje</button>' : '') + '</div>' +
-      '<span style="color:var(--ink-3);font-size:12.5px">fonte: planilha AGENDAMENTO DE REUNIÕES</span>' +
-      '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Abrir planilha ↗</a>' +
+    const cartao = iso => {
+      if (!iso) return '<div class="ed vazio"></div>';
+      const d = dt(iso), hoje = iso === hojeIso;
+      const em = estandeDia(iso, 'manha');
+      const nota = em && em.nota;
+      const tc = iso >= hojeIso && A[iso] && !A[iso].fds && !A[iso].res.length ? turmasNoCpe(iso) : [];
+      return '<div class="ed' + (hoje ? ' hoje' : '') + (iso < hojeIso ? ' pass' : '') + '">' +
+        '<div class="ed-h"><small>' + DSL[d.getDay()] + '</small><b>' + d.getDate() + '</b>' + (nota ? '<span class="ed-nota" title="' + esc(nota) + '">' + esc(nota) + '</span>' : '') +
+          (tc.length ? '<span class="ed-al" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠</span>' : '') + (hoje ? '<em>HOJE</em>' : '') + '</div>' +
+        '<div class="ed-r"><span class="ed-k"><span class="l">Auditório</span><span class="s">AUD</span></span><div class="ed-c">' + chipEsp('aud', A, iso) + '</div></div>' +
+        '<div class="ed-r"><span class="ed-k"><span class="l">Sala</span><span class="s">SALA</span></span><div class="ed-c">' + chipEsp('sr', R, iso) + '</div></div>' +
+        '<div class="ed-r"><span class="ed-k"><span class="l">Estande</span><span class="s">EST</span></span><div class="ed-c est">' + chipEst(iso) + '</div></div></div>';
+    };
+    const urlEst = S.estande && S.estande.url;
+    return '<div class="toolbar"><div class="ed-nav"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes].toUpperCase() + ' <span>' + ano + '</span></b><button data-agmes="1" title="Próximo mês">›</button>' +
+        (S.agMes ? '<button data-agmes="0" class="ed-hoje">hoje</button>' : '') + '</div>' +
+      '<div class="ed-leg"><span><i class="lv"></i>livre</span><span><i class="oc"></i>reservado</span><span><i class="and"></i>em andamento</span><span><i class="conc"></i>concluído</span><span title="Estande: número de linhas livres; ★ = linha reservada para o CPE">estande: linhas livres · ★ CPE</span></div>' +
+      '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Agenda auditório/sala ↗</a>' +
+      (urlEst ? '<a class="btn small" style="text-decoration:none" href="' + esc(urlEst) + '" target="_blank" rel="noopener" title="Somente leitura: a reserva do estande é solicitada à CMB">Estande CMB ↗</a>' : '') +
       (pode ? '<button class="btn small primary" data-acao="agendar">＋ Agendar</button>' : '') + '</div>' +
-      '<div class="grid g-kpi k4">' +
-        kpi('Hoje · ' + ESPACOS[esp], '<span class="ag-kv">' + esc(rh[0]) + '</span>', '', esc(rh[1]), null, hj && hj.res.length ? '' : 'ag-livre-k') +
-        kpi('Ocupação em ' + MES_LONGO[mes].toLowerCase(), naPlanilha.length ? Math.round(ocupP / (naPlanilha.length * 2) * 100) : '—', naPlanilha.length ? '%' : '', ocupP + ' de ' + naPlanilha.length * 2 + ' períodos (manhã e tarde) reservados') +
-        kpi('Períodos livres a partir de hoje', livresP, '', 'manhãs e tardes sem reserva em ' + MES_LONGO[mes].toLowerCase()) +
-        kpi(ESPACOS[outro] + ' hoje', '<span class="ag-kv">' + esc(ro[0]) + '</span>', '', esc(ro[1])) +
-      '</div>' +
-      '<div class="grid grow" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)">' +
-        '<div class="card panel flush ag-cal"><div class="card-head"><h2>' + ESPACOS[esp] + ' · ' + MES_LONGO[mes] + '</h2>' +
-          '<span class="meta"><i class="ag-lg st-conc"></i>Concluída <i class="ag-lg st-and"></i>Em andamento <i class="ag-lg st-nao"></i>Agendada' + (esp === 'aud' ? ' <i class="ag-lg turma"></i>Turma do CPE' : '') + '</span></div>' +
-          '<div class="ag-grade">' + grade + '</div></div>' +
-        '<div class="card panel flush"><div class="card-head"><h2>Próximos agendamentos</h2><span class="meta">' + blocos.length + '</span>' + pager('ag-prox') + '</div>' +
-          caixa('ag-prox', prox || '<div class="empty">Nada agendado daqui para frente.</div>', 'ag-prox') +
-          (alertas.length ? '<div class="ag-avisos">' + alertas.slice(0, 2).join('') + (alertas.length > 2 ? '<div class="hint">+ ' + (alertas.length - 2) + ' turma(s)</div>' : '') + '</div>' : '') +
-        '</div></div>';
+      '<div class="ed-cab">' + ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'].map(x => '<span>' + x + '</span>').join('') + '</div>' +
+      '<div class="ed-g grow">' + semanas.map(s => '<div class="ed-w">' + s.map(cartao).join('') + '</div>').join('') + '</div>';
   }
+  const curtoAgenda = s => String(s || '(sem assunto)').replace(/Curso de Especializa[cç][aã]o em Tr[aâ]nsito Rodovi[aá]rio/gi, 'CEPTR').replace(/^Reunião do Curso de /i, 'Reunião ');
 
   function abrirAgendar(iso, per) {
     const esp = S.espaco || 'aud', p = per || 'manha';
@@ -3311,9 +3360,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const am = el.closest('[data-agmes]');
     if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
     const ae = el.closest('[data-agedit]');
-    if (ae) { return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha); }
+    if (ae) { if (ae.dataset.agesp) S.espaco = ae.dataset.agesp; return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha); }
     const ad = el.closest('[data-agdia]');
-    if (ad) { return abrirAgendar(ad.dataset.agdia, ad.dataset.agper); }
+    if (ad) { if (ad.dataset.agesp) S.espaco = ad.dataset.agesp; return abrirAgendar(ad.dataset.agdia, ad.dataset.agper); }
     const sm = el.closest('[data-semestre]');
     if (sm) { S.semestre = Number(sm.dataset.semestre); S.pg = {}; return render(); }
 
@@ -3418,7 +3467,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     $('#search').value = '';
     montarFiltros(); filtrosMudaram();
   });
-  $('#btnRefresh').addEventListener('click', () => { carregar(true); if (S.view === 'espacos') carregarAgenda(true); });
+  $('#btnRefresh').addEventListener('click', () => { carregar(true); if (S.view === 'espacos') { carregarAgenda(true); carregarEstande(true); } });
   $('#btnCsv').addEventListener('click', exportarCsv);
   $('#btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
   $('#selEstilo').value = document.documentElement.getAttribute('data-estilo') || 'aet';
