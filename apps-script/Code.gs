@@ -885,9 +885,31 @@ function abaAgenda_(ss, espaco) {
 }
 
 /**
- * Lê as abas do auditório e da sala de reuniões. Cada linha com uma data na coluna A é um dia:
+ * Lê as abas do auditório e da sala de reuniões. Cada data tem UMA linha:
  * B = responsável (ou SÁBADO/DOMINGO), C = status, D = hora, E = data de início, F = duração, G = assunto.
+ * Dia com reserva de manhã e de tarde: as duas ficam na mesma linha, separadas por " | "
+ * (ex.: F "manhã | tarde", G "Reunião DER | Planejamento"). O status (C) vale para as duas.
  */
+const SEP_AGENDA = ' | ';
+
+/** Reservas de uma linha da agenda: 0, 1 ou 2 (manhã e tarde na mesma linha). */
+function reservasDaLinha_(r) {
+  const b = String(r[1] || '').trim();
+  if (/^(sabado|domingo)$/.test(semAcento_(b))) return { fds: true, res: [] };
+  if (!b && !String(r[6] || '').trim()) return { fds: false, res: [] };
+  const hora = x => String(x || '').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
+  const status = String(r[2] || '').trim();
+  const partes = c => String(r[c] || '').split('|').map(x => x.trim());
+  if (String(r[5] || '').indexOf('|') >= 0) {
+    const R = partes(1), H = partes(3), F = partes(5), G = partes(6);
+    return { fds: false, res: F.map((f, k) => ({ parte: k, resp: R[k] || R[0] || '', status: status, hora: hora(H[k] || ''), duracao: f, assunto: G[k] || '' }))
+      .filter(x => x.resp || x.assunto).map(x => Object.assign(x, { periodo: periodoAgenda_(x.hora, x.duracao) })) };
+  }
+  const x = { parte: 0, resp: b, status: status, hora: hora(r[3]), duracao: String(r[5] || '').trim(), assunto: String(r[6] || '').trim() };
+  x.periodo = periodoAgenda_(x.hora, x.duracao);
+  return { fds: false, res: [x] };
+}
+
 function lerAgenda_() {
   const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
   const out = { url: ss.getUrl(), espacos: {} };
@@ -898,20 +920,10 @@ function lerAgenda_() {
     for (let i = 0; i < v.length; i++) {
       const m = String(v[i][0] || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
       if (!m) continue;
-      const b = String(v[i][1] || '').trim();
-      const fds = /^(sabado|domingo)$/.test(semAcento_(b));
-      dias.push({
-        data: m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2),
-        linha: i + 1,
-        fds: fds,
-        resp: fds ? '' : b,
-        status: String(v[i][2] || '').trim(),
-        hora: String(v[i][3] || '').trim().replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1'),
-        duracao: String(v[i][5] || '').trim(),
-        assunto: String(v[i][6] || '').trim()
-      });
-      const x = dias[dias.length - 1];
-      x.periodo = x.resp || x.assunto ? periodoAgenda_(x.hora, x.duracao) : '';
+      const data = m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+      const lr = reservasDaLinha_(v[i]);
+      if (lr.fds || !lr.res.length) { dias.push({ data: data, linha: i + 1, parte: 0, fds: lr.fds, resp: '', status: '', hora: '', duracao: '', assunto: '', periodo: '' }); continue; }
+      lr.res.forEach(x => dias.push(Object.assign({ data: data, linha: i + 1, fds: false }, x)));
     }
     out.espacos[k] = { nome: aba.getName(), dias: dias };
   });
@@ -928,11 +940,52 @@ function getAgenda(forcar) {
   return json;
 }
 
+const NOME_PERIODO_ = { manha: 'manhã', tarde: 'tarde', dia: 'o dia todo' };
+
+/** Confere se as reservas de um dia não se sobrepõem (dia todo ocupa manhã e tarde). */
+function conferirPeriodos_(res, alvo, nomeAba) {
+  for (let a = 0; a < res.length; a++) for (let b = a + 1; b < res.length; b++) {
+    const p = res[a].periodo, q = res[b].periodo;
+    if (p === 'dia' || q === 'dia' || p === q) {
+      throw new Error(nomeAba + ' já reservado em ' + alvo + ' (' + NOME_PERIODO_[p] + '): ' + res[a].assunto + ' — ' + res[a].resp + '.');
+    }
+  }
+  if (res.length > 2) throw new Error('No máximo duas reservas por dia (manhã e tarde).');
+}
+
 /**
- * Reserva o auditório ou a sala de reuniões num período do dia (manhã, tarde ou o dia todo).
- * Grava na linha do dia; se o dia já tem reserva no outro período, cria uma segunda linha com a mesma data logo abaixo.
- * Recusa fim de semana e período já ocupado.
+ * Grava as reservas de um dia na linha (sempre uma linha por data). Duas reservas → manhã | tarde.
+ * Linhas repetidas da mesma data (de versões antigas) são juntadas nesta e apagadas.
  */
+function gravarDia_(aba, linhas, data, res) {
+  const r = linhas[0] + 1;
+  res.sort((p, q) => ['manha', 'dia', 'tarde'].indexOf(p.periodo) - ['manha', 'dia', 'tarde'].indexOf(q.periodo));
+  if (!res.length) aba.getRange(r, 2, 1, 6).clearContent();
+  else {
+    const j = f => res.map(f).join(SEP_AGENDA);
+    const dur = res.length > 1 ? j(x => NOME_PERIODO_[x.periodo]) : res[0].duracao || NOME_PERIODO_[res[0].periodo];
+    const st = res.some(x => /andamento/i.test(x.status)) ? 'Em andamento' : res.every(x => /conclu/i.test(x.status)) ? 'Concluída' : (res[0].status || 'Não iniciada');
+    aba.getRange(r, 2, 1, 3).setValues([[j(x => x.resp), st, res.length > 1 ? j(x => x.hora) : res[0].hora]]);
+    aba.getRange(r, 5, 1, 3).setValues([[data, dur, j(x => x.assunto)]]);
+  }
+  linhas.slice(1).sort((p, q) => q - p).forEach(i => aba.deleteRow(i + 1));
+}
+
+/** Linhas da planilha com a data (normalmente uma) e as reservas que elas têm. */
+function diaAgenda_(v, alvo) {
+  const linhas = [], res = [];
+  let fds = false;
+  v.forEach((x, i) => {
+    if (String(x[0] || '').trim() !== alvo) return;
+    linhas.push(i);
+    const lr = reservasDaLinha_(x);
+    fds = fds || lr.fds;
+    lr.res.forEach(y => res.push(Object.assign({ linha: i + 1 }, y)));
+  });
+  return { linhas: linhas, res: res, fds: fds };
+}
+
+/** Reserva o auditório ou a sala num período (manhã, tarde ou o dia todo), na própria linha da data. */
 function agendarEspaco(req) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -945,45 +998,25 @@ function agendarEspaco(req) {
     const aba = abaAgenda_(ss, req.espaco);
     const v = aba.getDataRange().getDisplayValues();
     const alvo = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
-    const linhas = [];
-    v.forEach((r, i) => { if (String(r[0] || '').trim() === alvo) linhas.push(i); });
-    if (!linhas.length) throw new Error('O dia ' + alvo + ' ainda não existe na aba "' + aba.getName() + '". Inclua o mês na planilha de agendamento.');
-    const b0 = String(v[linhas[0]][1] || '').trim();
-    if (/^(sabado|domingo)$/.test(semAcento_(b0))) throw new Error(alvo + ' é ' + b0.toLowerCase() + '.');
-    const nomeP = { manha: 'manhã', tarde: 'tarde', dia: 'o dia todo' };
-    let livre = -1;
-    linhas.forEach(i => {
-      const ocupada = String(v[i][1] || '').trim() || String(v[i][6] || '').trim();
-      if (!ocupada) { if (livre < 0) livre = i; return; }
-      const p = periodoAgenda_(v[i][3], v[i][5]);
-      if (p === 'dia' || periodo === 'dia' || p === periodo) {
-        throw new Error(aba.getName() + ' já reservado em ' + alvo + ' (' + nomeP[p] + '): ' + (v[i][6] || '') + ' — ' + (v[i][1] || '') + '.');
-      }
-    });
-    let r = livre + 1;
-    if (livre < 0) {
-      // Dia já tem reserva no outro período: segunda linha com a mesma data, logo abaixo.
-      const ult = linhas[linhas.length - 1] + 1;
-      aba.insertRowAfter(ult);
-      r = ult + 1;
-      aba.getRange(ult, 1, 1, 7).copyTo(aba.getRange(r, 1, 1, 7));
-      aba.getRange(r, 2, 1, 6).clearContent();
-    }
+    const dia = diaAgenda_(v, alvo);
+    if (!dia.linhas.length) throw new Error('O dia ' + alvo + ' ainda não existe na aba "' + aba.getName() + '". Inclua o mês na planilha de agendamento.');
+    if (dia.fds) throw new Error(alvo + ' é fim de semana.');
     const hora = String(req.hora || '').trim() || (periodo === 'tarde' ? '13:00' : '08:00');
-    aba.getRange(r, 2, 1, 3).setValues([[resp, 'Não iniciada', hora]]);
-    aba.getRange(r, 5, 1, 3).setValues([[d, nomeP[periodo], assunto]]);
+    const res = dia.res.concat([{ resp: resp, status: 'Não iniciada', hora: hora, duracao: NOME_PERIODO_[periodo], assunto: assunto, periodo: periodo }]);
+    conferirPeriodos_(res, alvo, aba.getName());
+    gravarDia_(aba, dia.linhas, d, res);
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove(AGENDA_CACHE);
-    return JSON.stringify({ ok: true, linha: r });
+    return JSON.stringify({ ok: true, linha: dia.linhas[0] + 1 });
   } finally {
     lock.releaseLock();
   }
 }
 
 /**
- * Edita ou cancela uma reserva já feita (uma linha da agenda). Confere data, responsável e assunto
- * da linha antes de gravar. Cancelar limpa a linha; se o dia tem outra linha com a mesma data, a linha extra é apagada.
- * req: { espaco, linha, data, antes: { resp, assunto }, excluir, resp, assunto, hora, periodo, status }
+ * Edita ou cancela uma reserva (identificada pela linha e pela parte: 0 = primeira, 1 = segunda da linha).
+ * Confere responsável e assunto antes de gravar. O dia continua numa linha só.
+ * req: { espaco, linha, parte, data, antes: { resp, assunto }, excluir, resp, assunto, hora, periodo, status }
  */
 function editarAgenda(req) {
   const lock = LockService.getScriptLock();
@@ -992,33 +1025,26 @@ function editarAgenda(req) {
     const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
     const aba = abaAgenda_(ss, req.espaco);
     const v = aba.getDataRange().getDisplayValues();
-    const alvo = Utilities.formatDate(dataIso_(req.data), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-    const i = Number(req.linha) - 1;
-    const r = v[i] || [];
-    const mesma = String(r[0] || '').trim() === alvo && semAcento_(r[1]) === semAcento_(req.antes && req.antes.resp) && semAcento_(r[6]) === semAcento_(req.antes && req.antes.assunto);
-    if (!mesma) throw new Error('A planilha de agendamento mudou desde o último carregamento. Atualize o painel e tente de novo.');
-    const linhasDoDia = [];
-    v.forEach((x, k) => { if (String(x[0] || '').trim() === alvo) linhasDoDia.push(k); });
-
-    if (req.excluir) {
-      if (linhasDoDia.length > 1) aba.deleteRow(i + 1);
-      else aba.getRange(i + 1, 2, 1, 6).clearContent();
-    } else {
+    const d = dataIso_(req.data);
+    const alvo = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    const dia = diaAgenda_(v, alvo);
+    const k = dia.res.findIndex(x => x.linha === Number(req.linha) && x.parte === Number(req.parte || 0) &&
+      semAcento_(x.resp) === semAcento_(req.antes && req.antes.resp) && semAcento_(x.assunto) === semAcento_(req.antes && req.antes.assunto));
+    if (k < 0) throw new Error('A planilha de agendamento mudou desde o último carregamento. Atualize o painel e tente de novo.');
+    const res = dia.res.slice();
+    if (req.excluir) res.splice(k, 1);
+    else {
       const resp = String(req.resp || '').trim(), assunto = String(req.assunto || '').trim();
       if (!resp || !assunto) throw new Error('Informe o responsável e o assunto.');
       const periodo = ['manha', 'tarde', 'dia'].indexOf(req.periodo) >= 0 ? req.periodo : 'dia';
-      const nomeP = { manha: 'manhã', tarde: 'tarde', dia: 'o dia todo' };
-      linhasDoDia.filter(k => k !== i && (String(v[k][1] || '').trim() || String(v[k][6] || '').trim())).forEach(k => {
-        const p = periodoAgenda_(v[k][3], v[k][5]);
-        if (p === 'dia' || periodo === 'dia' || p === periodo) throw new Error('Conflito em ' + alvo + ' (' + nomeP[p] + '): ' + v[k][6] + ' — ' + v[k][1] + '.');
-      });
       const status = ['Não iniciada', 'Em andamento', 'Concluída'].indexOf(req.status) >= 0 ? req.status : 'Não iniciada';
-      aba.getRange(i + 1, 2, 1, 3).setValues([[resp, status, String(req.hora || '').trim()]]);
-      // F (duração): mantém o texto original quando o período não mudou (ex.: "4 horas").
-      const durAntes = String(r[5] || '').trim();
-      const dur = periodoAgenda_(r[3], durAntes) === periodo && periodoAgenda_(req.hora, durAntes) === periodo ? durAntes : nomeP[periodo];
-      aba.getRange(i + 1, 6, 1, 2).setValues([[dur, assunto]]);
+      const velho = res[k];
+      res[k] = { resp: resp, assunto: assunto, hora: String(req.hora || '').trim(), status: status, periodo: periodo,
+        duracao: velho.periodo === periodo && res.length === 1 ? velho.duracao : NOME_PERIODO_[periodo] };
+      res.forEach(x => { x.status = status; }); // o status é um só por linha
+      conferirPeriodos_(res, alvo, aba.getName());
     }
+    gravarDia_(aba, dia.linhas, d, res);
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove(AGENDA_CACHE);
     return JSON.stringify({ ok: true });

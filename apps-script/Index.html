@@ -2518,7 +2518,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       const futuro = iso >= hojeIso;
       const um = r => {
         const st = ST_AGENDA(r.status)[0];
-        return '<span class="ec oc st-' + st + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha + '" data-agesp="' + esp : '') +
+        return '<span class="ec oc st-' + st + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha + '" data-agparte="' + (r.parte || 0) + '" data-agesp="' + esp : '') +
           '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + (r.hora ? ' · ' + esc(r.hora) : '') + '<br>' + esc(r.resp) + (r.status ? ' · ' + esc(r.status) : '') + (pode ? '<br><i>clique para editar</i>' : '') + '">' +
           '<i>' + (r.periodo === 'dia' ? 'Dia todo' : r.periodo === 'manha' ? 'Manhã' : 'Tarde') + '</i><span class="ec-t"><b>' + esc(curtoAgenda(r.assunto)) + '</b><small>' + esc(r.resp || '') + (r.hora ? ' · ' + esc(r.hora) : '') + '</small></span></span>';
       };
@@ -2577,12 +2577,12 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     abrirForm('agendar');
   }
 
-  function abrirEditarAgenda(iso, linha) {
+  function abrirEditarAgenda(iso, linha, parte) {
     const esp = S.espaco || 'aud';
     const d = diasDoEspaco(esp)[iso];
-    const r = d && d.res.find(x => String(x.linha) === String(linha));
+    const r = d && d.res.find(x => String(x.linha) === String(linha) && String(x.parte || 0) === String(parte || 0));
     if (!r) return toast('Reserva não encontrada. Atualize o painel.', 'err');
-    S.edit = { tipo: 'agendar', editar: { linha: r.linha, antes: { resp: r.resp, assunto: r.assunto } },
+    S.edit = { tipo: 'agendar', editar: { linha: r.linha, parte: r.parte || 0, antes: { resp: r.resp, assunto: r.assunto } },
       campos: { espaco: esp, data: iso, periodo: r.periodo, hora: r.hora || '', resp: r.resp, assunto: r.assunto, status: r.status || 'Não iniciada' } };
     abrirForm('agendar');
   }
@@ -2592,7 +2592,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const d = c.data ? diasDoEspaco(c.espaco)[c.data] : null;
     if (!d || d.fds) return null;
     const ed = S.edit && S.edit.editar;
-    return d.res.filter(r => !ed || String(r.linha) !== String(ed.linha))
+    return d.res.filter(r => !ed || String(r.linha) !== String(ed.linha) || String(r.parte || 0) !== String(ed.parte || 0))
       .find(r => r.periodo === 'dia' || c.periodo === 'dia' || r.periodo === c.periodo) || null;
   }
 
@@ -2608,12 +2608,12 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (ed && S.edit.excluir) {
       return '<h2>Cancelar reserva</h2><div class="sub">' + esc(ESPACOS[c.espaco]) + ' · ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')</div>' +
         '<div class="hint danger" style="margin-top:16px"><b>' + esc(ed.antes.assunto) + '</b> — ' + esc(ed.antes.resp) + '<br>A linha deste dia fica livre na planilha de agendamento' +
-        ' (se for uma segunda linha com a mesma data, ela é apagada). Só este dia é cancelado.</div>' +
+        ' (se o dia também tiver reserva no outro período, ela continua na mesma linha). Só este dia é cancelado.</div>' +
         '<div class="form-acoes">' + botao('confirmar-excluir-agenda', 'Cancelar reserva', 'danger') + botao('voltar-agenda', 'Voltar', '') + '</div>';
     }
     return '<h2>' + (ed ? 'Editar reserva' : 'Agendar ' + esc(ESPACOS[c.espaco].toLowerCase())) + '</h2>' +
       '<div class="sub">' + (ed ? esc(ESPACOS[c.espaco]) + ' · ' + fmtAno(c.data) + '. A alteração vale só para este dia.'
-        : 'A reserva é gravada na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”. Se o dia já tiver reserva no outro período, entra uma segunda linha com a mesma data. Cursos: use “Dia todo”.') + '</div>' +
+        : 'A reserva é gravada na linha do dia da planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”. Manhã e tarde do mesmo dia ficam na mesma linha, separadas por “ | ”. Cursos: use “Dia todo”.') + '</div>' +
       '<div class="form" style="margin-top:16px">' +
         (ed ? '' : campoSel('Espaço', 'espaco', c.espaco, Object.keys(ESPACOS).map(k => [k, ESPACOS[k]]))) +
         '<div class="form g2" style="margin-top:0">' + (ed ? campo('Hora de início', 'hora', c.hora, 'time') : campo('Data', 'data', c.data, 'date')) +
@@ -2643,10 +2643,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
       if (RUN) { S.agenda = null; carregarAgenda(true); } else render();
     };
     if (ed) {
-      return gravarNoServidor('editarAgenda', { espaco: c.espaco, linha: ed.linha, data: c.data, antes: ed.antes, excluir: !!excluir,
+      return gravarNoServidor('editarAgenda', { espaco: c.espaco, linha: ed.linha, parte: ed.parte, data: c.data, antes: ed.antes, excluir: !!excluir,
         resp: c.resp, assunto: c.assunto, hora: c.hora, periodo: c.periodo, status: c.status }, () => {
         if (!RUN) {
-          const dias = S.agenda.espacos[c.espaco].dias, x = dias.find(y => y.data === c.data && String(y.linha) === String(ed.linha));
+          const dias = S.agenda.espacos[c.espaco].dias, x = dias.find(y => y.data === c.data && String(y.linha) === String(ed.linha) && String(y.parte || 0) === String(ed.parte || 0));
           if (x && excluir) { const outras = dias.filter(y => y.data === c.data).length; if (outras > 1) dias.splice(dias.indexOf(x), 1); else Object.assign(x, { resp: '', assunto: '', hora: '', duracao: '', status: '', periodo: '' }); }
           else if (x) Object.assign(x, { resp: c.resp, assunto: c.assunto, hora: c.hora, status: c.status, periodo: c.periodo, duracao: PERIODOS[c.periodo].toLowerCase() });
         }
@@ -3522,7 +3522,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const lv = el.closest('[data-logver]');
     if (lv) { S.logVer = lv.dataset.logver; S.pg = {}; return render(); }
     const ae = el.closest('[data-agedit]');
-    if (ae) { if (ae.dataset.agesp) S.espaco = ae.dataset.agesp; return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha); }
+    if (ae) { if (ae.dataset.agesp) S.espaco = ae.dataset.agesp; return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha, ae.dataset.agparte); }
     const ad = el.closest('[data-agdia]');
     if (ad) { if (ad.dataset.agesp) S.espaco = ad.dataset.agesp; return abrirAgendar(ad.dataset.agdia, ad.dataset.agper); }
     const sm = el.closest('[data-semestre]');
