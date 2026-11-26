@@ -853,7 +853,21 @@ function registrarHistorico_(ss, linha) {
 /* Auditório e sala de reuniões (planilha AGENDAMENTO DE REUNIÕES)     */
 /* ================================================================== */
 
-const AGENDA_CACHE = 'agenda_v1';
+const AGENDA_CACHE = 'agenda_v2';
+
+/** Período de uma reserva: 'dia' (o dia todo), 'manha' ou 'tarde' — pela duração e, se preciso, pela hora. */
+function periodoAgenda_(hora, duracao) {
+  const d = semAcento_(duracao);
+  if (/dia todo|dia inteiro|integral/.test(d)) return 'dia';
+  if (/manha/.test(d)) return 'manha';
+  if (/tarde/.test(d)) return 'tarde';
+  const m = String(hora || '').match(/(\d{1,2})(?::(\d{2}))?/);
+  if (!m) return 'dia';
+  const h = Number(m[1]) + Number(m[2] || 0) / 60;
+  const n = parseFloat((d.match(/(\d+(?:[.,]\d+)?)\s*h/) || [])[1]);
+  if (n && h < 12 && h + n > 12.5) return 'dia';
+  return h < 12 ? 'manha' : 'tarde';
+}
 
 /** Aba de um espaço na planilha de agendamento (o nome é comparado sem acento). */
 function abaAgenda_(ss, espaco) {
@@ -890,6 +904,8 @@ function lerAgenda_() {
         duracao: String(v[i][5] || '').trim(),
         assunto: String(v[i][6] || '').trim()
       });
+      const x = dias[dias.length - 1];
+      x.periodo = x.resp || x.assunto ? periodoAgenda_(x.hora, x.duracao) : '';
     }
     out.espacos[k] = { nome: aba.getName(), dias: dias };
   });
@@ -907,30 +923,52 @@ function getAgenda(forcar) {
 }
 
 /**
- * Reserva um dia no auditório ou na sala de reuniões: grava responsável, status "Não iniciada",
- * hora, data, duração e assunto na linha do dia. Recusa dia já reservado ou fim de semana.
+ * Reserva o auditório ou a sala de reuniões num período do dia (manhã, tarde ou o dia todo).
+ * Grava na linha do dia; se o dia já tem reserva no outro período, cria uma segunda linha com a mesma data logo abaixo.
+ * Recusa fim de semana e período já ocupado.
  */
 function agendarEspaco(req) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     const resp = String(req.resp || '').trim(), assunto = String(req.assunto || '').trim();
+    const periodo = ['manha', 'tarde', 'dia'].indexOf(req.periodo) >= 0 ? req.periodo : 'dia';
     if (!resp || !assunto) throw new Error('Informe o responsável e o assunto.');
     const d = dataIso_(req.data);
     const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
     const aba = abaAgenda_(ss, req.espaco);
     const v = aba.getDataRange().getDisplayValues();
     const alvo = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
-    const i = v.findIndex(r => String(r[0] || '').trim() === alvo);
-    if (i < 0) throw new Error('O dia ' + alvo + ' ainda não existe na aba "' + aba.getName() + '". Inclua o mês na planilha de agendamento.');
-    const atual = String(v[i][1] || '').trim();
-    if (/^(sabado|domingo)$/.test(semAcento_(atual))) throw new Error(alvo + ' é ' + atual.toLowerCase() + '.');
-    if (atual) throw new Error(aba.getName() + ' já reservado em ' + alvo + ': ' + (v[i][6] || '') + ' (' + atual + ').');
-    aba.getRange(i + 1, 2, 1, 3).setValues([[resp, 'Não iniciada', String(req.hora || '').trim()]]);
-    aba.getRange(i + 1, 5, 1, 3).setValues([[d, String(req.duracao || '').trim(), assunto]]);
+    const linhas = [];
+    v.forEach((r, i) => { if (String(r[0] || '').trim() === alvo) linhas.push(i); });
+    if (!linhas.length) throw new Error('O dia ' + alvo + ' ainda não existe na aba "' + aba.getName() + '". Inclua o mês na planilha de agendamento.');
+    const b0 = String(v[linhas[0]][1] || '').trim();
+    if (/^(sabado|domingo)$/.test(semAcento_(b0))) throw new Error(alvo + ' é ' + b0.toLowerCase() + '.');
+    const nomeP = { manha: 'manhã', tarde: 'tarde', dia: 'o dia todo' };
+    let livre = -1;
+    linhas.forEach(i => {
+      const ocupada = String(v[i][1] || '').trim() || String(v[i][6] || '').trim();
+      if (!ocupada) { if (livre < 0) livre = i; return; }
+      const p = periodoAgenda_(v[i][3], v[i][5]);
+      if (p === 'dia' || periodo === 'dia' || p === periodo) {
+        throw new Error(aba.getName() + ' já reservado em ' + alvo + ' (' + nomeP[p] + '): ' + (v[i][6] || '') + ' — ' + (v[i][1] || '') + '.');
+      }
+    });
+    let r = livre + 1;
+    if (livre < 0) {
+      // Dia já tem reserva no outro período: segunda linha com a mesma data, logo abaixo.
+      const ult = linhas[linhas.length - 1] + 1;
+      aba.insertRowAfter(ult);
+      r = ult + 1;
+      aba.getRange(ult, 1, 1, 7).copyTo(aba.getRange(r, 1, 1, 7));
+      aba.getRange(r, 2, 1, 6).clearContent();
+    }
+    const hora = String(req.hora || '').trim() || (periodo === 'tarde' ? '13:00' : '08:00');
+    aba.getRange(r, 2, 1, 3).setValues([[resp, 'Não iniciada', hora]]);
+    aba.getRange(r, 5, 1, 3).setValues([[d, nomeP[periodo], assunto]]);
     SpreadsheetApp.flush();
     CacheService.getScriptCache().remove(AGENDA_CACHE);
-    return JSON.stringify({ ok: true, linha: i + 1 });
+    return JSON.stringify({ ok: true, linha: r });
   } finally {
     lock.releaseLock();
   }

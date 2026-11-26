@@ -1142,6 +1142,7 @@
   /* ---------- Auditório e sala de reuniões ---------- */
 
   const ESPACOS = { aud: 'Auditório', sr: 'Sala de reuniões' };
+  const PERIODOS = { manha: 'Manhã', tarde: 'Tarde', dia: 'Dia todo' };
   const ST_AGENDA = s => /conclu/.test(norm(s)) ? ['conc', 'Concluída'] : /andamento|execu/.test(norm(s)) ? ['and', 'Em andamento'] : ['nao', 'Agendada'];
   const DSEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
@@ -1156,13 +1157,20 @@
     } else setTimeout(() => pronto(window.__AGENDA_DEMO__ ? JSON.parse(JSON.stringify(window.__AGENDA_DEMO__)) : { erro: 'Demonstração sem dados de agenda.' }), 100);
   }
 
-  /** Dias do espaço indexados por data ISO. */
+  /** Dias do espaço por data: { fds, res: [reservas com periodo 'manha' | 'tarde' | 'dia'] }. Um dia pode ter mais de uma linha na planilha. */
   function diasDoEspaco(k) {
     const m = {};
-    ((S.agenda && S.agenda.espacos && S.agenda.espacos[k] && S.agenda.espacos[k].dias) || []).forEach(d => { m[d.data] = d; });
+    ((S.agenda && S.agenda.espacos && S.agenda.espacos[k] && S.agenda.espacos[k].dias) || []).forEach(d => {
+      const x = m[d.data] = m[d.data] || { data: d.data, fds: false, res: [] };
+      x.fds = x.fds || d.fds;
+      if (!d.fds && (d.resp || d.assunto)) x.res.push(Object.assign({ periodo: d.periodo || 'dia' }, d));
+    });
+    Object.keys(m).forEach(k2 => m[k2].res.sort((p, q) => ['manha', 'dia', 'tarde'].indexOf(p.periodo) - ['manha', 'dia', 'tarde'].indexOf(q.periodo)));
     return m;
   }
-  const reservado = d => d && !d.fds && !!(d.resp || d.assunto);
+  /** Reserva que ocupa um período do dia (a de "dia todo" ocupa manhã e tarde). */
+  const ocupa = (dia, p) => dia ? dia.res.find(r => r.periodo === 'dia' || r.periodo === p) : null;
+  const livreEm = (dia, p) => !!dia && !dia.fds && (p === 'dia' ? !dia.res.length : !ocupa(dia, p));
   const isoLocal = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   /** Turmas no CPE/BPMRv (não canceladas) em andamento num dia. */
   const turmasNoCpe = iso => S.dados.turmas.filter(t => t.sit !== 'canc' && t.inicio && t.fim && t.inicio <= iso && t.fim >= iso &&
@@ -1179,11 +1187,11 @@
     const ano = base.getFullYear(), mes = base.getMonth(), nDias = new Date(ano, mes + 1, 0).getDate();
     const uteis = [];
     for (let d = 1; d <= nDias; d++) { const x = new Date(ano, mes, d); if (x.getDay() > 0 && x.getDay() < 6) uteis.push(isoLocal(x)); }
-    const naPlanilha = uteis.filter(i => M[i]);
-    const ocup = naPlanilha.filter(i => reservado(M[i])).length;
-    const livresDepois = naPlanilha.filter(i => i >= hojeIso && !reservado(M[i])).length;
+    const naPlanilha = uteis.filter(i => M[i] && !M[i].fds);
+    // ocupação em períodos (manhã e tarde de cada dia útil)
+    const ocupP = soma(naPlanilha, i => (ocupa(M[i], 'manha') ? 1 : 0) + (ocupa(M[i], 'tarde') ? 1 : 0));
+    const livresP = soma(naPlanilha.filter(i => i >= hojeIso), i => (livreEm(M[i], 'manha') ? 1 : 0) + (livreEm(M[i], 'tarde') ? 1 : 0));
 
-    // grade seg–sex
     const semanas = []; let sem = [];
     for (let d = 1; d <= nDias; d++) {
       const w = new Date(ano, mes, d).getDay();
@@ -1194,53 +1202,70 @@
     }
     if (sem.length) semanas.push(sem);
     const pode = S.dados.podeEditar;
+    const bloco = (r, iso) => {
+      const st = ST_AGENDA(r.status);
+      const tc = esp === 'aud' && turmasNoCpe(iso).length && /curso|est[aá]gio|credenciamento|treinamento|turma/i.test(r.assunto);
+      return '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + (r.periodo === 'dia' ? ' dia' : '') + '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + ' · ' +
+        esc([r.hora, r.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(r.resp) + (r.status ? '<br>' + esc(r.status) : '') + '">' +
+        '<b>' + (r.periodo === 'dia' ? 'Dia todo' : PERIODOS[r.periodo]) + (r.hora ? ' · ' + esc(r.hora) : '') + '</b><span>' + esc(r.assunto || '(sem assunto)') + '</span><small>' + esc(r.resp) + '</small></div>';
+    };
+    const vago = (iso, p) => {
+      const ok = pode && iso >= hojeIso;
+      return '<div class="ag-v' + (ok ? ' click" data-agdia="' + iso + '" data-agper="' + p + '" title="Reservar ' + PERIODOS[p].toLowerCase() : '') + '">' +
+        '<b>' + PERIODOS[p] + '</b><span>' + (ok ? '＋ livre' : 'livre') + '</span></div>';
+    };
     const dia = iso => {
       if (!iso) return '<div class="ag-d fora"></div>';
       const d = M[iso], n = Number(iso.slice(8, 10));
       const cls = (iso === hojeIso ? ' hoje' : '') + (iso < hojeIso ? ' passado' : '');
       const cab = '<span class="ag-n">' + n + (iso === hojeIso ? ' <em>hoje</em>' : '') + '</span>';
-      if (!d) return '<div class="ag-d sem' + cls + '">' + cab + '<div class="ag-livre dim">fora da planilha</div></div>';
-      if (!reservado(d)) {
-        const tc = iso >= hojeIso ? turmasNoCpe(iso) : [];
-        return '<div class="ag-d livre' + cls + (pode && iso >= hojeIso ? ' click" data-agdia="' + iso + '" title="Reservar este dia' : '') + '">' + cab +
-          (esp === 'aud' && tc.length ? '<div class="ag-alerta" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠ ' + esc(nomeCurto(tc[0])) + '</div>' : '') +
-          '<div class="ag-livre">' + (pode && iso >= hojeIso ? '＋ Livre' : 'Livre') + '</div></div>';
-      }
-      const st = ST_AGENDA(d.status);
-      const tc = turmasNoCpe(iso).length && /curso|est[aá]gio|credenciamento|treinamento|turma/i.test(d.assunto);
-      return '<div class="ag-d' + cls + '">' + cab + '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + '" data-tip="<b>' + esc(d.assunto) + '</b>' +
-        esc([d.hora, d.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(d.resp) + (d.status ? '<br>' + esc(d.status) : '') + '">' +
-        '<b>' + esc([d.hora, d.duracao].filter(Boolean).join(' · ') || '—') + '</b><span>' + esc(d.assunto || '(sem assunto)') + '</span><small>' + esc(d.resp) + '</small></div></div>';
+      if (!d || d.fds) return '<div class="ag-d sem' + cls + '">' + cab + '<div class="ag-livre dim">' + (d ? 'fim de semana' : 'fora da planilha') + '</div></div>';
+      const tc = esp === 'aud' && iso >= hojeIso && !d.res.length ? turmasNoCpe(iso) : [];
+      const alerta = tc.length ? '<div class="ag-alerta" data-tip="<b>Turma no CPE sem reserva do auditório</b>' + tc.map(t => esc(nomeLongo(t))).join('<br>') + '">⚠ ' + esc(nomeCurto(tc[0])) + '</div>' : '';
+      const todo = d.res.find(r => r.periodo === 'dia');
+      const corpo = todo ? bloco(todo, iso)
+        : ['manha', 'tarde'].map(p => { const r = d.res.find(x => x.periodo === p); return r ? bloco(r, iso) : vago(iso, p); }).join('');
+      return '<div class="ag-d' + (d.res.length ? '' : ' livre') + cls + '">' + cab + alerta + '<div class="ag-ps">' + corpo + '</div></div>';
     };
     const grade = '<div class="ag-sem ag-cab"><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span></div>' +
       semanas.map(s => { while (s.length < 5) s.push(null); return '<div class="ag-sem">' + s.map(dia).join('') + '</div>'; }).join('');
 
-    // próximos agendamentos (agrupa dias seguidos com o mesmo assunto e responsável)
-    const futuros = Object.keys(M).sort().filter(i => i >= hojeIso && reservado(M[i]));
+    // próximos agendamentos (junta dias seguidos com o mesmo assunto, responsável e período)
+    const futuras = [];
+    Object.keys(M).sort().filter(i => i >= hojeIso).forEach(i => M[i].res.forEach(r => futuras.push(Object.assign({ iso: i }, r))));
     const blocos = [];
-    futuros.forEach(i => {
-      const d = M[i], ult = blocos[blocos.length - 1];
-      if (ult && ult.assunto === d.assunto && ult.resp === d.resp && (dt(i) - dt(ult.fim)) / DIA <= 3) { ult.fim = i; ult.n++; }
-      else blocos.push({ ini: i, fim: i, n: 1, assunto: d.assunto, resp: d.resp, hora: d.hora, duracao: d.duracao });
+    futuras.forEach(r => {
+      const ult = blocos.find(b => b.assunto === r.assunto && b.resp === r.resp && b.periodo === r.periodo && (dt(r.iso) - dt(b.fim)) / DIA <= 3 && (dt(r.iso) - dt(b.fim)) / DIA > 0);
+      if (ult) { ult.fim = r.iso; ult.n++; }
+      else blocos.push({ ini: r.iso, fim: r.iso, n: 1, assunto: r.assunto, resp: r.resp, hora: r.hora, periodo: r.periodo });
     });
+    blocos.sort((p, q) => p.ini.localeCompare(q.ini) || ['manha', 'dia', 'tarde'].indexOf(p.periodo) - ['manha', 'dia', 'tarde'].indexOf(q.periodo));
     const ddmm = i => i.slice(8, 10) + '/' + i.slice(5, 7);
     const prox = blocos.map(b => '<div class="ag-p"><span class="ag-pd">' + ddmm(b.ini) + '<small>' + DSEM[dt(b.ini).getDay()] + '</small></span>' +
-      '<span class="ag-pt"><b>' + esc(b.assunto || '(sem assunto)') + '</b><small>' + esc([b.hora, b.duracao].filter(Boolean).join(' · ')) +
-      (b.n > 1 ? ' · até ' + ddmm(b.fim) + ' (' + b.n + ' dias)' : '') + ' · ' + esc(b.resp) + '</small></span></div>').join('');
+      '<span class="ag-pt"><b>' + esc(b.assunto || '(sem assunto)') + '</b><small><span class="ag-tag p-' + b.periodo + '">' + PERIODOS[b.periodo] + '</span> ' +
+      esc(b.hora || '') + (b.n > 1 ? ' · até ' + ddmm(b.fim) + ' (' + b.n + ' dias)' : '') + ' · ' + esc(b.resp) + '</small></span></div>').join('');
 
-    // turmas no CPE com dias úteis livres no auditório (a partir de hoje)
+    // turmas no CPE com dias úteis sem nenhuma reserva no auditório (a partir de hoje)
     const alertas = esp !== 'aud' ? [] : S.dados.turmas.filter(t => t.sit !== 'canc' && t.fim && t.fim >= hojeIso && /bpmrv|\bcpe\b/i.test([t.local, t.cidade].join(' '))).map(t => {
       const livres = [];
       for (let x = dt(t.inicio > hojeIso ? t.inicio : hojeIso); x <= dt(t.fim); x = new Date(x.getTime() + DIA)) {
-        const i = isoLocal(x), dd = M[i];
-        if (x.getDay() > 0 && x.getDay() < 6 && dd && !reservado(dd)) livres.push(ddmm(i));
+        const k = isoLocal(x), dd = M[k];
+        if (x.getDay() > 0 && x.getDay() < 6 && dd && !dd.fds && !dd.res.length) livres.push(ddmm(k));
       }
       return livres.length ? '<div class="ag-aviso" data-turma="' + t.id + '">⚠ <b>' + esc(nomeCurto(t)) + '</b> (' + fmt(t.inicio) + ' a ' + fmt(t.fim) + '): auditório sem reserva em ' + livres.join(', ') + '.</div>' : '';
     }).filter(Boolean);
 
+    // hoje: manhã e tarde
+    const resumoHoje = d => {
+      if (!d || d.fds) return ['Livre', d && d.fds ? 'fim de semana' : 'sem reserva hoje'];
+      const todo = d.res.find(r => r.periodo === 'dia');
+      if (todo) return [todo.assunto || '(sem assunto)', 'Dia todo · ' + [todo.hora, todo.resp].filter(Boolean).join(' · ')];
+      const m = d.res.find(r => r.periodo === 'manha'), t = d.res.find(r => r.periodo === 'tarde');
+      if (!m && !t) return ['Livre', 'manhã e tarde sem reserva'];
+      return [(m || t).assunto || '(sem assunto)', 'Manhã: ' + (m ? m.assunto || '—' : 'livre') + ' · Tarde: ' + (t ? t.assunto || '—' : 'livre')];
+    };
     const hj = M[hojeIso], ho = O[hojeIso];
-    const resumoDia = d => d && reservado(d) ? [d.assunto || '(sem assunto)', [d.hora, d.duracao, d.resp].filter(Boolean).join(' · ')] : ['Livre', d && d.fds ? 'fim de semana' : 'sem reserva hoje'];
-    const rh = resumoDia(hj), ro = resumoDia(ho);
+    const rh = resumoHoje(hj), ro = resumoHoje(ho);
     const sel = '<div class="seg">' + Object.keys(ESPACOS).map(k => '<button data-esp="' + k + '" class="' + (esp === k ? 'on' : '') + '">' + ESPACOS[k] + '</button>').join('') + '</div>';
     return '<div class="toolbar">' + sel +
       '<div class="pager ag-mes"><button data-agmes="-1" title="Mês anterior">‹</button><b>' + MES_LONGO[mes] + ' ' + ano + '</b><button data-agmes="1" title="Próximo mês">›</button>' +
@@ -1249,9 +1274,9 @@
       '<a class="btn small" style="margin-left:auto;text-decoration:none" href="' + esc(S.agenda.url || '#') + '" target="_blank" rel="noopener">Abrir planilha ↗</a>' +
       (pode ? '<button class="btn small primary" data-acao="agendar">＋ Agendar</button>' : '') + '</div>' +
       '<div class="grid g-kpi k4">' +
-        kpi('Hoje · ' + ESPACOS[esp], '<span class="ag-kv">' + esc(rh[0]) + '</span>', '', esc(rh[1]), null, hj && reservado(hj) ? '' : 'ag-livre-k') +
-        kpi('Ocupação em ' + MES_LONGO[mes].toLowerCase(), naPlanilha.length ? Math.round(ocup / naPlanilha.length * 100) : '—', naPlanilha.length ? '%' : '', ocup + ' de ' + naPlanilha.length + ' dias úteis reservados') +
-        kpi('Dias livres a partir de hoje', livresDepois, '', 'dias úteis sem reserva em ' + MES_LONGO[mes].toLowerCase()) +
+        kpi('Hoje · ' + ESPACOS[esp], '<span class="ag-kv">' + esc(rh[0]) + '</span>', '', esc(rh[1]), null, hj && hj.res.length ? '' : 'ag-livre-k') +
+        kpi('Ocupação em ' + MES_LONGO[mes].toLowerCase(), naPlanilha.length ? Math.round(ocupP / (naPlanilha.length * 2) * 100) : '—', naPlanilha.length ? '%' : '', ocupP + ' de ' + naPlanilha.length * 2 + ' períodos (manhã e tarde) reservados') +
+        kpi('Períodos livres a partir de hoje', livresP, '', 'manhãs e tardes sem reserva em ' + MES_LONGO[mes].toLowerCase()) +
         kpi(ESPACOS[outro] + ' hoje', '<span class="ag-kv">' + esc(ro[0]) + '</span>', '', esc(ro[1])) +
       '</div>' +
       '<div class="grid grow" style="grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)">' +
@@ -1264,25 +1289,27 @@
         '</div></div>';
   }
 
-  function abrirAgendar(iso) {
-    const esp = S.espaco || 'aud';
-    S.edit = { tipo: 'agendar', campos: { espaco: esp, data: iso || '', hora: '08:00', duracao: 'o dia todo', resp: '', assunto: '' } };
+  function abrirAgendar(iso, per) {
+    const esp = S.espaco || 'aud', p = per || 'manha';
+    S.edit = { tipo: 'agendar', campos: { espaco: esp, data: iso || '', periodo: p, hora: p === 'tarde' ? '13:00' : '08:00', resp: '', assunto: '' } };
     abrirForm('agendar');
   }
 
   function formAgendar(c) {
-    const M = diasDoEspaco(c.espaco), d = c.data ? M[c.data] : null;
-    const ocupado = d && (d.fds || reservado(d));
+    const d = c.data ? diasDoEspaco(c.espaco)[c.data] : null;
+    const r = d && !d.fds ? (c.periodo === 'dia' ? d.res[0] : ocupa(d, c.periodo)) : null;
     const aviso = !c.data ? '' : !d ? '<div class="hint danger">Esta data ainda não existe na aba "' + esc(ESPACOS[c.espaco]) + '" da planilha de agendamento.</div>'
-      : ocupado ? '<div class="hint danger">' + (d.fds ? 'Fim de semana.' : 'Já reservado: ' + esc(d.assunto) + ' (' + esc(d.resp) + ').') + '</div>'
-      : '<div class="hint" style="color:var(--s-enc)">✓ ' + esc(ESPACOS[c.espaco]) + ' livre em ' + fmtAno(c.data) + '.</div>';
+      : d.fds ? '<div class="hint danger">Fim de semana.</div>'
+      : r ? '<div class="hint danger">Já reservado (' + PERIODOS[r.periodo].toLowerCase() + '): ' + esc(r.assunto) + ' — ' + esc(r.resp) + '.</div>'
+      : '<div class="hint" style="color:var(--s-enc)">✓ ' + esc(ESPACOS[c.espaco]) + ' livre em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ').</div>';
     const eq = (S.dados.responsaveis || []);
-    return '<h2>Agendar ' + esc(ESPACOS[c.espaco].toLowerCase()) + '</h2><div class="sub">A reserva é gravada na linha do dia na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”.</div>' +
+    return '<h2>Agendar ' + esc(ESPACOS[c.espaco].toLowerCase()) + '</h2><div class="sub">A reserva é gravada na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”. ' +
+      'Se o dia já tiver reserva no outro período, entra uma segunda linha com a mesma data. Cursos: use “Dia todo”.</div>' +
       '<div class="form" style="margin-top:16px">' +
         campoSel('Espaço', 'espaco', c.espaco, Object.keys(ESPACOS).map(k => [k, ESPACOS[k]])) +
-        '<div class="form g2" style="margin-top:0">' + campo('Data', 'data', c.data, 'date') + campo('Hora', 'hora', c.hora, 'time') + '</div>' + aviso +
-        campoSel('Duração', 'duracao', c.duracao, [['o dia todo', 'O dia todo'], ['manhã', 'Manhã'], ['tarde', 'Tarde'], ['1 hora', '1 hora'], ['2 horas', '2 horas'], ['4 horas', '4 horas']]
-          .concat(['o dia todo', 'manhã', 'tarde', '1 hora', '2 horas', '4 horas'].indexOf(c.duracao) < 0 ? [[c.duracao, c.duracao]] : [])) +
+        '<div class="form g2" style="margin-top:0">' + campo('Data', 'data', c.data, 'date') +
+          campoSel('Período', 'periodo', c.periodo, [['manha', 'Manhã'], ['tarde', 'Tarde'], ['dia', 'Dia todo']]) + '</div>' +
+        campo('Hora de início', 'hora', c.hora, 'time') + aviso +
         campo('Responsável', 'resp', c.resp, 'text', ' list="dl-agresp" placeholder="Ex.: Ten Augusto"') +
         '<datalist id="dl-agresp">' + eq.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' +
         campo('Assunto', 'assunto', c.assunto, 'text', ' placeholder="Ex.: Instrução Semanal"') +
@@ -1294,10 +1321,14 @@
     if (!c.data) return toast('Escolha a data.', 'err');
     if (!String(c.resp).trim() || !String(c.assunto).trim()) return toast('Informe o responsável e o assunto.', 'err');
     const d = diasDoEspaco(c.espaco)[c.data];
-    if (d && (d.fds || reservado(d))) return toast('Este dia não está livre.', 'err');
-    gravarNoServidor('agendarEspaco', { espaco: c.espaco, data: c.data, hora: c.hora, duracao: c.duracao, resp: c.resp, assunto: c.assunto }, () => {
-      toast('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data));
-      if (!RUN && d) Object.assign(d, { resp: c.resp, assunto: c.assunto, hora: c.hora, duracao: c.duracao, status: 'Não iniciada' });
+    if (d && !livreEm(d, c.periodo)) return toast('Este período não está livre.', 'err');
+    gravarNoServidor('agendarEspaco', { espaco: c.espaco, data: c.data, periodo: c.periodo, hora: c.hora, resp: c.resp, assunto: c.assunto }, () => {
+      toast('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')');
+      if (!RUN) {
+        const dias = S.agenda.espacos[c.espaco].dias, alvo = dias.find(x => x.data === c.data && !x.resp && !x.assunto);
+        const nova = { data: c.data, fds: false, resp: c.resp, status: 'Não iniciada', hora: c.hora, duracao: PERIODOS[c.periodo].toLowerCase(), assunto: c.assunto, periodo: c.periodo };
+        if (alvo) Object.assign(alvo, nova); else dias.push(nova);
+      }
       S.espaco = c.espaco;
       fecharDrawer();
       if (RUN) { S.agenda = null; carregarAgenda(true); } else render();
@@ -2069,7 +2100,7 @@
     const am = el.closest('[data-agmes]');
     if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
     const ad = el.closest('[data-agdia]');
-    if (ad) { return abrirAgendar(ad.dataset.agdia); }
+    if (ad) { return abrirAgendar(ad.dataset.agdia, ad.dataset.agper); }
     const sm = el.closest('[data-semestre]');
     if (sm) { S.semestre = Number(sm.dataset.semestre); S.pg = {}; return render(); }
 
@@ -2124,7 +2155,11 @@
       S.edit.campos.cursoOficial = cursoDoModelo(el.value, S.edit.campos.modelo);
       return abrirForm('nova');
     }
-    if (el.dataset && (el.dataset.campo === 'espaco' || el.dataset.campo === 'data') && S.form === 'agendar') { S.edit.campos[el.dataset.campo] = el.value; return abrirForm('agendar'); }
+    if (el.dataset && /^(espaco|data|periodo)$/.test(el.dataset.campo || '') && S.form === 'agendar') {
+      S.edit.campos[el.dataset.campo] = el.value;
+      if (el.dataset.campo === 'periodo') S.edit.campos.hora = el.value === 'tarde' ? '13:00' : '08:00';
+      return abrirForm('agendar');
+    }
     if (el.dataset && el.dataset.campo === 'cursoOficial' && S.form === 'nova') { S.edit.campos.cursoOficial = el.value; return abrirForm('nova'); }
     if (el.matches('input[data-manter]')) {
       const m = S.edit.campos.manter, id = el.dataset.manter;
