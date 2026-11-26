@@ -26,6 +26,7 @@ const CONFIG = {
   ABA_PRAZOS: 'Prazos padrão', // prazo de cada etapa (dias antes do início), editável na planilha
   ABA_LOGISTICA: 'Logística', // material de cada curso (por aluno e por turma), editável na planilha
   ABA_LOG_TURMAS: 'Logística turmas', // situação da logística de cada turma (gravada pelo painel)
+  ABA_FORA: 'Cursos externos', ABA_FORA_MIL: 'Cursos externos - militares', ABA_FORA_ETAPAS: 'Cursos externos - etapas', // cursos em outros estados/instituições
 
   // Abas que nunca são tratadas como operacionais.
   ABAS_IGNORADAS: ['Painel Geral'],
@@ -581,6 +582,7 @@ function montarDados_(ss) {
     unidades: CONFIG.UNIDADES,
     resolucao: resolucao,
     logistica: lerLogistica_(ss),
+    fora: lerForaEstado_(ss),
     avisos: avisos
   };
 }
@@ -633,7 +635,7 @@ function lerCadastro_(ss, avisos) {
  */
 function lerAbasOperacionais_(ss, avisos) {
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS, CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const saida = [];
 
@@ -1488,7 +1490,7 @@ function criarAnoSeguinte(req) {
     const ss = SpreadsheetApp.openById(copia.getId());
 
     const af = abaFormandos_(ss);
-    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
+    const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : '', CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS, CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS].concat(CONFIG.ABAS_IGNORADAS);
 
     ss.getSheets().forEach(aba => {
       const nomeAba = aba.getName();
@@ -1595,6 +1597,9 @@ function criarAnoSeguinte(req) {
     }
 
     avancarCalendario_(ss, avancar, novoAno);
+
+    // Cursos externos são do ano: começam vazios no ano novo.
+    [CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS].forEach(n => { const a = ss.getSheetByName(n); if (a && a.getLastRow() > 1) a.deleteRows(2, a.getLastRow() - 1); });
 
     // Situação da logística começa vazia no ano novo.
     const lt = ss.getSheetByName(CONFIG.ABA_LOG_TURMAS);
@@ -2416,6 +2421,139 @@ function salvarLogisticaTurma(req) {
 }
 
 /* ================================================================== */
+/* Cursos externos: em outros estados (militares, checklist, prazos)  */
+/* ================================================================== */
+
+// Checklist padrão de cada curso externo: fase, etapa, dias (negativo = antes do início; positivo = depois do término).
+const FORA_ETAPAS_PADRAO = [
+  ['ANTES', 'Enviar formulário de solicitação de participação em evento fora da Corporação à APM', -60],
+  ['ANTES', 'Enviar formulário de solicitação de participação em evento fora da Corporação à PM1/Ensino', -60],
+  ['ANTES', 'Confirmar autorização do CHEM PMMG', -40],
+  ['ANTES', 'Elaborar minuta da designação para participação em curso', -35],
+  ['ANTES', 'Acompanhar designação dos militares em BGPM', -30],
+  ['ANTES', 'Solicitar compra das passagens aéreas à Ajudância-Geral via P4', -30],
+  ['ANTES', 'Confirmar compra das passagens', -20],
+  ['ANTES', 'Elaborar O.S.', -20],
+  ['ANTES', 'Revisar O.S.', -18],
+  ['ANTES', 'Encaminhar O.S. para assinatura', -16],
+  ['ANTES', 'Publicidade da O.S. aos militares e à administração para lançamento do SDV', -10],
+  ['DEPOIS', 'Militares preenchem o formulário de relatório', 5],
+  ['DEPOIS', 'Elaborar parecer sobre a aplicabilidade técnica na Corporação', 10]
+];
+const FORA_CAB = {
+  cursos: ['ID', 'Curso', 'Instituição', 'Cidade', 'UF', 'Início', 'Término', 'Observações'],
+  mil: ['ID do curso', 'Posto/graduação', 'Nome', 'Nº PM', 'Unidade', 'Passagem confirmada', 'Lançado no SDV', 'Relatório enviado'],
+  etapas: ['ID do curso', 'Nº', 'Fase', 'Etapa', 'Dias (− antes do início / + após o término)', 'Status', 'Responsável', 'Data conclusão', 'Observações']
+};
+
+function abaFora_(ss, nome, cab, criar) {
+  let aba = ss.getSheetByName(nome);
+  if (!aba && criar) {
+    aba = ss.insertSheet(nome);
+    aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
+    aba.setFrozenRows(1);
+  }
+  return aba;
+}
+const simNao_ = v => /^(s|sim|x|true|1|ok|✓)/i.test(texto_(v));
+
+/** Lê as três abas (se existirem). */
+function lerForaEstado_(ss) {
+  const ler = nome => { const a = ss.getSheetByName(nome); return a && a.getLastRow() > 1 ? a.getRange(2, 1, a.getLastRow() - 1, a.getLastColumn()).getValues() : []; };
+  const cursos = ler(CONFIG.ABA_FORA).map((r, i) => ({ linha: i + 2, id: texto_(r[0]), curso: texto_(r[1]), inst: texto_(r[2]), cidade: texto_(r[3]), uf: texto_(r[4]).toUpperCase(),
+    inicio: iso_(data_(r[5])), fim: iso_(data_(r[6])), obs: texto_(r[7]) })).filter(c => c.id);
+  const militares = ler(CONFIG.ABA_FORA_MIL).map((r, i) => ({ linha: i + 2, cursoId: texto_(r[0]), posto: texto_(r[1]), nome: texto_(r[2]), pm: texto_(r[3]), unidade: texto_(r[4]),
+    passagem: simNao_(r[5]), sdv: simNao_(r[6]), relatorio: simNao_(r[7]) })).filter(m => m.cursoId);
+  const etapas = ler(CONFIG.ABA_FORA_ETAPAS).map((r, i) => ({ linha: i + 2, cursoId: texto_(r[0]), n: numero_(r[1]) || 0, fase: texto_(r[2]).toUpperCase() || 'ANTES', etapa: texto_(r[3]),
+    dias: numero_(r[4]) || 0, status: texto_(r[5]) || 'Pendente', resp: texto_(r[6]), conclusao: iso_(data_(r[7])), obs: texto_(r[8]) })).filter(e => e.cursoId && e.etapa);
+  return { cursos: cursos, militares: militares, etapas: etapas };
+}
+
+/** Linhas (1-based) de uma aba cujo ID do curso (coluna A) é o informado. */
+function linhasDoCurso_(aba, id) {
+  if (!aba || aba.getLastRow() < 2) return [];
+  return aba.getRange(2, 1, aba.getLastRow() - 1, 1).getValues().map((r, i) => texto_(r[0]) === id ? i + 2 : 0).filter(Boolean);
+}
+
+/**
+ * Inclui ou edita um curso externo. Curso novo recebe o checklist padrão.
+ * req: { id?, curso, inst, cidade, uf, inicio, fim, obs, excluir? }
+ */
+function salvarCursoFora(req) {
+  return comTrava_(ss => {
+    const aba = abaFora_(ss, CONFIG.ABA_FORA, FORA_CAB.cursos, true);
+    if (req.excluir) {
+      [CONFIG.ABA_FORA_ETAPAS, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA].forEach(n => {
+        const a = ss.getSheetByName(n);
+        linhasDoCurso_(a, req.id).sort((x, y) => y - x).forEach(l => a.deleteRow(l));
+      });
+      historico_(ss, CONFIG.ABA_FORA, '', req.curso || req.id, '', 'Curso externo excluído', '');
+      return { ok: true };
+    }
+    const curso = String(req.curso || '').trim();
+    if (!curso) throw new Error('Informe o nome do curso.');
+    if (!req.inicio || !req.fim) throw new Error('Informe início e término.');
+    const ini = dataIso_(req.inicio), fim = dataIso_(req.fim);
+    if (fim < ini) throw new Error('O término não pode ser antes do início.');
+    const linha = [curso, String(req.inst || '').trim(), String(req.cidade || '').trim(), String(req.uf || '').trim().toUpperCase(), ini, fim, String(req.obs || '').trim()];
+    if (req.id) {
+      const l = linhasDoCurso_(aba, req.id)[0];
+      if (!l) throw new Error('Curso não encontrado. Atualize o painel.');
+      aba.getRange(l, 2, 1, linha.length).setValues([linha]);
+      historico_(ss, CONFIG.ABA_FORA, l, curso, '', 'Curso externo editado', texto_(ini) + ' a ' + texto_(fim));
+      return { ok: true, id: req.id };
+    }
+    const ids = aba.getLastRow() > 1 ? aba.getRange(2, 1, aba.getLastRow() - 1, 1).getValues().map(r => Number(String(r[0]).replace(/\D/g, '')) || 0) : [];
+    const id = 'FE' + (Math.max.apply(null, ids.concat([0])) + 1);
+    aba.appendRow([id].concat(linha));
+    aba.getRange(aba.getLastRow(), 6, 1, 2).setNumberFormat('dd/MM/yyyy');
+    const et = abaFora_(ss, CONFIG.ABA_FORA_ETAPAS, FORA_CAB.etapas, true);
+    et.getRange(et.getLastRow() + 1, 1, FORA_ETAPAS_PADRAO.length, 9).setValues(FORA_ETAPAS_PADRAO.map((e, i) => [id, i + 1, e[0], e[1], e[2], 'Pendente', '', '', '']));
+    abaFora_(ss, CONFIG.ABA_FORA_MIL, FORA_CAB.mil, true);
+    historico_(ss, CONFIG.ABA_FORA, aba.getLastRow(), curso, '', 'Curso externo incluído', texto_(ini) + ' a ' + texto_(fim) + ' · ' + linha[2] + '/' + linha[3]);
+    return { ok: true, id: id };
+  }, req.ano);
+}
+
+/** Inclui, edita ou remove um militar de um curso externo. req: { linha?, cursoId, posto, nome, pm, unidade, passagem, sdv, relatorio, excluir? } */
+function salvarMilitarFora(req) {
+  return comTrava_(ss => {
+    const aba = abaFora_(ss, CONFIG.ABA_FORA_MIL, FORA_CAB.mil, true);
+    if (req.linha) conferir_(aba.getRange(req.linha, 1).getValue(), req.cursoId);
+    if (req.excluir) { aba.deleteRow(req.linha); historico_(ss, CONFIG.ABA_FORA_MIL, req.linha, req.nome, '', 'Militar removido', req.cursoId); return { ok: true }; }
+    const nome = String(req.nome || '').trim();
+    if (!nome) throw new Error('Informe o nome do militar.');
+    const sn = v => v ? 'Sim' : '';
+    const linha = [req.cursoId, String(req.posto || '').trim(), nome, String(req.pm || '').trim(), String(req.unidade || '').trim(), sn(req.passagem), sn(req.sdv), sn(req.relatorio)];
+    if (req.linha) aba.getRange(req.linha, 1, 1, linha.length).setValues([linha]);
+    else aba.appendRow(linha);
+    historico_(ss, CONFIG.ABA_FORA_MIL, req.linha || aba.getLastRow(), nome, '', req.linha ? 'Militar editado' : 'Militar incluído', req.cursoId);
+    return { ok: true };
+  }, req.ano);
+}
+
+/** Atualiza uma etapa do checklist de um curso externo. req: { linha, cursoId, etapa, status?, resp?, obs?, conclusao? } */
+function atualizarEtapaFora(req) {
+  return comTrava_(ss => {
+    const aba = abaFora_(ss, CONFIG.ABA_FORA_ETAPAS, FORA_CAB.etapas, false);
+    if (!aba) throw new Error('Aba de etapas não encontrada.');
+    conferir_(aba.getRange(req.linha, 1).getValue(), req.cursoId);
+    conferir_(aba.getRange(req.linha, 4).getValue(), req.etapa);
+    const antes = texto_(aba.getRange(req.linha, 6).getValue());
+    if (req.status !== undefined) {
+      if (CONFIG.STATUS_ETAPA.indexOf(req.status) < 0) throw new Error('Status inválido: ' + req.status);
+      aba.getRange(req.linha, 6).setValue(req.status);
+      const cel = aba.getRange(req.linha, 8);
+      if (req.status === 'Feito' && !cel.getValue()) { const h = new Date(); h.setHours(0, 0, 0, 0); cel.setValue(h).setNumberFormat('dd/MM/yyyy'); }
+    }
+    if (req.resp !== undefined) aba.getRange(req.linha, 7).setValue(String(req.resp || '').trim());
+    if (req.obs !== undefined) aba.getRange(req.linha, 9).setValue(String(req.obs || '').trim());
+    historico_(ss, CONFIG.ABA_FORA_ETAPAS, req.linha, req.cursoId, req.etapa, 'Etapa (curso externo)', antes + ' → ' + (req.status || antes));
+    return { ok: true };
+  }, req.ano);
+}
+
+/* ================================================================== */
 /* Reorganização por unidade executora                                 */
 /* ================================================================== */
 
@@ -2492,7 +2630,7 @@ function reorganizarPorUnidadeUi() {
 function reorganizar_(ss, ano) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS, CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS].concat(CONFIG.ABAS_IGNORADAS);
   const etapasAntes = lerAbasOperacionais_(ss, []).reduce((n, op) => n + op.turmas.reduce((m, t) => m + t.etapas.length, 0), 0);
 
   // Unidade de cada turma (Cadastro; sem cadastro: regra padrão).
@@ -2698,7 +2836,7 @@ function responsavelPadrao_(txt, equipe) {
 function colunasResponsavel_(ss) {
   const af = abaFormandos_(ss);
   const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS,
-    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS].concat(CONFIG.ABAS_IGNORADAS);
+    CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS, CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS].concat(CONFIG.ABAS_IGNORADAS);
   const out = [];
   ss.getSheets().forEach(aba => {
     if (fixas.indexOf(aba.getName()) >= 0) return;
@@ -2803,7 +2941,7 @@ function padronizarResponsaveisUi() {
 function corrigirReferencias(aplicar, ano) {
   const ss = ano && typeof ano === 'object' ? ano : planilha_(ano); // menu: a planilha aberta
   const af = abaFormandos_(ss);
-  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS]
+  const fixas = [CONFIG.ABA_CADASTRO, af ? af.getName() : CONFIG.ABA_FORMANDOS, CONFIG.ABA_REGRAS, CONFIG.ABA_LISTAS, CONFIG.ABA_HISTORICO, CONFIG.ABA_CALENDARIO, CONFIG.ABA_RESOLUCAO, CONFIG.ABA_PRAZOS, CONFIG.ABA_LOGISTICA, CONFIG.ABA_LOG_TURMAS, CONFIG.ABA_FORA, CONFIG.ABA_FORA_MIL, CONFIG.ABA_FORA_ETAPAS]
     .concat(CONFIG.ABAS_IGNORADAS);
   const correcoes = [], manuais = [];
 

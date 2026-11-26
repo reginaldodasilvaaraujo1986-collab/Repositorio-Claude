@@ -21,6 +21,7 @@
     turmas:     ['Turmas', 'Situação, progresso e matriz de decisão de cada turma'],
     etapas:     ['Etapas', 'Pendências por prazo — altere o status direto aqui'],
     formandos:  ['Cursados', 'Militares que concluíram os cursos no ano'],
+    fora:       ['Cursos externos', 'Militares do CPE em cursos de outros estados e instituições — checklist e prazos'],
     logistica:  ['Logística', 'Material de cada curso, quantidades por turma e avisos 30 e 15 dias antes do início'],
     espacos:    ['Agendamentos', 'Auditório, sala de reuniões e estande — manhã e tarde de cada dia'],
     regras:     ['Regras e prazos', 'Parâmetros normativos e internos da AET/CPE']
@@ -264,6 +265,9 @@
     d.turmas.forEach(t => { t.st.pct = t.st.total ? t.st.feito / t.st.total * 100 : 0; });
     const venc = d.etapas.filter(e => S.turmaIdx[e.turmaId] && S.turmaIdx[e.turmaId].sit !== 'canc' && e.fase === 'ANTES' && !concluida(e) && dias(e.prazo) < 0).length;
     $('#navBadge').textContent = venc || '';
+    const fv = vencidasFora();
+    const nf = $('#navFora');
+    if (nf) nf.textContent = fv || '';
     const al = alertasLogistica();
     const nb = $('#navLog');
     if (nb) { nb.textContent = al.length || ''; nb.classList.toggle('urg', al.some(x => x.nivel === 15)); }
@@ -449,7 +453,7 @@
     $('#pageTitle').textContent = v[0];
     $('#pageSub').textContent = v[1];
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view === S.view));
-    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras, espacos: vEspacos, logistica: vLogistica }[S.view];
+    const fn = { geral: vGeral, cronograma: vCronograma, turmas: vTurmas, etapas: vEtapas, formandos: vFormandos, regras: vRegras, espacos: vEspacos, logistica: vLogistica, fora: vFora }[S.view];
     // Animação de entrada só ao trocar de tela; atualizações (status, gravações, recarga) trocam o conteúdo no lugar.
     const trocou = S._viewDesenhada !== S.view;
     S._viewDesenhada = S.view;
@@ -1472,6 +1476,133 @@
       '</div>';
   }
 
+  /* ---------- Cursos externos (outros estados) ---------- */
+
+  const FORM_RELATORIO = 'https://docs.google.com/forms/d/e/1FAIpQLScPtQUpcwb9INDAL566h3f9kPqyetiR-nhWOInJMVjGg6qJ7A/viewform';
+  const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+  const POSTOS = ['Cel', 'Ten Cel', 'Maj', 'Cap', '1º Ten', '2º Ten', 'Asp Of', 'Subten', '1º Sgt', '2º Sgt', '3º Sgt', 'Cb', 'Sd'];
+  const FORA = () => (S.dados && S.dados.fora) || { cursos: [], militares: [], etapas: [] };
+  const addDias = (iso, n) => { const x = new Date(dt(iso).getTime() + n * DIA); return x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate()); };
+  /** Etapas do curso com o prazo calculado: dias < 0 contam do início; dias > 0, do término. */
+  function etapasFora(c) {
+    return FORA().etapas.filter(e => e.cursoId === c.id).sort((p, q) => p.n - q.n)
+      .map(e => Object.assign(e, { prazo: c.inicio && c.fim ? addDias(e.dias < 0 ? c.inicio : c.fim, e.dias) : null }));
+  }
+  const concluidaFora = e => e.status === 'Feito' || e.status === 'Não se aplica';
+  function vencidasFora() {
+    if (!S.dados) return 0;
+    return soma(FORA().cursos, c => etapasFora(c).filter(e => !concluidaFora(e) && e.prazo && dias(e.prazo) < 0).length);
+  }
+
+  function vFora() {
+    const F = FORA(), pode = S.dados.podeEditar;
+    const b = norm(S.f.busca);
+    const cursos = F.cursos.filter(c => !b || norm([c.curso, c.inst, c.cidade, c.uf].concat(F.militares.filter(m => m.cursoId === c.id).map(m => m.nome + ' ' + m.pm)).join(' ')).indexOf(b) >= 0)
+      .slice().sort((p, q) => {
+        const fp = etapasFora(p).every(concluidaFora), fq = etapasFora(q).every(concluidaFora);
+        return fp - fq || String(p.inicio).localeCompare(String(q.inicio));
+      });
+    if (!S.feSel || !cursos.some(c => c.id === S.feSel)) S.feSel = cursos.length ? cursos[0].id : null;
+    const sel = cursos.find(c => c.id === S.feSel);
+    const novo = pode ? '<button class="btn small primary" data-acao="fe-novo" style="margin-left:auto">＋ Curso externo</button>' : '';
+    const topo = '<div class="toolbar"><span class="dim" style="font-size:12.5px">' + F.cursos.length + ' curso(s) · prazos calculados pelas datas · relatório: 5 dias após o término · parecer AET: 10 dias</span>' + novo + '</div>';
+    if (!F.cursos.length) return topo + '<div class="card empty">Nenhum curso externo cadastrado.' + (pode ? '<div class="form-acoes" style="justify-content:center"><button class="btn primary" data-acao="fe-novo">＋ Cadastrar o primeiro</button></div>' : '') + '</div>';
+
+    const card = c => {
+      const es = etapasFora(c), feitas = es.filter(concluidaFora).length;
+      const venc = es.filter(e => !concluidaFora(e) && e.prazo && dias(e.prazo) < 0).length, n = dias(c.inicio);
+      const nm = F.militares.filter(m => m.cursoId === c.id).length;
+      return '<div class="fe-c' + (c === sel ? ' on' : '') + '" data-fesel="' + c.id + '">' + blocoData(c.inicio, n !== null && n >= 0 && n <= 30 ? 'soon' : '', n !== null && n >= 0 ? n + 'd' : dias(c.fim) >= 0 ? 'agora' : 'feito') +
+        '<div class="fe-ct"><b>' + esc(c.curso) + '</b><span>' + (c.uf ? '<em class="uf">' + esc(c.uf) + '</em> ' : '') + esc(c.cidade) + ' · ' + fmt(c.inicio) + ' a ' + fmt(c.fim) + ' · ' + nm + ' militar' + (nm === 1 ? '' : 'es') + '</span>' +
+        '<div class="fe-p"><div class="bar" style="flex:1"><i class="f" style="width:' + (es.length ? feitas / es.length * 100 : 0) + '%"></i></div><span class="pct">' + feitas + '/' + es.length + '</span>' +
+        (venc ? '<span class="alerta">⚠ ' + venc + ' vencida' + (venc > 1 ? 's' : '') + '</span>' : '<span class="ok">em dia</span>') + '</div></div></div>';
+    };
+    let det = '<div class="empty">Nenhum curso encontrado.</div>';
+    if (sel) {
+      const es = etapasFora(sel), mil = F.militares.filter(m => m.cursoId === sel.id);
+      const ck = (m, k, t) => '<span class="fe-ck' + (m[k] ? ' on' : '') + (pode ? ' click" data-femck="' + m.linha + '|' + k : '') + '" title="' + t + '">' + (m[k] ? '✓' : '') + '</span>';
+      const milHtml = '<div class="fe-mh"><span>Posto</span><span>Nome</span><span>Nº PM</span><span>Unidade</span><span>Passagem</span><span>SDV</span><span>Relatório</span><span></span></div>' +
+        (mil.map(m => '<div class="fe-m"><span>' + esc(m.posto) + '</span><b title="' + esc(m.nome) + '">' + esc(m.nome) + '</b><span class="mono">' + esc(m.pm) + '</span><span>' + esc(m.unidade) + '</span>' +
+          ck(m, 'passagem', 'Passagem confirmada') + ck(m, 'sdv', 'Lançado no SDV') + ck(m, 'relatorio', 'Relatório enviado') +
+          '<span class="fe-ac">' + (pode ? '<button class="icon-btn" data-acao="fe-mil-editar" data-linha="' + m.linha + '" title="Editar">✎</button><button class="icon-btn" data-acao="fe-mil-excluir" data-linha="' + m.linha + '" title="Remover">✕</button>' : '') + '</span></div>').join('') ||
+          '<div class="empty" style="padding:10px">Nenhum militar incluído.</div>') +
+        (pode ? '<button class="btn small" data-acao="fe-mil-novo" style="margin-top:8px">＋ Incluir militar</button>' : '');
+      const ops = S.dados.statusEtapa || ['Pendente', 'Em execução', 'Feito', 'Não se aplica'];
+      const steps = es.map((e, i) => {
+        const n = dias(e.prazo), done = e.status === 'Feito', na = e.status === 'Não se aplica', late = !concluidaFora(e) && n !== null && n < 0;
+        const div = i === 0 || es[i - 1].fase !== e.fase ? '<div class="fe-div grp">' + (e.fase === 'DEPOIS' ? 'Depois do curso' : e.fase === 'DURANTE' ? 'Durante o curso' : 'Antes do curso') + '</div>' : '';
+        return div + '<div class="step ' + (done ? 'done' : na ? 'na' : late ? 'late' : '') + '"><div class="chk">' + (done ? '✓' : na ? '–' : '') + '</div><div style="min-width:0"><div class="t" title="' + esc(e.etapa) + '">' + esc(e.etapa) + '</div>' +
+          '<div class="m">' + (e.prazo ? 'Prazo ' + fmtAno(e.prazo) : 'sem prazo') + (e.conclusao ? ' · concluída ' + fmt(e.conclusao) : '') +
+          (/relat/i.test(e.etapa) ? ' · <a href="' + FORM_RELATORIO + '" target="_blank" rel="noopener">abrir formulário de relatório ↗</a>' : '') + '</div></div>' +
+          '<div class="r">' + badgeDias({ status: e.status, prazo: e.prazo, conclusao: e.conclusao }) +
+          '<select class="st-select ' + stClass(e.status) + '" data-fest="' + e.linha + '"' + (pode ? '' : ' disabled') + '>' + ops.map(o => '<option' + (o === e.status ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></div></div>';
+      }).join('');
+      det = '<div class="fe-dh"><div>' + (sel.uf ? '<span class="tag un">' + esc(sel.uf) + '</span> ' : '') + (sel.inst ? '<span class="tag">' + esc(sel.inst) + '</span>' : '') +
+          '<h2>' + esc(sel.curso) + '</h2><div class="sub">' + esc([sel.cidade, sel.uf].filter(Boolean).join('/')) + ' · ' + fmtAno(sel.inicio) + ' a ' + fmtAno(sel.fim) + (sel.obs ? ' · ' + esc(sel.obs) : '') + '</div></div>' +
+          (pode ? '<button class="btn small" data-acao="fe-editar">✎ Editar curso, local e datas</button>' : '') + '</div>' +
+        '<div class="fe-g"><div><h3 class="fe-h3">Militares <small>' + mil.length + '</small></h3>' + milHtml + '</div>' +
+        '<div class="fe-et"><h3 class="fe-h3">Checklist <small>' + es.filter(concluidaFora).length + '/' + es.length + '</small>' + pager('fe-steps') + '</h3>' + caixa('fe-steps', steps, 'fe-steps') + '</div></div>';
+    }
+    return topo + '<div class="grid grow" style="grid-template-columns:minmax(0,.9fr) minmax(0,1.6fr);grid-template-rows:minmax(0,1fr)">' +
+      '<div class="card panel flush"><div class="card-head"><h2>Cursos</h2><span class="meta">' + cursos.length + '</span>' + pager('fe-lista') + '</div>' + caixa('fe-lista', cursos.map(card).join(''), 'fe-l') + '</div>' +
+      '<div class="card panel fe-d">' + det + '</div></div>';
+  }
+
+  function formFora(tipo, c) {
+    if (tipo === 'fora-curso') {
+      return '<h2>' + (c.id ? 'Editar curso externo' : 'Novo curso externo') + '</h2><div class="sub">' +
+        (c.id ? 'Ao mudar as datas, os prazos do checklist se ajustam sozinhos.' : 'O checklist de 13 etapas é criado junto, com prazos calculados pelas datas.') + '</div>' +
+        '<div class="form" style="margin-top:16px">' + campo('Curso', 'curso', c.curso, 'text', ' placeholder="Nome do curso ou evento"') +
+          campo('Instituição promotora', 'inst', c.inst, 'text', ' placeholder="Ex.: PRF, SENASP, PM-PR"') +
+          '<div class="form g2" style="margin-top:0">' + campo('Cidade', 'cidade', c.cidade, 'text') + campoSel('Estado (UF)', 'uf', c.uf, [['', '—']].concat(UFS.map(u => [u, u]))) + '</div>' +
+          '<div class="form g2" style="margin-top:0">' + campo('Início', 'inicio', c.inicio, 'date') + campo('Término', 'fim', c.fim, 'date') + '</div>' +
+          campo('Observações', 'obs', c.obs, 'text') + '</div>' +
+        '<div class="form-acoes">' + botao('fe-salvar-curso', c.id ? 'Salvar' : 'Cadastrar curso', 'primary') + '<button class="btn" data-fechar>Cancelar</button>' +
+          (c.id ? '<span style="margin-left:auto"></span>' + botao('fe-excluir-curso', 'Excluir curso…', 'danger-ghost') : '') + '</div>';
+    }
+    return '<h2>' + (c.linha ? 'Editar militar' : 'Incluir militar') + '</h2><div class="sub">' + esc((FORA().cursos.find(x => x.id === c.cursoId) || {}).curso || '') + '</div>' +
+      '<div class="form" style="margin-top:16px"><div class="form g2" style="margin-top:0">' + campo('Posto/graduação', 'posto', c.posto, 'text', ' list="dl-postos"') + campo('Nº PM', 'pm', c.pm, 'text', ' placeholder="000.000-0"') + '</div>' +
+        '<datalist id="dl-postos">' + POSTOS.map(x => '<option value="' + x + '">').join('') + '</datalist>' +
+        campo('Nome', 'nome', c.nome, 'text') + campo('Unidade', 'unidade', c.unidade, 'text', ' placeholder="Ex.: BPMRv"') +
+        '<div class="fe-chks">' + [['passagem', 'Passagem confirmada'], ['sdv', 'Lançado no SDV'], ['relatorio', 'Relatório enviado']].map(([k, l]) =>
+          '<label class="switch"><input type="checkbox" data-fechk="' + k + '"' + (c[k] ? ' checked' : '') + '><span></span>' + l + '</label>').join('') + '</div></div>' +
+      '<div class="form-acoes">' + botao('fe-salvar-mil', c.linha ? 'Salvar' : 'Incluir', 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
+  }
+
+  function salvarFora(acao) {
+    const c = S.edit.campos;
+    const fim = msg => { toast(msg + (RUN ? '. Atualizando…' : '')); fecharDrawer(); if (RUN) carregar(true); else refrescar(); };
+    if (acao === 'curso' || acao === 'excluir') {
+      if (acao === 'excluir' && !confirm('Excluir "' + c.curso + '" com militares e checklist?')) return;
+      return gravarNoServidor('salvarCursoFora', Object.assign({}, c, { excluir: acao === 'excluir' }), r => {
+        if (!RUN) demoFora(acao === 'excluir' ? 'excluir' : 'curso', c);
+        if (r && r.id) S.feSel = r.id;
+        fim(acao === 'excluir' ? 'Curso excluído' : '✓ Curso salvo');
+      });
+    }
+    gravarNoServidor('salvarMilitarFora', Object.assign({}, c), () => { if (!RUN) demoFora('mil', c); fim('✓ Militar salvo: ' + c.nome); });
+  }
+  /** Demonstração: aplica a alteração nos dados locais. */
+  function demoFora(tipo, c) {
+    const F = FORA();
+    if (tipo === 'excluir') { F.cursos = F.cursos.filter(x => x.id !== c.id); F.militares = F.militares.filter(x => x.cursoId !== c.id); F.etapas = F.etapas.filter(x => x.cursoId !== c.id); return; }
+    if (tipo === 'curso') {
+      const x = F.cursos.find(y => y.id === c.id);
+      if (x) { Object.assign(x, c); return; }
+      const id = 'FE' + (F.cursos.length + 1);
+      F.cursos.push(Object.assign({}, c, { id: id }));
+      FORA_PADRAO.forEach((e, i) => F.etapas.push({ linha: 1000 + F.etapas.length, cursoId: id, n: i + 1, fase: e[0], etapa: e[1], dias: e[2], status: 'Pendente' }));
+      S.feSel = id; return;
+    }
+    const m = c.linha && F.militares.find(y => y.linha === c.linha);
+    if (m) Object.assign(m, c); else F.militares.push(Object.assign({ linha: 2000 + F.militares.length }, c));
+  }
+  const FORA_PADRAO = [['ANTES', 'Enviar formulário de solicitação de participação em evento fora da Corporação à APM', -60], ['ANTES', 'Enviar formulário de solicitação de participação em evento fora da Corporação à PM1/Ensino', -60],
+    ['ANTES', 'Confirmar autorização do CHEM PMMG', -40], ['ANTES', 'Elaborar minuta da designação para participação em curso', -35], ['ANTES', 'Acompanhar designação dos militares em BGPM', -30],
+    ['ANTES', 'Solicitar compra das passagens aéreas à Ajudância-Geral via P4', -30], ['ANTES', 'Confirmar compra das passagens', -20], ['ANTES', 'Elaborar O.S.', -20], ['ANTES', 'Revisar O.S.', -18],
+    ['ANTES', 'Encaminhar O.S. para assinatura', -16], ['ANTES', 'Publicidade da O.S. aos militares e à administração para lançamento do SDV', -10],
+    ['DEPOIS', 'Militares preenchem o formulário de relatório', 5], ['DEPOIS', 'Elaborar parecer sobre a aplicabilidade técnica na Corporação', 10]];
+
   /* ---------- Regras ---------- */
 
   function vRegras() {
@@ -1729,7 +1860,9 @@
     S.form = tipo; S.drawer = null;
     const c = S.edit ? S.edit.campos : {};
     let html;
-    if (tipo === 'agendar') {
+    if (tipo === 'fora-curso' || tipo === 'fora-mil') {
+      html = formFora(tipo, c);
+    } else if (tipo === 'agendar') {
       html = formAgendar(c);
     } else if (tipo === 'equipe') {
       const usados = {};
@@ -2007,6 +2140,21 @@
     if (nome === 'salvar-equipe') return salvarEquipe();
     if (nome === 'criar-ano') return criarAno();
     if (nome === 'agendar') return abrirAgendar('');
+    if (nome === 'fe-novo') { S.edit = { tipo: 'fora-curso', campos: { curso: '', inst: '', cidade: '', uf: '', inicio: '', fim: '', obs: '' } }; return abrirForm('fora-curso'); }
+    if (nome === 'fe-editar') { const x = FORA().cursos.find(y => y.id === S.feSel); S.edit = { tipo: 'fora-curso', campos: { id: x.id, curso: x.curso, inst: x.inst, cidade: x.cidade, uf: x.uf, inicio: x.inicio || '', fim: x.fim || '', obs: x.obs } }; return abrirForm('fora-curso'); }
+    if (nome === 'fe-mil-novo') { S.edit = { tipo: 'fora-mil', campos: { cursoId: S.feSel, posto: '', nome: '', pm: '', unidade: '', passagem: false, sdv: false, relatorio: false } }; return abrirForm('fora-mil'); }
+    if (nome === 'fe-mil-editar') { const m = FORA().militares.find(y => String(y.linha) === el.dataset.linha); S.edit = { tipo: 'fora-mil', campos: Object.assign({}, m) }; return abrirForm('fora-mil'); }
+    if (nome === 'fe-mil-excluir') {
+      const m = FORA().militares.find(y => String(y.linha) === el.dataset.linha);
+      if (!m || !confirm('Remover ' + m.posto + ' ' + m.nome + ' deste curso?')) return;
+      return gravarNoServidor('salvarMilitarFora', Object.assign({}, m, { excluir: true }), () => {
+        if (!RUN) FORA().militares = FORA().militares.filter(y => y !== m);
+        toast('Militar removido: ' + m.nome); if (RUN) carregar(true); else refrescar();
+      });
+    }
+    if (nome === 'fe-salvar-curso') return salvarFora('curso');
+    if (nome === 'fe-excluir-curso') return salvarFora('excluir');
+    if (nome === 'fe-salvar-mil') { if (!String(S.edit.campos.nome || '').trim()) return toast('Informe o nome do militar.', 'err'); return salvarFora('mil'); }
     if (nome === 'salvar-agenda') return salvarAgenda(false);
     if (nome === 'excluir-agenda') { S.edit.excluir = true; return abrirForm('agendar'); }
     if (nome === 'voltar-agenda') { S.edit.excluir = false; return abrirForm('agendar'); }
@@ -2239,6 +2387,15 @@
     if (es) { S.espaco = es.dataset.esp; return render(); }
     const am = el.closest('[data-agmes]');
     if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
+    const fsel = el.closest('[data-fesel]');
+    if (fsel) { S.feSel = fsel.dataset.fesel; S.pg['fe-steps'] = 0; return render(); }
+    const fck = el.closest('[data-femck]');
+    if (fck) {
+      const [lin, k] = fck.dataset.femck.split('|'), m = FORA().militares.find(y => String(y.linha) === lin);
+      if (!m) return;
+      const novo = !m[k];
+      return gravarNoServidor('salvarMilitarFora', Object.assign({}, m, { [k]: novo }), () => { m[k] = novo; toast('✓ ' + m.nome + ': ' + ({ passagem: 'passagem', sdv: 'SDV', relatorio: 'relatório' })[k] + (novo ? ' ✓' : ' desmarcado')); refrescar(); });
+    }
     const ls = el.closest('[data-logsel]');
     if (ls && !el.closest('select')) { S.logSel = ls.dataset.logsel; return render(); }
     const lv = el.closest('[data-logver]');
@@ -2284,6 +2441,14 @@
     const el = ev.target;
     if (el.matches('select[data-etapa]')) return mudarStatus(el.dataset.etapa, el.value, el);
     if (el.matches('select[data-resp-etapa]')) return mudarResponsavel(el.dataset.respEtapa, el.value, el);
+    if (el.matches('select[data-fest]')) {
+      const e = FORA().etapas.find(y => String(y.linha) === el.dataset.fest), novo = el.value, antes = e.status, conc = e.conclusao;
+      e.status = novo; if (novo === 'Feito' && !e.conclusao) e.conclusao = S.dados.hoje;
+      recalcular();
+      return gravarNoServidor('atualizarEtapaFora', { linha: e.linha, cursoId: e.cursoId, etapa: e.etapa, status: novo }, () => { toast('✓ ' + e.etapa + ' → ' + novo); refrescar(); },
+        () => { e.status = antes; e.conclusao = conc; recalcular(); });
+    }
+    if (el.matches('input[data-fechk]') && S.edit) { S.edit.campos[el.dataset.fechk] = el.checked; return; }
     if (el.matches('select[data-logsit]')) {
       const t = S.turmaIdx[el.dataset.logsit], novo = el.value, k = chaveT(t.turma), antes = LOG().status[k];
       return gravarNoServidor('salvarLogisticaTurma', { turma: t.turma, situacao: novo }, () => {
@@ -2397,7 +2562,7 @@
     }
     if (ev.key === 'Enter' && S.edit && !S.salvando && document.activeElement.tagName === 'INPUT' && document.activeElement.dataset.campo) {
       ev.preventDefault();
-      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova', 'nova-etapa': 'salvar-nova-etapa', agendar: 'salvar-agenda' }[S.edit.tipo] || '');
+      acao({ etapa: 'salvar-etapa', turma: 'salvar-turma', cancelar: 'confirmar-cancelamento', nova: 'salvar-nova', 'nova-etapa': 'salvar-nova-etapa', agendar: 'salvar-agenda', 'fora-curso': 'fe-salvar-curso', 'fora-mil': 'fe-salvar-mil' }[S.edit.tipo] || '');
       return;
     }
     if (digitando) return;
@@ -2408,7 +2573,7 @@
     }
     if (ev.key === '/') { ev.preventDefault(); $('#search').focus(); }
     if (ev.key === 'r' || ev.key === 'R') carregar(true);
-    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos', 5: 'espacos', 6: 'logistica' };
+    const atalhos = { 1: 'geral', 2: 'cronograma', 3: 'etapas', 4: 'formandos', 5: 'fora', 6: 'logistica', 7: 'espacos' };
     if (atalhos[ev.key]) irPara(atalhos[ev.key]);
   });
 
