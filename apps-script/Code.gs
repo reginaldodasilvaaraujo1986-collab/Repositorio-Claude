@@ -974,6 +974,53 @@ function agendarEspaco(req) {
   }
 }
 
+/**
+ * Edita ou cancela uma reserva já feita (uma linha da agenda). Confere data, responsável e assunto
+ * da linha antes de gravar. Cancelar limpa a linha; se o dia tem outra linha com a mesma data, a linha extra é apagada.
+ * req: { espaco, linha, data, antes: { resp, assunto }, excluir, resp, assunto, hora, periodo, status }
+ */
+function editarAgenda(req) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.AGENDA_ID);
+    const aba = abaAgenda_(ss, req.espaco);
+    const v = aba.getDataRange().getDisplayValues();
+    const alvo = Utilities.formatDate(dataIso_(req.data), Session.getScriptTimeZone(), 'dd/MM/yyyy');
+    const i = Number(req.linha) - 1;
+    const r = v[i] || [];
+    const mesma = String(r[0] || '').trim() === alvo && semAcento_(r[1]) === semAcento_(req.antes && req.antes.resp) && semAcento_(r[6]) === semAcento_(req.antes && req.antes.assunto);
+    if (!mesma) throw new Error('A planilha de agendamento mudou desde o último carregamento. Atualize o painel e tente de novo.');
+    const linhasDoDia = [];
+    v.forEach((x, k) => { if (String(x[0] || '').trim() === alvo) linhasDoDia.push(k); });
+
+    if (req.excluir) {
+      if (linhasDoDia.length > 1) aba.deleteRow(i + 1);
+      else aba.getRange(i + 1, 2, 1, 6).clearContent();
+    } else {
+      const resp = String(req.resp || '').trim(), assunto = String(req.assunto || '').trim();
+      if (!resp || !assunto) throw new Error('Informe o responsável e o assunto.');
+      const periodo = ['manha', 'tarde', 'dia'].indexOf(req.periodo) >= 0 ? req.periodo : 'dia';
+      const nomeP = { manha: 'manhã', tarde: 'tarde', dia: 'o dia todo' };
+      linhasDoDia.filter(k => k !== i && (String(v[k][1] || '').trim() || String(v[k][6] || '').trim())).forEach(k => {
+        const p = periodoAgenda_(v[k][3], v[k][5]);
+        if (p === 'dia' || periodo === 'dia' || p === periodo) throw new Error('Conflito em ' + alvo + ' (' + nomeP[p] + '): ' + v[k][6] + ' — ' + v[k][1] + '.');
+      });
+      const status = ['Não iniciada', 'Em andamento', 'Concluída'].indexOf(req.status) >= 0 ? req.status : 'Não iniciada';
+      aba.getRange(i + 1, 2, 1, 3).setValues([[resp, status, String(req.hora || '').trim()]]);
+      // F (duração): mantém o texto original quando o período não mudou (ex.: "4 horas").
+      const durAntes = String(r[5] || '').trim();
+      const dur = periodoAgenda_(r[3], durAntes) === periodo && periodoAgenda_(req.hora, durAntes) === periodo ? durAntes : nomeP[periodo];
+      aba.getRange(i + 1, 6, 1, 2).setValues([[dur, assunto]]);
+    }
+    SpreadsheetApp.flush();
+    CacheService.getScriptCache().remove(AGENDA_CACHE);
+    return JSON.stringify({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /* ================================================================== */
 /* Cache em blocos (CacheService aceita até 100 KB por chave)          */
 /* ================================================================== */

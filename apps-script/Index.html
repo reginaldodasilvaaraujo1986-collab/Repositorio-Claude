@@ -1085,6 +1085,9 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
 .ag-ps .ag-e:not(.dia) small { display: none; }
 .ag-ps .ag-e:not(.dia) b { font-size: 9.5px; line-height: 1.15; }
 .ag-ps .ag-e:not(.dia) span { font-size: 11px; line-height: 1.15; }
+.ag-e.click, .ag-p.click { cursor: pointer; }
+.ag-e.click:hover { filter: brightness(.96); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ag-p.click:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -2364,8 +2367,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     const bloco = (r, iso) => {
       const st = ST_AGENDA(r.status);
       const tc = esp === 'aud' && turmasNoCpe(iso).length && /curso|est[aá]gio|credenciamento|treinamento|turma/i.test(r.assunto);
-      return '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + (r.periodo === 'dia' ? ' dia' : '') + '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + ' · ' +
-        esc([r.hora, r.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(r.resp) + (r.status ? '<br>' + esc(r.status) : '') + '">' +
+      return '<div class="ag-e st-' + st[0] + (tc ? ' turma' : '') + (r.periodo === 'dia' ? ' dia' : '') + (pode ? ' click" data-agedit="' + iso + '" data-aglinha="' + r.linha : '') + '" data-tip="<b>' + esc(r.assunto) + '</b>' + PERIODOS[r.periodo] + ' · ' +
+        esc([r.hora, r.duracao].filter(Boolean).join(' · ')) + '<br>' + esc(r.resp) + (r.status ? '<br>' + esc(r.status) : '') + (pode ? '<br><i>clique para editar ou cancelar</i>' : '') + '">' +
         '<b>' + (r.periodo === 'dia' ? 'Dia todo' : PERIODOS[r.periodo]) + (r.hora ? ' · ' + esc(r.hora) : '') + '</b><span>' + esc(r.assunto || '(sem assunto)') + '</span><small>' + esc(r.resp) + '</small></div>';
     };
     const vago = (iso, p) => {
@@ -2396,11 +2399,11 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     futuras.forEach(r => {
       const ult = blocos.find(b => b.assunto === r.assunto && b.resp === r.resp && b.periodo === r.periodo && (dt(r.iso) - dt(b.fim)) / DIA <= 3 && (dt(r.iso) - dt(b.fim)) / DIA > 0);
       if (ult) { ult.fim = r.iso; ult.n++; }
-      else blocos.push({ ini: r.iso, fim: r.iso, n: 1, assunto: r.assunto, resp: r.resp, hora: r.hora, periodo: r.periodo });
+      else blocos.push({ ini: r.iso, fim: r.iso, n: 1, assunto: r.assunto, resp: r.resp, hora: r.hora, periodo: r.periodo, linha: r.linha });
     });
     blocos.sort((p, q) => p.ini.localeCompare(q.ini) || ['manha', 'dia', 'tarde'].indexOf(p.periodo) - ['manha', 'dia', 'tarde'].indexOf(q.periodo));
     const ddmm = i => i.slice(8, 10) + '/' + i.slice(5, 7);
-    const prox = blocos.map(b => '<div class="ag-p"><span class="ag-pd">' + ddmm(b.ini) + '<small>' + DSEM[dt(b.ini).getDay()] + '</small></span>' +
+    const prox = blocos.map(b => '<div class="ag-p' + (pode ? ' click" data-agedit="' + b.ini + '" data-aglinha="' + b.linha + '" title="Editar ou cancelar' + (b.n > 1 ? ' (o dia ' + ddmm(b.ini) + ')' : '') : '') + '"><span class="ag-pd">' + ddmm(b.ini) + '<small>' + DSEM[dt(b.ini).getDay()] + '</small></span>' +
       '<span class="ag-pt"><b>' + esc(b.assunto || '(sem assunto)') + '</b><small><span class="ag-tag p-' + b.periodo + '">' + PERIODOS[b.periodo] + '</span> ' +
       esc(b.hora || '') + (b.n > 1 ? ' · até ' + ddmm(b.fim) + ' (' + b.n + ' dias)' : '') + ' · ' + esc(b.resp) + '</small></span></div>').join('');
 
@@ -2454,43 +2457,89 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     abrirForm('agendar');
   }
 
-  function formAgendar(c) {
+  function abrirEditarAgenda(iso, linha) {
+    const esp = S.espaco || 'aud';
+    const d = diasDoEspaco(esp)[iso];
+    const r = d && d.res.find(x => String(x.linha) === String(linha));
+    if (!r) return toast('Reserva não encontrada. Atualize o painel.', 'err');
+    S.edit = { tipo: 'agendar', editar: { linha: r.linha, antes: { resp: r.resp, assunto: r.assunto } },
+      campos: { espaco: esp, data: iso, periodo: r.periodo, hora: r.hora || '', resp: r.resp, assunto: r.assunto, status: r.status || 'Não iniciada' } };
+    abrirForm('agendar');
+  }
+
+  /** Outra reserva do mesmo dia que conflita com o período (na edição, ignora a própria linha). */
+  function conflitoAgenda(c) {
     const d = c.data ? diasDoEspaco(c.espaco)[c.data] : null;
-    const r = d && !d.fds ? (c.periodo === 'dia' ? d.res[0] : ocupa(d, c.periodo)) : null;
+    if (!d || d.fds) return null;
+    const ed = S.edit && S.edit.editar;
+    return d.res.filter(r => !ed || String(r.linha) !== String(ed.linha))
+      .find(r => r.periodo === 'dia' || c.periodo === 'dia' || r.periodo === c.periodo) || null;
+  }
+
+  function formAgendar(c) {
+    const ed = S.edit && S.edit.editar;
+    const d = c.data ? diasDoEspaco(c.espaco)[c.data] : null;
+    const r = conflitoAgenda(c);
     const aviso = !c.data ? '' : !d ? '<div class="hint danger">Esta data ainda não existe na aba "' + esc(ESPACOS[c.espaco]) + '" da planilha de agendamento.</div>'
       : d.fds ? '<div class="hint danger">Fim de semana.</div>'
-      : r ? '<div class="hint danger">Já reservado (' + PERIODOS[r.periodo].toLowerCase() + '): ' + esc(r.assunto) + ' — ' + esc(r.resp) + '.</div>'
-      : '<div class="hint" style="color:var(--s-enc)">✓ ' + esc(ESPACOS[c.espaco]) + ' livre em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ').</div>';
+      : r ? '<div class="hint danger">Conflito (' + PERIODOS[r.periodo].toLowerCase() + '): ' + esc(r.assunto) + ' — ' + esc(r.resp) + '.</div>'
+      : '<div class="hint" style="color:var(--s-enc)">✓ ' + (ed ? 'Sem conflito com outras reservas do dia.' : esc(ESPACOS[c.espaco]) + ' livre em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ').') + '</div>';
     const eq = (S.dados.responsaveis || []);
-    return '<h2>Agendar ' + esc(ESPACOS[c.espaco].toLowerCase()) + '</h2><div class="sub">A reserva é gravada na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”. ' +
-      'Se o dia já tiver reserva no outro período, entra uma segunda linha com a mesma data. Cursos: use “Dia todo”.</div>' +
+    if (ed && S.edit.excluir) {
+      return '<h2>Cancelar reserva</h2><div class="sub">' + esc(ESPACOS[c.espaco]) + ' · ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')</div>' +
+        '<div class="hint danger" style="margin-top:16px"><b>' + esc(ed.antes.assunto) + '</b> — ' + esc(ed.antes.resp) + '<br>A linha deste dia fica livre na planilha de agendamento' +
+        ' (se for uma segunda linha com a mesma data, ela é apagada). Só este dia é cancelado.</div>' +
+        '<div class="form-acoes">' + botao('confirmar-excluir-agenda', 'Cancelar reserva', 'danger') + botao('voltar-agenda', 'Voltar', '') + '</div>';
+    }
+    return '<h2>' + (ed ? 'Editar reserva' : 'Agendar ' + esc(ESPACOS[c.espaco].toLowerCase())) + '</h2>' +
+      '<div class="sub">' + (ed ? esc(ESPACOS[c.espaco]) + ' · ' + fmtAno(c.data) + '. A alteração vale só para este dia.'
+        : 'A reserva é gravada na planilha AGENDAMENTO DE REUNIÕES, com status “Não iniciada”. Se o dia já tiver reserva no outro período, entra uma segunda linha com a mesma data. Cursos: use “Dia todo”.') + '</div>' +
       '<div class="form" style="margin-top:16px">' +
-        campoSel('Espaço', 'espaco', c.espaco, Object.keys(ESPACOS).map(k => [k, ESPACOS[k]])) +
-        '<div class="form g2" style="margin-top:0">' + campo('Data', 'data', c.data, 'date') +
+        (ed ? '' : campoSel('Espaço', 'espaco', c.espaco, Object.keys(ESPACOS).map(k => [k, ESPACOS[k]]))) +
+        '<div class="form g2" style="margin-top:0">' + (ed ? campo('Hora de início', 'hora', c.hora, 'time') : campo('Data', 'data', c.data, 'date')) +
           campoSel('Período', 'periodo', c.periodo, [['manha', 'Manhã'], ['tarde', 'Tarde'], ['dia', 'Dia todo']]) + '</div>' +
-        campo('Hora de início', 'hora', c.hora, 'time') + aviso +
+        (ed ? campoSel('Status', 'status', c.status, [['Não iniciada', 'Não iniciada'], ['Em andamento', 'Em andamento'], ['Concluída', 'Concluída']]
+          .concat(['Não iniciada', 'Em andamento', 'Concluída'].indexOf(c.status) < 0 && c.status ? [[c.status, c.status]] : [])) : campo('Hora de início', 'hora', c.hora, 'time')) +
+        aviso +
         campo('Responsável', 'resp', c.resp, 'text', ' list="dl-agresp" placeholder="Ex.: Ten Augusto"') +
         '<datalist id="dl-agresp">' + eq.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist>' +
         campo('Assunto', 'assunto', c.assunto, 'text', ' placeholder="Ex.: Instrução Semanal"') +
-      '</div><div class="form-acoes">' + botao('salvar-agenda', 'Reservar', 'primary') + '<button class="btn" data-fechar>Cancelar</button></div>';
+      '</div><div class="form-acoes">' + botao('salvar-agenda', ed ? 'Salvar' : 'Reservar', 'primary') + '<button class="btn" data-fechar>' + (ed ? 'Fechar' : 'Cancelar') + '</button>' +
+        (ed ? '<span style="margin-left:auto"></span>' + botao('excluir-agenda', 'Cancelar reserva…', 'danger-ghost') : '') + '</div>';
   }
 
-  function salvarAgenda() {
-    const c = S.edit.campos;
-    if (!c.data) return toast('Escolha a data.', 'err');
-    if (!String(c.resp).trim() || !String(c.assunto).trim()) return toast('Informe o responsável e o assunto.', 'err');
-    const d = diasDoEspaco(c.espaco)[c.data];
-    if (d && !livreEm(d, c.periodo)) return toast('Este período não está livre.', 'err');
-    gravarNoServidor('agendarEspaco', { espaco: c.espaco, data: c.data, periodo: c.periodo, hora: c.hora, resp: c.resp, assunto: c.assunto }, () => {
-      toast('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')');
-      if (!RUN) {
-        const dias = S.agenda.espacos[c.espaco].dias, alvo = dias.find(x => x.data === c.data && !x.resp && !x.assunto);
-        const nova = { data: c.data, fds: false, resp: c.resp, status: 'Não iniciada', hora: c.hora, duracao: PERIODOS[c.periodo].toLowerCase(), assunto: c.assunto, periodo: c.periodo };
-        if (alvo) Object.assign(alvo, nova); else dias.push(nova);
-      }
+  function salvarAgenda(excluir) {
+    const c = S.edit.campos, ed = S.edit.editar;
+    if (!excluir) {
+      if (!c.data) return toast('Escolha a data.', 'err');
+      if (!String(c.resp).trim() || !String(c.assunto).trim()) return toast('Informe o responsável e o assunto.', 'err');
+      const d = diasDoEspaco(c.espaco)[c.data];
+      if (d && (d.fds || conflitoAgenda(c))) return toast('Este período não está livre.', 'err');
+    }
+    const fim = msg => {
+      toast(msg);
       S.espaco = c.espaco;
       fecharDrawer();
       if (RUN) { S.agenda = null; carregarAgenda(true); } else render();
+    };
+    if (ed) {
+      return gravarNoServidor('editarAgenda', { espaco: c.espaco, linha: ed.linha, data: c.data, antes: ed.antes, excluir: !!excluir,
+        resp: c.resp, assunto: c.assunto, hora: c.hora, periodo: c.periodo, status: c.status }, () => {
+        if (!RUN) {
+          const dias = S.agenda.espacos[c.espaco].dias, x = dias.find(y => y.data === c.data && String(y.linha) === String(ed.linha));
+          if (x && excluir) { const outras = dias.filter(y => y.data === c.data).length; if (outras > 1) dias.splice(dias.indexOf(x), 1); else Object.assign(x, { resp: '', assunto: '', hora: '', duracao: '', status: '', periodo: '' }); }
+          else if (x) Object.assign(x, { resp: c.resp, assunto: c.assunto, hora: c.hora, status: c.status, periodo: c.periodo, duracao: PERIODOS[c.periodo].toLowerCase() });
+        }
+        fim(excluir ? 'Reserva cancelada: ' + fmtAno(c.data) : '✓ Reserva atualizada: ' + fmtAno(c.data));
+      });
+    }
+    gravarNoServidor('agendarEspaco', { espaco: c.espaco, data: c.data, periodo: c.periodo, hora: c.hora, resp: c.resp, assunto: c.assunto }, () => {
+      if (!RUN) {
+        const dias = S.agenda.espacos[c.espaco].dias, alvo = dias.find(x => x.data === c.data && !x.resp && !x.assunto);
+        const nova = { data: c.data, linha: 'n' + Date.now(), fds: false, resp: c.resp, status: 'Não iniciada', hora: c.hora, duracao: PERIODOS[c.periodo].toLowerCase(), assunto: c.assunto, periodo: c.periodo };
+        if (alvo) Object.assign(alvo, nova, { linha: alvo.linha }); else dias.push(nova);
+      }
+      fim('✓ ' + ESPACOS[c.espaco] + ' reservado em ' + fmtAno(c.data) + ' (' + PERIODOS[c.periodo].toLowerCase() + ')');
     });
   }
 
@@ -3029,7 +3078,10 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (nome === 'salvar-equipe') return salvarEquipe();
     if (nome === 'criar-ano') return criarAno();
     if (nome === 'agendar') return abrirAgendar('');
-    if (nome === 'salvar-agenda') return salvarAgenda();
+    if (nome === 'salvar-agenda') return salvarAgenda(false);
+    if (nome === 'excluir-agenda') { S.edit.excluir = true; return abrirForm('agendar'); }
+    if (nome === 'voltar-agenda') { S.edit.excluir = false; return abrirForm('agendar'); }
+    if (nome === 'confirmar-excluir-agenda') return salvarAgenda(true);
 
     if (nome === 'editar-etapa') {
       const e = S.idx[el.dataset.id]; if (!e) return;
@@ -3258,6 +3310,8 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     if (es) { S.espaco = es.dataset.esp; return render(); }
     const am = el.closest('[data-agmes]');
     if (am) { const v = Number(am.dataset.agmes); S.agMes = v === 0 ? 0 : (S.agMes || 0) + v; return render(); }
+    const ae = el.closest('[data-agedit]');
+    if (ae) { return abrirEditarAgenda(ae.dataset.agedit, ae.dataset.aglinha); }
     const ad = el.closest('[data-agdia]');
     if (ad) { return abrirAgendar(ad.dataset.agdia, ad.dataset.agper); }
     const sm = el.closest('[data-semestre]');
@@ -3316,7 +3370,7 @@ h1 { font: 600 24px/1.15 var(--serif); margin: 0; letter-spacing: -.01em; white-
     }
     if (el.dataset && /^(espaco|data|periodo)$/.test(el.dataset.campo || '') && S.form === 'agendar') {
       S.edit.campos[el.dataset.campo] = el.value;
-      if (el.dataset.campo === 'periodo') S.edit.campos.hora = el.value === 'tarde' ? '13:00' : '08:00';
+      if (el.dataset.campo === 'periodo' && !S.edit.editar) S.edit.campos.hora = el.value === 'tarde' ? '13:00' : '08:00';
       return abrirForm('agendar');
     }
     if (el.dataset && el.dataset.campo === 'cursoOficial' && S.form === 'nova') { S.edit.campos.cursoOficial = el.value; return abrirForm('nova'); }
